@@ -1,6 +1,7 @@
 #include "axiom_ring.h"
 #include "axiom_port.h"
 #include "axiom_crc.h"
+#include <assert.h>
 #include <string.h>
 #include <stdint.h>
 
@@ -36,6 +37,9 @@ void axiom_ring_write_chunk(axiom_ring_t *ring, const uint8_t *data, uint16_t le
 }
 
 void axiom_ring_init(axiom_ring_t *ring, uint8_t *buf, uint32_t size) {
+    /* 验证 size 是 2 的幂，否则 mask 计算会出错 */
+    assert((size & (size - 1)) == 0 && "Ring buffer size must be power of 2");
+
     ring->head = 0;
     ring->tail = 0;
     ring->capacity = size;
