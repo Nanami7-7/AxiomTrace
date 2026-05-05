@@ -1,22 +1,26 @@
 /**
-* @file    app_main.h
-* @brief   应用层主接口
-* @note    应用层入口: 创建FreeRTOS任务/裸机主循环
-*          硬件/RTOS无关,仅依赖BSP和OSAL接口
-*
-*          默认任务:
-*          - 控制任务(control_task): 电机PID闭环, 5ms周期
-*          - 菜单任务(menu_task): 串口交互菜单+LED心跳
-*/
+ * @file    app_main.h
+ * @brief   应用层主接口
+ * @note    应用层入口: 创建FreeRTOS任务/裸机主循环
+ *          硬件/RTOS无关,仅依赖BSP和OSAL接口
+ *
+ *          默认任务:
+ *          - 控制任务(control_task): 电机PID闭环, 5ms周期
+ *          - 菜单任务(menu_task): 串口交互菜单+LED心跳
+ */
 #ifndef APP_MAIN_H
 #define APP_MAIN_H
 
 #ifdef __cplusplus
-extern C {
+extern "C" {
 #endif
 
 /* ======================== 包含 ======================== */
 #include <stdint.h>
+#include <stdbool.h>
+#include "app_pid.h"
+#include "bsp_motor.h"
+#include "project_config.h"
 
 /* ======================== 任务优先级 ======================== */
 
@@ -55,30 +59,30 @@ extern C {
 /** 速度环默认微分增益 */
 #define APP_PID_DEFAULT_KD          (0.0f)
 
+/* ======================== 共享上下文 ======================== */
+
+/** 控制任务共享状态(控制任务写, 菜单任务读) */
+typedef struct {
+    int32_t rpm[BSP_MOTOR_COUNT];
+    int32_t output[BSP_MOTOR_COUNT];
+} app_control_status_t;
+
+/** 应用层共享上下文(控制任务和菜单任务之间共享) */
+typedef struct {
+    app_pid_t            pid[BSP_MOTOR_COUNT];       /**< PID控制器实例 */
+    bool                 motor_enabled[BSP_MOTOR_COUNT]; /**< 电机使能标志 */
+    app_control_status_t status;                     /**< 控制任务状态 */
+} app_shared_ctx_t;
+
 /* ======================== 函数接口 ======================== */
 
 /**
-* @brief  应用层初始化
-* @note   创建FreeRTOS任务, 必须在调度器启动前调用
-*         初始化各BSP模块, 创建控制/菜单任务
-* @retval 0 成功, 非0 失败
-*/
+ * @brief  应用层初始化
+ * @note   创建FreeRTOS任务, 必须在调度器启动前调用
+ *         初始化各BSP模块, 创建控制/菜单任务
+ * @retval 0 成功, 非0 失败
+ */
 int32_t app_main_init(void);
-
-/**
-* @brief  控制任务函数
-* @note   5ms周期: 读取编码器→M法测速RPM→PID计算→设置电机duty
-* @param  param 任务参数(未使用)
-*/
-void app_control_task(void *param);
-
-/**
-* @brief  菜单任务函数
-* @note   串口交互菜单: 选电机/设RPM/调PID/启停电机
-* @param  param 任务参数(未使用)
-*/
-void app_menu_task(void *param);
-
 
 #ifdef __cplusplus
 }

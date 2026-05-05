@@ -341,7 +341,7 @@
               <MiscControls></MiscControls>
               <Define>__MSPM0G3507__</Define>
               <Undefine></Undefine>
-              <IncludePath>..\..\source\third_party\CMSIS\Core\Include;..\..\source;..\;..\App;..\BSP;..\HAL;..\OSAL;..\Config;.\FreeRTOS\include;.\FreeRTOS\portable\MemMang;.\FreeRTOS\portable\GCC\ARM_CM0;.\FreeRTOS\src</IncludePath>
+              <IncludePath>..\..\source\third_party\CMSIS\Core\Include;..\..\source;..\;..\App;..\App\Task;..\BSP;..\HAL;..\OSAL;..\Config;.\FreeRTOS\include;.\FreeRTOS\portable\MemMang;.\FreeRTOS\portable\GCC\ARM_CM0;.\FreeRTOS\src</IncludePath>
             </VariousControls>
           </Cads>
           <Aads>
@@ -454,6 +454,26 @@
               <FileName>app_pid.h</FileName>
               <FileType>5</FileType>
               <FilePath>..\App\app_pid.h</FilePath>
+            </File>
+            <File>
+              <FileName>task_control.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\App\Task\task_control.c</FilePath>
+            </File>
+            <File>
+              <FileName>task_control.h</FileName>
+              <FileType>5</FileType>
+              <FilePath>..\App\Task\task_control.h</FilePath>
+            </File>
+            <File>
+              <FileName>task_menu.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\App\Task\task_menu.c</FilePath>
+            </File>
+            <File>
+              <FileName>task_menu.h</FileName>
+              <FileType>5</FileType>
+              <FilePath>..\App\Task\task_menu.h</FilePath>
             </File>
           </Files>
         </Group>

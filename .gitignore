@@ -1,0 +1,56 @@
+# ========================
+# Keil µVision 编译产物
+# ========================
+*.o
+*.d
+*.axf
+*.map
+*.htm
+*.lnp
+*.lst
+*.crf
+*.dep
+*.sct
+*.tra
+*.iex
+*.fed
+*.lin
+*.wrn
+*.brf
+*.uvoptx
+# Keil Listings 和 Objects 目录
+**/listings/
+**/Listings/
+**/objects/
+**/Objects/
+**/RTE/
+# Keil 调试文件
+*.uvguix.*
+
+# ========================
+# SysConfig 临时文件
+# ========================
+*.cfg.bak
+
+# ========================
+# Windows 系统文件
+# ========================
+Thumbs.db
+Desktop.ini
+ehthumbs.db
+
+# ========================
+# 日志和临时文件
+# ========================
+*.log
+uninstall.dat
+uninstall.exe
+
+# ========================
+# 发布说明 HTML (SDK 自带, 无需跟踪)
+# ========================
+release_notes_*.html
+known_issues_FAQ.html
+manifest_*.html
+license_*.txt
+mspm0sdk_*.log
