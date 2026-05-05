@@ -224,7 +224,7 @@ static void menu_print_main(const menu_ctx_t *ctx)
     }
 
     (void)printf(
-        "1:Motor 2:RPM 3:PID 4:Run 0:Back\r\n");
+        "a:Motor b:RPM c:PID d:Run q:Back\r\n");
 }
 
 /**
@@ -261,29 +261,29 @@ static void menu_state_main(menu_ctx_t *ctx)
     char ch = ctx->line_buf[0];
 
     switch (ch) {
-    case '1':
+    case 'a':
         ctx->state = MENU_STATE_MOTOR_SELECT;
-        (void)printf("Select motor (1-4, 0=back):\r\n");
+        (void)printf("Select motor (a-d, q=back):\r\n");
         break;
-    case '2':
+    case 'b':
         ctx->state = MENU_STATE_SET_RPM;
-        (void)printf("Set RPM for Motor %s (0=back):\r\n",
+        (void)printf("Set RPM for Motor %s (q=back):\r\n",
             s_motor_names[ctx->selected_motor]);
         break;
-    case '3':
+    case 'c':
         ctx->state = MENU_STATE_TUNING_PID;
         (void)printf(
-            "Set KP KI KD for Motor %s (e.g. 1.5 0.3 0.1, 0=back):\r\n",
+            "Set KP KI KD for Motor %s (e.g. 1.5 0.3 0.1, q=back):\r\n",
             s_motor_names[ctx->selected_motor]);
         break;
-    case '4':
+    case 'd':
         ctx->state = MENU_STATE_RUNNING;
         /* 设PID目标值(RPM)并使能电机 */
         app_pid_set_setpoint(
             &s_pid[ctx->selected_motor],
             (float)ctx->target_rpm);
         s_motor_enabled[ctx->selected_motor] = true;
-        (void)printf("Motor %s running (0=stop):\r\n",
+        (void)printf("Motor %s running (q=stop):\r\n",
             s_motor_names[ctx->selected_motor]);
         break;
     default:
@@ -309,17 +309,17 @@ static void menu_state_motor_select(menu_ctx_t *ctx)
 
     char ch = ctx->line_buf[0];
 
-    if (ch == '0') {
+    if (ch == 'q') {
         ctx->state = MENU_STATE_MAIN;
         ctx->need_print = true;
-    } else if (ch >= '1' && ch <= '4') {
-        ctx->selected_motor = (uint32_t)(ch - '1');
+    } else if (ch >= 'a' && ch <= 'd') {
+        ctx->selected_motor = (uint32_t)(ch - 'a');
         (void)printf("Motor %s selected\r\n",
             s_motor_names[ctx->selected_motor]);
         ctx->state = MENU_STATE_MAIN;
         ctx->need_print = true;
     } else {
-        (void)printf("Invalid! Enter 1-4 or 0\r\n");
+        (void)printf("Invalid! Enter a-d or q\r\n");
     }
 
     menu_line_reset(ctx);
@@ -341,7 +341,7 @@ static void menu_state_set_rpm(menu_ctx_t *ctx)
 
     char ch = ctx->line_buf[0];
 
-    if (ch == '0') {
+    if (ch == 'q') {
         ctx->state = MENU_STATE_MAIN;
         ctx->need_print = true;
     } else {
@@ -377,7 +377,7 @@ static void menu_state_tuning_pid(menu_ctx_t *ctx)
 
     char ch = ctx->line_buf[0];
 
-    if (ch == '0') {
+    if (ch == 'q') {
         ctx->state = MENU_STATE_MAIN;
         ctx->need_print = true;
     } else {
@@ -414,7 +414,7 @@ static void menu_state_running(menu_ctx_t *ctx)
     /* 检查是否有输入 */
     uint8_t ch;
     if (bsp_uart_getc(&ch) == BSP_OK) {
-        if (ch == '0' || ch == 'q') {
+        if (ch == 'q') {
             motor_stop_and_disable(ctx->selected_motor);
             (void)printf("Motor %s stopped\r\n",
                 s_motor_names[ctx->selected_motor]);

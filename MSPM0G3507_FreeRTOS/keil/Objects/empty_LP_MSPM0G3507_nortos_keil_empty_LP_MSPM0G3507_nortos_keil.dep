@@ -1,18 +1,18 @@
 Dependencies for Project 'empty_LP_MSPM0G3507_nortos_keil', Target 'empty_LP_MSPM0G3507_nortos_keil': (DO NOT MODIFY !)
 CompilerVersion: 6180000::V6.18::ARMCLANG
-F (../main.c)(0x69F61E6F)(-xc -std=c99 --target=arm-arm-none-eabi -mcpu=cortex-m0plus -c-fno-rtti -funsigned-char -fshort-enums -fshort-wchar-D__MICROLIB -gdwarf-4 -O0 -ffunction-sections -Wno-packed -Wno-missing-variable-declarations -Wno-missing-prototypes -Wno-missing-noreturn -Wno-sign-conversion -Wno-nonportable-include-path -Wno-reserved-id-macro -Wno-unused-macros -Wno-documentation-unknown-command -Wno-documentation -Wno-license-management -Wno-parentheses-equality -Wno-reserved-identifier -Wno-covered-switch-default -Wno-unreachable-code-break -I ../../source/third_party/CMSIS/Core/Include -I ../../source -I ../ -I ../App -I ../BSP -I ../HAL -I ../OSAL -I ../Config -I ./FreeRTOS/include -I ./FreeRTOS/portable/MemMang -I ./FreeRTOS/portable/GCC/ARM_CM0 -I ./FreeRTOS/src-D__UVISION_VERSION="537" -D__MSPM0G3507__ -D__MSPM0G3507__-o ./objects/main.o -MD)
-I (FreeRTOS\include\FreeRTOS.h)(0x69CF7DC6)
+F (../main.c)(0x69F98CA0)(-xc -std=c99 --target=arm-arm-none-eabi -mcpu=cortex-m0plus -c-fno-rtti -funsigned-char -fshort-enums -fshort-wchar-D__MICROLIB -gdwarf-4 -O0 -ffunction-sections -Wno-packed -Wno-missing-variable-declarations -Wno-missing-prototypes -Wno-missing-noreturn -Wno-sign-conversion -Wno-nonportable-include-path -Wno-reserved-id-macro -Wno-unused-macros -Wno-documentation-unknown-command -Wno-documentation -Wno-license-management -Wno-parentheses-equality -Wno-reserved-identifier -Wno-covered-switch-default -Wno-unreachable-code-break -I ../../source/third_party/CMSIS/Core/Include -I ../../source -I ../ -I ../App -I ../BSP -I ../HAL -I ../OSAL -I ../Config -I ./FreeRTOS/include -I ./FreeRTOS/portable/MemMang -I ./FreeRTOS/portable/GCC/ARM_CM0 -I ./FreeRTOS/src-D__UVISION_VERSION="537" -D__MSPM0G3507__ -D__MSPM0G3507__-o ./objects/main.o -MD)
+I (FreeRTOS\include\FreeRTOS.h)(0x69F98C9F)
 I (D:\Keil5\Core\ARM\ARMCLANG\include\stddef.h)(0x625260D6)
 I (D:\Keil5\Core\ARM\ARMCLANG\include\stdint.h)(0x625260D8)
-I (..\FreeRTOSConfig.h)(0x69DDFB74)
-I (FreeRTOS\include\projdefs.h)(0x69CF7DC6)
-I (FreeRTOS\include\portable.h)(0x69CF7DC6)
-I (FreeRTOS\include\deprecated_definitions.h)(0x69CF7DC6)
-I (FreeRTOS\portable\GCC\ARM_CM0\portmacro.h)(0x69CF7DC6)
-I (FreeRTOS\include\mpu_wrappers.h)(0x69CF7DC6)
-I (FreeRTOS\include\task.h)(0x69CF7DC6)
-I (FreeRTOS\include\list.h)(0x69CF7DC6)
-I (..\ti_msp_dl_config.h)(0x69F983E9)
+I (..\FreeRTOSConfig.h)(0x69F98C9F)
+I (FreeRTOS\include\projdefs.h)(0x69F98C9F)
+I (FreeRTOS\include\portable.h)(0x69F98C9F)
+I (FreeRTOS\include\deprecated_definitions.h)(0x69F98C9F)
+I (FreeRTOS\portable\GCC\ARM_CM0\portmacro.h)(0x69F98C9F)
+I (FreeRTOS\include\mpu_wrappers.h)(0x69F98C9F)
+I (FreeRTOS\include\task.h)(0x69F98C9F)
+I (FreeRTOS\include\list.h)(0x69F98C9F)
+I (..\ti_msp_dl_config.h)(0x69F997C0)
 I (..\..\source\ti\devices\msp\msp.h)(0x69CF7DC9)
 I (..\..\source\ti\devices\DeviceFamily.h)(0x69CF7DC9)
 I (..\..\source\ti\devices\msp\m0p\mspm0g350x.h)(0x69CF7DC9)
@@ -94,14 +94,14 @@ I (..\..\source\ti\driverlib\dl_vref.h)(0x69CF7DCA)
 I (..\..\source\ti\driverlib\dl_wwdt.h)(0x69CF7DCA)
 I (..\..\source\ti\driverlib\m0p\dl_interrupt.h)(0x69CF7DCA)
 I (..\..\source\ti\driverlib\m0p\dl_systick.h)(0x69CF7DCA)
-I (..\App\app_main.h)(0x69F8E031)
-I (..\BSP\bsp_motor.h)(0x69F6DF39)
-I (..\BSP\bsp_common.h)(0x69F4790F)
-I (..\HAL\hal_gpio.h)(0x69F47150)
-I (..\HAL\hal_common.h)(0x69F4713E)
-I (..\HAL\hal_timer.h)(0x69F89E63)
-F (../ti_msp_dl_config.c)(0x69F88E3A)(-xc -std=c99 --target=arm-arm-none-eabi -mcpu=cortex-m0plus -c-fno-rtti -funsigned-char -fshort-enums -fshort-wchar-D__MICROLIB -gdwarf-4 -O0 -ffunction-sections -Wno-packed -Wno-missing-variable-declarations -Wno-missing-prototypes -Wno-missing-noreturn -Wno-sign-conversion -Wno-nonportable-include-path -Wno-reserved-id-macro -Wno-unused-macros -Wno-documentation-unknown-command -Wno-documentation -Wno-license-management -Wno-parentheses-equality -Wno-reserved-identifier -Wno-covered-switch-default -Wno-unreachable-code-break -I ../../source/third_party/CMSIS/Core/Include -I ../../source -I ../ -I ../App -I ../BSP -I ../HAL -I ../OSAL -I ../Config -I ./FreeRTOS/include -I ./FreeRTOS/portable/MemMang -I ./FreeRTOS/portable/GCC/ARM_CM0 -I ./FreeRTOS/src-D__UVISION_VERSION="537" -D__MSPM0G3507__ -D__MSPM0G3507__-o ./objects/ti_msp_dl_config.o -MD)
-I (..\ti_msp_dl_config.h)(0x69F983E9)
+I (..\App\app_main.h)(0x69F98C9F)
+I (..\BSP\bsp_motor.h)(0x69F98C9F)
+I (..\BSP\bsp_common.h)(0x69F98C9F)
+I (..\HAL\hal_gpio.h)(0x69F98C9F)
+I (..\HAL\hal_common.h)(0x69F98C9F)
+I (..\HAL\hal_timer.h)(0x69F98C9F)
+F (../ti_msp_dl_config.c)(0x69F997C0)(-xc -std=c99 --target=arm-arm-none-eabi -mcpu=cortex-m0plus -c-fno-rtti -funsigned-char -fshort-enums -fshort-wchar-D__MICROLIB -gdwarf-4 -O0 -ffunction-sections -Wno-packed -Wno-missing-variable-declarations -Wno-missing-prototypes -Wno-missing-noreturn -Wno-sign-conversion -Wno-nonportable-include-path -Wno-reserved-id-macro -Wno-unused-macros -Wno-documentation-unknown-command -Wno-documentation -Wno-license-management -Wno-parentheses-equality -Wno-reserved-identifier -Wno-covered-switch-default -Wno-unreachable-code-break -I ../../source/third_party/CMSIS/Core/Include -I ../../source -I ../ -I ../App -I ../BSP -I ../HAL -I ../OSAL -I ../Config -I ./FreeRTOS/include -I ./FreeRTOS/portable/MemMang -I ./FreeRTOS/portable/GCC/ARM_CM0 -I ./FreeRTOS/src-D__UVISION_VERSION="537" -D__MSPM0G3507__ -D__MSPM0G3507__-o ./objects/ti_msp_dl_config.o -MD)
+I (..\ti_msp_dl_config.h)(0x69F997C0)
 I (..\..\source\ti\devices\msp\msp.h)(0x69CF7DC9)
 I (..\..\source\ti\devices\DeviceFamily.h)(0x69CF7DC9)
 I (..\..\source\ti\devices\msp\m0p\mspm0g350x.h)(0x69CF7DC9)
@@ -185,14 +185,14 @@ I (..\..\source\ti\driverlib\dl_vref.h)(0x69CF7DCA)
 I (..\..\source\ti\driverlib\dl_wwdt.h)(0x69CF7DCA)
 I (..\..\source\ti\driverlib\m0p\dl_interrupt.h)(0x69CF7DCA)
 I (..\..\source\ti\driverlib\m0p\dl_systick.h)(0x69CF7DCA)
-F (../ti_msp_dl_config.h)(0x69F983E9)()
-F (..\FreeRTOSConfig.h)(0x69DDFB74)()
-F (../empty.syscfg)(0x69F98271)()
-F (startup_mspm0g350x_uvision.s)(0x69E0E4FB)(--target=arm-arm-none-eabi -mcpu=cortex-m0plus -masm=auto -c-gdwarf-4 -Wa,armasm,--pd,"__MICROLIB SETA 1"-Wa,armasm,--pd,"__UVISION_VERSION SETA 537" -Wa,armasm,--pd,"__MSPM0G3507__ SETA 1"-o ./objects/startup_mspm0g350x_uvision.o)
-F (..\README.md)(0x69CF7DC6)()
-F (..\board.c)(0x69F73D71)(-xc -std=c99 --target=arm-arm-none-eabi -mcpu=cortex-m0plus -c-fno-rtti -funsigned-char -fshort-enums -fshort-wchar-D__MICROLIB -gdwarf-4 -O0 -ffunction-sections -Wno-packed -Wno-missing-variable-declarations -Wno-missing-prototypes -Wno-missing-noreturn -Wno-sign-conversion -Wno-nonportable-include-path -Wno-reserved-id-macro -Wno-unused-macros -Wno-documentation-unknown-command -Wno-documentation -Wno-license-management -Wno-parentheses-equality -Wno-reserved-identifier -Wno-covered-switch-default -Wno-unreachable-code-break -I ../../source/third_party/CMSIS/Core/Include -I ../../source -I ../ -I ../App -I ../BSP -I ../HAL -I ../OSAL -I ../Config -I ./FreeRTOS/include -I ./FreeRTOS/portable/MemMang -I ./FreeRTOS/portable/GCC/ARM_CM0 -I ./FreeRTOS/src-D__UVISION_VERSION="537" -D__MSPM0G3507__ -D__MSPM0G3507__-o ./objects/board.o -MD)
-I (..\board.h)(0x69F5F338)
-I (..\ti_msp_dl_config.h)(0x69F983E9)
+F (../ti_msp_dl_config.h)(0x69F997C0)()
+F (..\FreeRTOSConfig.h)(0x69F98C9F)()
+F (../empty.syscfg)(0x69F98C9F)()
+F (startup_mspm0g350x_uvision.s)(0x69F98CA0)(--target=arm-arm-none-eabi -mcpu=cortex-m0plus -masm=auto -c-gdwarf-4 -Wa,armasm,--pd,"__MICROLIB SETA 1"-Wa,armasm,--pd,"__UVISION_VERSION SETA 537" -Wa,armasm,--pd,"__MSPM0G3507__ SETA 1"-o ./objects/startup_mspm0g350x_uvision.o)
+F (..\README.md)(0x69F98C9F)()
+F (..\board.c)(0x69F98C9F)(-xc -std=c99 --target=arm-arm-none-eabi -mcpu=cortex-m0plus -c-fno-rtti -funsigned-char -fshort-enums -fshort-wchar-D__MICROLIB -gdwarf-4 -O0 -ffunction-sections -Wno-packed -Wno-missing-variable-declarations -Wno-missing-prototypes -Wno-missing-noreturn -Wno-sign-conversion -Wno-nonportable-include-path -Wno-reserved-id-macro -Wno-unused-macros -Wno-documentation-unknown-command -Wno-documentation -Wno-license-management -Wno-parentheses-equality -Wno-reserved-identifier -Wno-covered-switch-default -Wno-unreachable-code-break -I ../../source/third_party/CMSIS/Core/Include -I ../../source -I ../ -I ../App -I ../BSP -I ../HAL -I ../OSAL -I ../Config -I ./FreeRTOS/include -I ./FreeRTOS/portable/MemMang -I ./FreeRTOS/portable/GCC/ARM_CM0 -I ./FreeRTOS/src-D__UVISION_VERSION="537" -D__MSPM0G3507__ -D__MSPM0G3507__-o ./objects/board.o -MD)
+I (..\board.h)(0x69F98C9F)
+I (..\ti_msp_dl_config.h)(0x69F997C0)
 I (..\..\source\ti\devices\msp\msp.h)(0x69CF7DC9)
 I (..\..\source\ti\devices\DeviceFamily.h)(0x69CF7DC9)
 I (..\..\source\ti\devices\msp\m0p\mspm0g350x.h)(0x69CF7DC9)
@@ -277,43 +277,43 @@ I (..\..\source\ti\driverlib\dl_wwdt.h)(0x69CF7DCA)
 I (..\..\source\ti\driverlib\m0p\dl_interrupt.h)(0x69CF7DCA)
 I (..\..\source\ti\driverlib\m0p\dl_systick.h)(0x69CF7DCA)
 I (D:\Keil5\Core\ARM\ARMCLANG\include\string.h)(0x625260D6)
-I (..\BSP\bsp_encoder.h)(0x69F8A8ED)
-I (..\BSP\bsp_common.h)(0x69F4790F)
-I (..\HAL\hal_gpio.h)(0x69F47150)
-I (..\HAL\hal_common.h)(0x69F4713E)
-I (..\HAL\hal_timer.h)(0x69F89E63)
-I (..\BSP\bsp_uart.h)(0x69F47D43)
+I (..\BSP\bsp_encoder.h)(0x69F98C9F)
+I (..\BSP\bsp_common.h)(0x69F98C9F)
+I (..\HAL\hal_gpio.h)(0x69F98C9F)
+I (..\HAL\hal_common.h)(0x69F98C9F)
+I (..\HAL\hal_timer.h)(0x69F98C9F)
+I (..\BSP\bsp_uart.h)(0x69F98C9F)
 I (D:\Keil5\Core\ARM\ARMCLANG\include\stdio.h)(0x625260D6)
-F (..\board.h)(0x69F5F338)()
-F (..\App\app_main.c)(0x69F9838D)(-xc -std=c99 --target=arm-arm-none-eabi -mcpu=cortex-m0plus -c-fno-rtti -funsigned-char -fshort-enums -fshort-wchar-D__MICROLIB -gdwarf-4 -O0 -ffunction-sections -Wno-packed -Wno-missing-variable-declarations -Wno-missing-prototypes -Wno-missing-noreturn -Wno-sign-conversion -Wno-nonportable-include-path -Wno-reserved-id-macro -Wno-unused-macros -Wno-documentation-unknown-command -Wno-documentation -Wno-license-management -Wno-parentheses-equality -Wno-reserved-identifier -Wno-covered-switch-default -Wno-unreachable-code-break -I ../../source/third_party/CMSIS/Core/Include -I ../../source -I ../ -I ../App -I ../BSP -I ../HAL -I ../OSAL -I ../Config -I ./FreeRTOS/include -I ./FreeRTOS/portable/MemMang -I ./FreeRTOS/portable/GCC/ARM_CM0 -I ./FreeRTOS/src-D__UVISION_VERSION="537" -D__MSPM0G3507__ -D__MSPM0G3507__-o ./objects/app_main.o -MD)
-I (..\App\app_main.h)(0x69F8E031)
+F (..\board.h)(0x69F98C9F)()
+F (..\App\app_main.c)(0x69F99788)(-xc -std=c99 --target=arm-arm-none-eabi -mcpu=cortex-m0plus -c-fno-rtti -funsigned-char -fshort-enums -fshort-wchar-D__MICROLIB -gdwarf-4 -O0 -ffunction-sections -Wno-packed -Wno-missing-variable-declarations -Wno-missing-prototypes -Wno-missing-noreturn -Wno-sign-conversion -Wno-nonportable-include-path -Wno-reserved-id-macro -Wno-unused-macros -Wno-documentation-unknown-command -Wno-documentation -Wno-license-management -Wno-parentheses-equality -Wno-reserved-identifier -Wno-covered-switch-default -Wno-unreachable-code-break -I ../../source/third_party/CMSIS/Core/Include -I ../../source -I ../ -I ../App -I ../BSP -I ../HAL -I ../OSAL -I ../Config -I ./FreeRTOS/include -I ./FreeRTOS/portable/MemMang -I ./FreeRTOS/portable/GCC/ARM_CM0 -I ./FreeRTOS/src-D__UVISION_VERSION="537" -D__MSPM0G3507__ -D__MSPM0G3507__-o ./objects/app_main.o -MD)
+I (..\App\app_main.h)(0x69F98C9F)
 I (D:\Keil5\Core\ARM\ARMCLANG\include\stdint.h)(0x625260D8)
-I (..\App\app_pid.h)(0x69F48DDD)
+I (..\App\app_pid.h)(0x69F98C9F)
 I (D:\Keil5\Core\ARM\ARMCLANG\include\stdbool.h)(0x625260D6)
-I (..\OSAL\osal_api.h)(0x69F47ADF)
-I (..\OSAL\osal_config.h)(0x69F473FC)
+I (..\OSAL\osal_api.h)(0x69F98C9F)
+I (..\OSAL\osal_config.h)(0x69F98C9F)
 I (D:\Keil5\Core\ARM\ARMCLANG\include\stddef.h)(0x625260D6)
-I (FreeRTOS\include\FreeRTOS.h)(0x69CF7DC6)
-I (..\FreeRTOSConfig.h)(0x69DDFB74)
-I (FreeRTOS\include\projdefs.h)(0x69CF7DC6)
-I (FreeRTOS\include\portable.h)(0x69CF7DC6)
-I (FreeRTOS\include\deprecated_definitions.h)(0x69CF7DC6)
-I (FreeRTOS\portable\GCC\ARM_CM0\portmacro.h)(0x69CF7DC6)
-I (FreeRTOS\include\mpu_wrappers.h)(0x69CF7DC6)
-I (FreeRTOS\include\task.h)(0x69CF7DC6)
-I (FreeRTOS\include\list.h)(0x69CF7DC6)
-I (FreeRTOS\include\semphr.h)(0x69CF7DC6)
-I (FreeRTOS\include\queue.h)(0x69CF7DC6)
-I (..\BSP\bsp_led.h)(0x69F47D43)
-I (..\BSP\bsp_common.h)(0x69F4790F)
-I (..\BSP\bsp_motor.h)(0x69F6DF39)
-I (..\HAL\hal_gpio.h)(0x69F47150)
-I (..\HAL\hal_common.h)(0x69F4713E)
-I (..\HAL\hal_timer.h)(0x69F89E63)
-I (..\BSP\bsp_encoder.h)(0x69F8A8ED)
-I (..\BSP\bsp_uart.h)(0x69F47D43)
-I (..\Config\project_config.h)(0x69F8EB62)
-I (..\ti_msp_dl_config.h)(0x69F983E9)
+I (FreeRTOS\include\FreeRTOS.h)(0x69F98C9F)
+I (..\FreeRTOSConfig.h)(0x69F98C9F)
+I (FreeRTOS\include\projdefs.h)(0x69F98C9F)
+I (FreeRTOS\include\portable.h)(0x69F98C9F)
+I (FreeRTOS\include\deprecated_definitions.h)(0x69F98C9F)
+I (FreeRTOS\portable\GCC\ARM_CM0\portmacro.h)(0x69F98C9F)
+I (FreeRTOS\include\mpu_wrappers.h)(0x69F98C9F)
+I (FreeRTOS\include\task.h)(0x69F98C9F)
+I (FreeRTOS\include\list.h)(0x69F98C9F)
+I (FreeRTOS\include\semphr.h)(0x69F98C9F)
+I (FreeRTOS\include\queue.h)(0x69F98C9F)
+I (..\BSP\bsp_led.h)(0x69F98C9F)
+I (..\BSP\bsp_common.h)(0x69F98C9F)
+I (..\BSP\bsp_motor.h)(0x69F98C9F)
+I (..\HAL\hal_gpio.h)(0x69F98C9F)
+I (..\HAL\hal_common.h)(0x69F98C9F)
+I (..\HAL\hal_timer.h)(0x69F98C9F)
+I (..\BSP\bsp_encoder.h)(0x69F98C9F)
+I (..\BSP\bsp_uart.h)(0x69F98C9F)
+I (..\Config\project_config.h)(0x69F98C9F)
+I (..\ti_msp_dl_config.h)(0x69F997C0)
 I (..\..\source\ti\devices\msp\msp.h)(0x69CF7DC9)
 I (..\..\source\ti\devices\DeviceFamily.h)(0x69CF7DC9)
 I (..\..\source\ti\devices\msp\m0p\mspm0g350x.h)(0x69CF7DC9)
@@ -397,19 +397,19 @@ I (..\..\source\ti\driverlib\m0p\dl_systick.h)(0x69CF7DCA)
 I (D:\Keil5\Core\ARM\ARMCLANG\include\stdio.h)(0x625260D6)
 I (D:\Keil5\Core\ARM\ARMCLANG\include\stdlib.h)(0x625260D6)
 I (D:\Keil5\Core\ARM\ARMCLANG\include\string.h)(0x625260D6)
-F (..\App\app_main.h)(0x69F8E031)()
-F (..\App\app_pid.c)(0x69F63174)(-xc -std=c99 --target=arm-arm-none-eabi -mcpu=cortex-m0plus -c-fno-rtti -funsigned-char -fshort-enums -fshort-wchar-D__MICROLIB -gdwarf-4 -O0 -ffunction-sections -Wno-packed -Wno-missing-variable-declarations -Wno-missing-prototypes -Wno-missing-noreturn -Wno-sign-conversion -Wno-nonportable-include-path -Wno-reserved-id-macro -Wno-unused-macros -Wno-documentation-unknown-command -Wno-documentation -Wno-license-management -Wno-parentheses-equality -Wno-reserved-identifier -Wno-covered-switch-default -Wno-unreachable-code-break -I ../../source/third_party/CMSIS/Core/Include -I ../../source -I ../ -I ../App -I ../BSP -I ../HAL -I ../OSAL -I ../Config -I ./FreeRTOS/include -I ./FreeRTOS/portable/MemMang -I ./FreeRTOS/portable/GCC/ARM_CM0 -I ./FreeRTOS/src-D__UVISION_VERSION="537" -D__MSPM0G3507__ -D__MSPM0G3507__-o ./objects/app_pid.o -MD)
-I (..\App\app_pid.h)(0x69F48DDD)
+F (..\App\app_main.h)(0x69F98C9F)()
+F (..\App\app_pid.c)(0x69F98C9F)(-xc -std=c99 --target=arm-arm-none-eabi -mcpu=cortex-m0plus -c-fno-rtti -funsigned-char -fshort-enums -fshort-wchar-D__MICROLIB -gdwarf-4 -O0 -ffunction-sections -Wno-packed -Wno-missing-variable-declarations -Wno-missing-prototypes -Wno-missing-noreturn -Wno-sign-conversion -Wno-nonportable-include-path -Wno-reserved-id-macro -Wno-unused-macros -Wno-documentation-unknown-command -Wno-documentation -Wno-license-management -Wno-parentheses-equality -Wno-reserved-identifier -Wno-covered-switch-default -Wno-unreachable-code-break -I ../../source/third_party/CMSIS/Core/Include -I ../../source -I ../ -I ../App -I ../BSP -I ../HAL -I ../OSAL -I ../Config -I ./FreeRTOS/include -I ./FreeRTOS/portable/MemMang -I ./FreeRTOS/portable/GCC/ARM_CM0 -I ./FreeRTOS/src-D__UVISION_VERSION="537" -D__MSPM0G3507__ -D__MSPM0G3507__-o ./objects/app_pid.o -MD)
+I (..\App\app_pid.h)(0x69F98C9F)
 I (D:\Keil5\Core\ARM\ARMCLANG\include\stdint.h)(0x625260D8)
 I (D:\Keil5\Core\ARM\ARMCLANG\include\stdbool.h)(0x625260D6)
-F (..\App\app_pid.h)(0x69F48DDD)()
-F (..\HAL\hal_adc.c)(0x69F5EBC8)(-xc -std=c99 --target=arm-arm-none-eabi -mcpu=cortex-m0plus -c-fno-rtti -funsigned-char -fshort-enums -fshort-wchar-D__MICROLIB -gdwarf-4 -O0 -ffunction-sections -Wno-packed -Wno-missing-variable-declarations -Wno-missing-prototypes -Wno-missing-noreturn -Wno-sign-conversion -Wno-nonportable-include-path -Wno-reserved-id-macro -Wno-unused-macros -Wno-documentation-unknown-command -Wno-documentation -Wno-license-management -Wno-parentheses-equality -Wno-reserved-identifier -Wno-covered-switch-default -Wno-unreachable-code-break -I ../../source/third_party/CMSIS/Core/Include -I ../../source -I ../ -I ../App -I ../BSP -I ../HAL -I ../OSAL -I ../Config -I ./FreeRTOS/include -I ./FreeRTOS/portable/MemMang -I ./FreeRTOS/portable/GCC/ARM_CM0 -I ./FreeRTOS/src-D__UVISION_VERSION="537" -D__MSPM0G3507__ -D__MSPM0G3507__-o ./objects/hal_adc.o -MD)
-I (..\HAL\hal_adc.h)(0x69F49CFC)
-I (..\HAL\hal_common.h)(0x69F4713E)
+F (..\App\app_pid.h)(0x69F98C9F)()
+F (..\HAL\hal_adc.c)(0x69F98C9F)(-xc -std=c99 --target=arm-arm-none-eabi -mcpu=cortex-m0plus -c-fno-rtti -funsigned-char -fshort-enums -fshort-wchar-D__MICROLIB -gdwarf-4 -O0 -ffunction-sections -Wno-packed -Wno-missing-variable-declarations -Wno-missing-prototypes -Wno-missing-noreturn -Wno-sign-conversion -Wno-nonportable-include-path -Wno-reserved-id-macro -Wno-unused-macros -Wno-documentation-unknown-command -Wno-documentation -Wno-license-management -Wno-parentheses-equality -Wno-reserved-identifier -Wno-covered-switch-default -Wno-unreachable-code-break -I ../../source/third_party/CMSIS/Core/Include -I ../../source -I ../ -I ../App -I ../BSP -I ../HAL -I ../OSAL -I ../Config -I ./FreeRTOS/include -I ./FreeRTOS/portable/MemMang -I ./FreeRTOS/portable/GCC/ARM_CM0 -I ./FreeRTOS/src-D__UVISION_VERSION="537" -D__MSPM0G3507__ -D__MSPM0G3507__-o ./objects/hal_adc.o -MD)
+I (..\HAL\hal_adc.h)(0x69F98C9F)
+I (..\HAL\hal_common.h)(0x69F98C9F)
 I (D:\Keil5\Core\ARM\ARMCLANG\include\stdint.h)(0x625260D8)
 I (D:\Keil5\Core\ARM\ARMCLANG\include\stdbool.h)(0x625260D6)
 I (D:\Keil5\Core\ARM\ARMCLANG\include\stddef.h)(0x625260D6)
-I (..\ti_msp_dl_config.h)(0x69F983E9)
+I (..\ti_msp_dl_config.h)(0x69F997C0)
 I (..\..\source\ti\devices\msp\msp.h)(0x69CF7DC9)
 I (..\..\source\ti\devices\DeviceFamily.h)(0x69CF7DC9)
 I (..\..\source\ti\devices\msp\m0p\mspm0g350x.h)(0x69CF7DC9)
@@ -490,15 +490,15 @@ I (..\..\source\ti\driverlib\dl_vref.h)(0x69CF7DCA)
 I (..\..\source\ti\driverlib\dl_wwdt.h)(0x69CF7DCA)
 I (..\..\source\ti\driverlib\m0p\dl_interrupt.h)(0x69CF7DCA)
 I (..\..\source\ti\driverlib\m0p\dl_systick.h)(0x69CF7DCA)
-F (..\HAL\hal_adc.h)(0x69F49CFC)()
-F (..\HAL\hal_common.h)(0x69F4713E)()
-F (..\HAL\hal_gpio.c)(0x69F46DD3)(-xc -std=c99 --target=arm-arm-none-eabi -mcpu=cortex-m0plus -c-fno-rtti -funsigned-char -fshort-enums -fshort-wchar-D__MICROLIB -gdwarf-4 -O0 -ffunction-sections -Wno-packed -Wno-missing-variable-declarations -Wno-missing-prototypes -Wno-missing-noreturn -Wno-sign-conversion -Wno-nonportable-include-path -Wno-reserved-id-macro -Wno-unused-macros -Wno-documentation-unknown-command -Wno-documentation -Wno-license-management -Wno-parentheses-equality -Wno-reserved-identifier -Wno-covered-switch-default -Wno-unreachable-code-break -I ../../source/third_party/CMSIS/Core/Include -I ../../source -I ../ -I ../App -I ../BSP -I ../HAL -I ../OSAL -I ../Config -I ./FreeRTOS/include -I ./FreeRTOS/portable/MemMang -I ./FreeRTOS/portable/GCC/ARM_CM0 -I ./FreeRTOS/src-D__UVISION_VERSION="537" -D__MSPM0G3507__ -D__MSPM0G3507__-o ./objects/hal_gpio.o -MD)
-I (..\HAL\hal_gpio.h)(0x69F47150)
-I (..\HAL\hal_common.h)(0x69F4713E)
+F (..\HAL\hal_adc.h)(0x69F98C9F)()
+F (..\HAL\hal_common.h)(0x69F98C9F)()
+F (..\HAL\hal_gpio.c)(0x69F98C9F)(-xc -std=c99 --target=arm-arm-none-eabi -mcpu=cortex-m0plus -c-fno-rtti -funsigned-char -fshort-enums -fshort-wchar-D__MICROLIB -gdwarf-4 -O0 -ffunction-sections -Wno-packed -Wno-missing-variable-declarations -Wno-missing-prototypes -Wno-missing-noreturn -Wno-sign-conversion -Wno-nonportable-include-path -Wno-reserved-id-macro -Wno-unused-macros -Wno-documentation-unknown-command -Wno-documentation -Wno-license-management -Wno-parentheses-equality -Wno-reserved-identifier -Wno-covered-switch-default -Wno-unreachable-code-break -I ../../source/third_party/CMSIS/Core/Include -I ../../source -I ../ -I ../App -I ../BSP -I ../HAL -I ../OSAL -I ../Config -I ./FreeRTOS/include -I ./FreeRTOS/portable/MemMang -I ./FreeRTOS/portable/GCC/ARM_CM0 -I ./FreeRTOS/src-D__UVISION_VERSION="537" -D__MSPM0G3507__ -D__MSPM0G3507__-o ./objects/hal_gpio.o -MD)
+I (..\HAL\hal_gpio.h)(0x69F98C9F)
+I (..\HAL\hal_common.h)(0x69F98C9F)
 I (D:\Keil5\Core\ARM\ARMCLANG\include\stdint.h)(0x625260D8)
 I (D:\Keil5\Core\ARM\ARMCLANG\include\stdbool.h)(0x625260D6)
 I (D:\Keil5\Core\ARM\ARMCLANG\include\stddef.h)(0x625260D6)
-I (..\ti_msp_dl_config.h)(0x69F983E9)
+I (..\ti_msp_dl_config.h)(0x69F997C0)
 I (..\..\source\ti\devices\msp\msp.h)(0x69CF7DC9)
 I (..\..\source\ti\devices\DeviceFamily.h)(0x69CF7DC9)
 I (..\..\source\ti\devices\msp\m0p\mspm0g350x.h)(0x69CF7DC9)
@@ -579,14 +579,14 @@ I (..\..\source\ti\driverlib\dl_vref.h)(0x69CF7DCA)
 I (..\..\source\ti\driverlib\dl_wwdt.h)(0x69CF7DCA)
 I (..\..\source\ti\driverlib\m0p\dl_interrupt.h)(0x69CF7DCA)
 I (..\..\source\ti\driverlib\m0p\dl_systick.h)(0x69CF7DCA)
-F (..\HAL\hal_gpio.h)(0x69F47150)()
-F (..\HAL\hal_timer.c)(0x69F89E77)(-xc -std=c99 --target=arm-arm-none-eabi -mcpu=cortex-m0plus -c-fno-rtti -funsigned-char -fshort-enums -fshort-wchar-D__MICROLIB -gdwarf-4 -O0 -ffunction-sections -Wno-packed -Wno-missing-variable-declarations -Wno-missing-prototypes -Wno-missing-noreturn -Wno-sign-conversion -Wno-nonportable-include-path -Wno-reserved-id-macro -Wno-unused-macros -Wno-documentation-unknown-command -Wno-documentation -Wno-license-management -Wno-parentheses-equality -Wno-reserved-identifier -Wno-covered-switch-default -Wno-unreachable-code-break -I ../../source/third_party/CMSIS/Core/Include -I ../../source -I ../ -I ../App -I ../BSP -I ../HAL -I ../OSAL -I ../Config -I ./FreeRTOS/include -I ./FreeRTOS/portable/MemMang -I ./FreeRTOS/portable/GCC/ARM_CM0 -I ./FreeRTOS/src-D__UVISION_VERSION="537" -D__MSPM0G3507__ -D__MSPM0G3507__-o ./objects/hal_timer.o -MD)
-I (..\HAL\hal_timer.h)(0x69F89E63)
-I (..\HAL\hal_common.h)(0x69F4713E)
+F (..\HAL\hal_gpio.h)(0x69F98C9F)()
+F (..\HAL\hal_timer.c)(0x69F98C9F)(-xc -std=c99 --target=arm-arm-none-eabi -mcpu=cortex-m0plus -c-fno-rtti -funsigned-char -fshort-enums -fshort-wchar-D__MICROLIB -gdwarf-4 -O0 -ffunction-sections -Wno-packed -Wno-missing-variable-declarations -Wno-missing-prototypes -Wno-missing-noreturn -Wno-sign-conversion -Wno-nonportable-include-path -Wno-reserved-id-macro -Wno-unused-macros -Wno-documentation-unknown-command -Wno-documentation -Wno-license-management -Wno-parentheses-equality -Wno-reserved-identifier -Wno-covered-switch-default -Wno-unreachable-code-break -I ../../source/third_party/CMSIS/Core/Include -I ../../source -I ../ -I ../App -I ../BSP -I ../HAL -I ../OSAL -I ../Config -I ./FreeRTOS/include -I ./FreeRTOS/portable/MemMang -I ./FreeRTOS/portable/GCC/ARM_CM0 -I ./FreeRTOS/src-D__UVISION_VERSION="537" -D__MSPM0G3507__ -D__MSPM0G3507__-o ./objects/hal_timer.o -MD)
+I (..\HAL\hal_timer.h)(0x69F98C9F)
+I (..\HAL\hal_common.h)(0x69F98C9F)
 I (D:\Keil5\Core\ARM\ARMCLANG\include\stdint.h)(0x625260D8)
 I (D:\Keil5\Core\ARM\ARMCLANG\include\stdbool.h)(0x625260D6)
 I (D:\Keil5\Core\ARM\ARMCLANG\include\stddef.h)(0x625260D6)
-I (..\ti_msp_dl_config.h)(0x69F983E9)
+I (..\ti_msp_dl_config.h)(0x69F997C0)
 I (..\..\source\ti\devices\msp\msp.h)(0x69CF7DC9)
 I (..\..\source\ti\devices\DeviceFamily.h)(0x69CF7DC9)
 I (..\..\source\ti\devices\msp\m0p\mspm0g350x.h)(0x69CF7DC9)
@@ -667,14 +667,14 @@ I (..\..\source\ti\driverlib\dl_vref.h)(0x69CF7DCA)
 I (..\..\source\ti\driverlib\dl_wwdt.h)(0x69CF7DCA)
 I (..\..\source\ti\driverlib\m0p\dl_interrupt.h)(0x69CF7DCA)
 I (..\..\source\ti\driverlib\m0p\dl_systick.h)(0x69CF7DCA)
-F (..\HAL\hal_timer.h)(0x69F89E63)()
-F (..\HAL\hal_uart.c)(0x69F49D24)(-xc -std=c99 --target=arm-arm-none-eabi -mcpu=cortex-m0plus -c-fno-rtti -funsigned-char -fshort-enums -fshort-wchar-D__MICROLIB -gdwarf-4 -O0 -ffunction-sections -Wno-packed -Wno-missing-variable-declarations -Wno-missing-prototypes -Wno-missing-noreturn -Wno-sign-conversion -Wno-nonportable-include-path -Wno-reserved-id-macro -Wno-unused-macros -Wno-documentation-unknown-command -Wno-documentation -Wno-license-management -Wno-parentheses-equality -Wno-reserved-identifier -Wno-covered-switch-default -Wno-unreachable-code-break -I ../../source/third_party/CMSIS/Core/Include -I ../../source -I ../ -I ../App -I ../BSP -I ../HAL -I ../OSAL -I ../Config -I ./FreeRTOS/include -I ./FreeRTOS/portable/MemMang -I ./FreeRTOS/portable/GCC/ARM_CM0 -I ./FreeRTOS/src-D__UVISION_VERSION="537" -D__MSPM0G3507__ -D__MSPM0G3507__-o ./objects/hal_uart.o -MD)
-I (..\HAL\hal_uart.h)(0x69F49D30)
-I (..\HAL\hal_common.h)(0x69F4713E)
+F (..\HAL\hal_timer.h)(0x69F98C9F)()
+F (..\HAL\hal_uart.c)(0x69F98C9F)(-xc -std=c99 --target=arm-arm-none-eabi -mcpu=cortex-m0plus -c-fno-rtti -funsigned-char -fshort-enums -fshort-wchar-D__MICROLIB -gdwarf-4 -O0 -ffunction-sections -Wno-packed -Wno-missing-variable-declarations -Wno-missing-prototypes -Wno-missing-noreturn -Wno-sign-conversion -Wno-nonportable-include-path -Wno-reserved-id-macro -Wno-unused-macros -Wno-documentation-unknown-command -Wno-documentation -Wno-license-management -Wno-parentheses-equality -Wno-reserved-identifier -Wno-covered-switch-default -Wno-unreachable-code-break -I ../../source/third_party/CMSIS/Core/Include -I ../../source -I ../ -I ../App -I ../BSP -I ../HAL -I ../OSAL -I ../Config -I ./FreeRTOS/include -I ./FreeRTOS/portable/MemMang -I ./FreeRTOS/portable/GCC/ARM_CM0 -I ./FreeRTOS/src-D__UVISION_VERSION="537" -D__MSPM0G3507__ -D__MSPM0G3507__-o ./objects/hal_uart.o -MD)
+I (..\HAL\hal_uart.h)(0x69F98C9F)
+I (..\HAL\hal_common.h)(0x69F98C9F)
 I (D:\Keil5\Core\ARM\ARMCLANG\include\stdint.h)(0x625260D8)
 I (D:\Keil5\Core\ARM\ARMCLANG\include\stdbool.h)(0x625260D6)
 I (D:\Keil5\Core\ARM\ARMCLANG\include\stddef.h)(0x625260D6)
-I (..\ti_msp_dl_config.h)(0x69F983E9)
+I (..\ti_msp_dl_config.h)(0x69F997C0)
 I (..\..\source\ti\devices\msp\msp.h)(0x69CF7DC9)
 I (..\..\source\ti\devices\DeviceFamily.h)(0x69CF7DC9)
 I (..\..\source\ti\devices\msp\m0p\mspm0g350x.h)(0x69CF7DC9)
@@ -755,43 +755,43 @@ I (..\..\source\ti\driverlib\dl_vref.h)(0x69CF7DCA)
 I (..\..\source\ti\driverlib\dl_wwdt.h)(0x69CF7DCA)
 I (..\..\source\ti\driverlib\m0p\dl_interrupt.h)(0x69CF7DCA)
 I (..\..\source\ti\driverlib\m0p\dl_systick.h)(0x69CF7DCA)
-F (..\HAL\hal_uart.h)(0x69F49D30)()
-F (..\OSAL\osal_api.h)(0x69F47ADF)()
-F (..\OSAL\osal_config.h)(0x69F473FC)()
-F (..\OSAL\osal_critical.c)(0x69F49D6B)(-xc -std=c99 --target=arm-arm-none-eabi -mcpu=cortex-m0plus -c-fno-rtti -funsigned-char -fshort-enums -fshort-wchar-D__MICROLIB -gdwarf-4 -O0 -ffunction-sections -Wno-packed -Wno-missing-variable-declarations -Wno-missing-prototypes -Wno-missing-noreturn -Wno-sign-conversion -Wno-nonportable-include-path -Wno-reserved-id-macro -Wno-unused-macros -Wno-documentation-unknown-command -Wno-documentation -Wno-license-management -Wno-parentheses-equality -Wno-reserved-identifier -Wno-covered-switch-default -Wno-unreachable-code-break -I ../../source/third_party/CMSIS/Core/Include -I ../../source -I ../ -I ../App -I ../BSP -I ../HAL -I ../OSAL -I ../Config -I ./FreeRTOS/include -I ./FreeRTOS/portable/MemMang -I ./FreeRTOS/portable/GCC/ARM_CM0 -I ./FreeRTOS/src-D__UVISION_VERSION="537" -D__MSPM0G3507__ -D__MSPM0G3507__-o ./objects/osal_critical.o -MD)
-I (..\OSAL\osal_api.h)(0x69F47ADF)
-I (..\OSAL\osal_config.h)(0x69F473FC)
+F (..\HAL\hal_uart.h)(0x69F98C9F)()
+F (..\OSAL\osal_api.h)(0x69F98C9F)()
+F (..\OSAL\osal_config.h)(0x69F98C9F)()
+F (..\OSAL\osal_critical.c)(0x69F98C9F)(-xc -std=c99 --target=arm-arm-none-eabi -mcpu=cortex-m0plus -c-fno-rtti -funsigned-char -fshort-enums -fshort-wchar-D__MICROLIB -gdwarf-4 -O0 -ffunction-sections -Wno-packed -Wno-missing-variable-declarations -Wno-missing-prototypes -Wno-missing-noreturn -Wno-sign-conversion -Wno-nonportable-include-path -Wno-reserved-id-macro -Wno-unused-macros -Wno-documentation-unknown-command -Wno-documentation -Wno-license-management -Wno-parentheses-equality -Wno-reserved-identifier -Wno-covered-switch-default -Wno-unreachable-code-break -I ../../source/third_party/CMSIS/Core/Include -I ../../source -I ../ -I ../App -I ../BSP -I ../HAL -I ../OSAL -I ../Config -I ./FreeRTOS/include -I ./FreeRTOS/portable/MemMang -I ./FreeRTOS/portable/GCC/ARM_CM0 -I ./FreeRTOS/src-D__UVISION_VERSION="537" -D__MSPM0G3507__ -D__MSPM0G3507__-o ./objects/osal_critical.o -MD)
+I (..\OSAL\osal_api.h)(0x69F98C9F)
+I (..\OSAL\osal_config.h)(0x69F98C9F)
 I (D:\Keil5\Core\ARM\ARMCLANG\include\stdint.h)(0x625260D8)
 I (D:\Keil5\Core\ARM\ARMCLANG\include\stdbool.h)(0x625260D6)
 I (D:\Keil5\Core\ARM\ARMCLANG\include\stddef.h)(0x625260D6)
-I (FreeRTOS\include\FreeRTOS.h)(0x69CF7DC6)
-I (..\FreeRTOSConfig.h)(0x69DDFB74)
-I (FreeRTOS\include\projdefs.h)(0x69CF7DC6)
-I (FreeRTOS\include\portable.h)(0x69CF7DC6)
-I (FreeRTOS\include\deprecated_definitions.h)(0x69CF7DC6)
-I (FreeRTOS\portable\GCC\ARM_CM0\portmacro.h)(0x69CF7DC6)
-I (FreeRTOS\include\mpu_wrappers.h)(0x69CF7DC6)
-I (FreeRTOS\include\task.h)(0x69CF7DC6)
-I (FreeRTOS\include\list.h)(0x69CF7DC6)
-I (FreeRTOS\include\semphr.h)(0x69CF7DC6)
-I (FreeRTOS\include\queue.h)(0x69CF7DC6)
-F (..\OSAL\osal_delay.c)(0x69F5EBCB)(-xc -std=c99 --target=arm-arm-none-eabi -mcpu=cortex-m0plus -c-fno-rtti -funsigned-char -fshort-enums -fshort-wchar-D__MICROLIB -gdwarf-4 -O0 -ffunction-sections -Wno-packed -Wno-missing-variable-declarations -Wno-missing-prototypes -Wno-missing-noreturn -Wno-sign-conversion -Wno-nonportable-include-path -Wno-reserved-id-macro -Wno-unused-macros -Wno-documentation-unknown-command -Wno-documentation -Wno-license-management -Wno-parentheses-equality -Wno-reserved-identifier -Wno-covered-switch-default -Wno-unreachable-code-break -I ../../source/third_party/CMSIS/Core/Include -I ../../source -I ../ -I ../App -I ../BSP -I ../HAL -I ../OSAL -I ../Config -I ./FreeRTOS/include -I ./FreeRTOS/portable/MemMang -I ./FreeRTOS/portable/GCC/ARM_CM0 -I ./FreeRTOS/src-D__UVISION_VERSION="537" -D__MSPM0G3507__ -D__MSPM0G3507__-o ./objects/osal_delay.o -MD)
-I (..\OSAL\osal_api.h)(0x69F47ADF)
-I (..\OSAL\osal_config.h)(0x69F473FC)
+I (FreeRTOS\include\FreeRTOS.h)(0x69F98C9F)
+I (..\FreeRTOSConfig.h)(0x69F98C9F)
+I (FreeRTOS\include\projdefs.h)(0x69F98C9F)
+I (FreeRTOS\include\portable.h)(0x69F98C9F)
+I (FreeRTOS\include\deprecated_definitions.h)(0x69F98C9F)
+I (FreeRTOS\portable\GCC\ARM_CM0\portmacro.h)(0x69F98C9F)
+I (FreeRTOS\include\mpu_wrappers.h)(0x69F98C9F)
+I (FreeRTOS\include\task.h)(0x69F98C9F)
+I (FreeRTOS\include\list.h)(0x69F98C9F)
+I (FreeRTOS\include\semphr.h)(0x69F98C9F)
+I (FreeRTOS\include\queue.h)(0x69F98C9F)
+F (..\OSAL\osal_delay.c)(0x69F98C9F)(-xc -std=c99 --target=arm-arm-none-eabi -mcpu=cortex-m0plus -c-fno-rtti -funsigned-char -fshort-enums -fshort-wchar-D__MICROLIB -gdwarf-4 -O0 -ffunction-sections -Wno-packed -Wno-missing-variable-declarations -Wno-missing-prototypes -Wno-missing-noreturn -Wno-sign-conversion -Wno-nonportable-include-path -Wno-reserved-id-macro -Wno-unused-macros -Wno-documentation-unknown-command -Wno-documentation -Wno-license-management -Wno-parentheses-equality -Wno-reserved-identifier -Wno-covered-switch-default -Wno-unreachable-code-break -I ../../source/third_party/CMSIS/Core/Include -I ../../source -I ../ -I ../App -I ../BSP -I ../HAL -I ../OSAL -I ../Config -I ./FreeRTOS/include -I ./FreeRTOS/portable/MemMang -I ./FreeRTOS/portable/GCC/ARM_CM0 -I ./FreeRTOS/src-D__UVISION_VERSION="537" -D__MSPM0G3507__ -D__MSPM0G3507__-o ./objects/osal_delay.o -MD)
+I (..\OSAL\osal_api.h)(0x69F98C9F)
+I (..\OSAL\osal_config.h)(0x69F98C9F)
 I (D:\Keil5\Core\ARM\ARMCLANG\include\stdint.h)(0x625260D8)
 I (D:\Keil5\Core\ARM\ARMCLANG\include\stdbool.h)(0x625260D6)
 I (D:\Keil5\Core\ARM\ARMCLANG\include\stddef.h)(0x625260D6)
-I (FreeRTOS\include\FreeRTOS.h)(0x69CF7DC6)
-I (..\FreeRTOSConfig.h)(0x69DDFB74)
-I (FreeRTOS\include\projdefs.h)(0x69CF7DC6)
-I (FreeRTOS\include\portable.h)(0x69CF7DC6)
-I (FreeRTOS\include\deprecated_definitions.h)(0x69CF7DC6)
-I (FreeRTOS\portable\GCC\ARM_CM0\portmacro.h)(0x69CF7DC6)
-I (FreeRTOS\include\mpu_wrappers.h)(0x69CF7DC6)
-I (FreeRTOS\include\task.h)(0x69CF7DC6)
-I (FreeRTOS\include\list.h)(0x69CF7DC6)
-I (FreeRTOS\include\semphr.h)(0x69CF7DC6)
-I (FreeRTOS\include\queue.h)(0x69CF7DC6)
+I (FreeRTOS\include\FreeRTOS.h)(0x69F98C9F)
+I (..\FreeRTOSConfig.h)(0x69F98C9F)
+I (FreeRTOS\include\projdefs.h)(0x69F98C9F)
+I (FreeRTOS\include\portable.h)(0x69F98C9F)
+I (FreeRTOS\include\deprecated_definitions.h)(0x69F98C9F)
+I (FreeRTOS\portable\GCC\ARM_CM0\portmacro.h)(0x69F98C9F)
+I (FreeRTOS\include\mpu_wrappers.h)(0x69F98C9F)
+I (FreeRTOS\include\task.h)(0x69F98C9F)
+I (FreeRTOS\include\list.h)(0x69F98C9F)
+I (FreeRTOS\include\semphr.h)(0x69F98C9F)
+I (FreeRTOS\include\queue.h)(0x69F98C9F)
 I (..\..\source\ti\devices\msp\msp.h)(0x69CF7DC9)
 I (..\..\source\ti\devices\DeviceFamily.h)(0x69CF7DC9)
 I (..\..\source\ti\devices\msp\m0p\mspm0g350x.h)(0x69CF7DC9)
@@ -828,210 +828,210 @@ I (..\..\source\ti\devices\msp\peripherals\m0p\hw_cpuss.h)(0x69CF7DC9)
 I (..\..\source\ti\devices\msp\peripherals\m0p\hw_debugss.h)(0x69CF7DC9)
 I (..\..\source\ti\devices\msp\peripherals\m0p\hw_sysctl.h)(0x69CF7DC9)
 I (..\..\source\ti\devices\msp\peripherals\m0p\sysctl\hw_sysctl_mspm0g1x0x_g3x0x.h)(0x69CF7DC9)
-F (..\OSAL\osal_mutex.c)(0x69F47460)(-xc -std=c99 --target=arm-arm-none-eabi -mcpu=cortex-m0plus -c-fno-rtti -funsigned-char -fshort-enums -fshort-wchar-D__MICROLIB -gdwarf-4 -O0 -ffunction-sections -Wno-packed -Wno-missing-variable-declarations -Wno-missing-prototypes -Wno-missing-noreturn -Wno-sign-conversion -Wno-nonportable-include-path -Wno-reserved-id-macro -Wno-unused-macros -Wno-documentation-unknown-command -Wno-documentation -Wno-license-management -Wno-parentheses-equality -Wno-reserved-identifier -Wno-covered-switch-default -Wno-unreachable-code-break -I ../../source/third_party/CMSIS/Core/Include -I ../../source -I ../ -I ../App -I ../BSP -I ../HAL -I ../OSAL -I ../Config -I ./FreeRTOS/include -I ./FreeRTOS/portable/MemMang -I ./FreeRTOS/portable/GCC/ARM_CM0 -I ./FreeRTOS/src-D__UVISION_VERSION="537" -D__MSPM0G3507__ -D__MSPM0G3507__-o ./objects/osal_mutex.o -MD)
-I (..\OSAL\osal_api.h)(0x69F47ADF)
-I (..\OSAL\osal_config.h)(0x69F473FC)
+F (..\OSAL\osal_mutex.c)(0x69F98C9F)(-xc -std=c99 --target=arm-arm-none-eabi -mcpu=cortex-m0plus -c-fno-rtti -funsigned-char -fshort-enums -fshort-wchar-D__MICROLIB -gdwarf-4 -O0 -ffunction-sections -Wno-packed -Wno-missing-variable-declarations -Wno-missing-prototypes -Wno-missing-noreturn -Wno-sign-conversion -Wno-nonportable-include-path -Wno-reserved-id-macro -Wno-unused-macros -Wno-documentation-unknown-command -Wno-documentation -Wno-license-management -Wno-parentheses-equality -Wno-reserved-identifier -Wno-covered-switch-default -Wno-unreachable-code-break -I ../../source/third_party/CMSIS/Core/Include -I ../../source -I ../ -I ../App -I ../BSP -I ../HAL -I ../OSAL -I ../Config -I ./FreeRTOS/include -I ./FreeRTOS/portable/MemMang -I ./FreeRTOS/portable/GCC/ARM_CM0 -I ./FreeRTOS/src-D__UVISION_VERSION="537" -D__MSPM0G3507__ -D__MSPM0G3507__-o ./objects/osal_mutex.o -MD)
+I (..\OSAL\osal_api.h)(0x69F98C9F)
+I (..\OSAL\osal_config.h)(0x69F98C9F)
 I (D:\Keil5\Core\ARM\ARMCLANG\include\stdint.h)(0x625260D8)
 I (D:\Keil5\Core\ARM\ARMCLANG\include\stdbool.h)(0x625260D6)
 I (D:\Keil5\Core\ARM\ARMCLANG\include\stddef.h)(0x625260D6)
-I (FreeRTOS\include\FreeRTOS.h)(0x69CF7DC6)
-I (..\FreeRTOSConfig.h)(0x69DDFB74)
-I (FreeRTOS\include\projdefs.h)(0x69CF7DC6)
-I (FreeRTOS\include\portable.h)(0x69CF7DC6)
-I (FreeRTOS\include\deprecated_definitions.h)(0x69CF7DC6)
-I (FreeRTOS\portable\GCC\ARM_CM0\portmacro.h)(0x69CF7DC6)
-I (FreeRTOS\include\mpu_wrappers.h)(0x69CF7DC6)
-I (FreeRTOS\include\task.h)(0x69CF7DC6)
-I (FreeRTOS\include\list.h)(0x69CF7DC6)
-I (FreeRTOS\include\semphr.h)(0x69CF7DC6)
-I (FreeRTOS\include\queue.h)(0x69CF7DC6)
-F (..\OSAL\osal_queue.c)(0x69F47460)(-xc -std=c99 --target=arm-arm-none-eabi -mcpu=cortex-m0plus -c-fno-rtti -funsigned-char -fshort-enums -fshort-wchar-D__MICROLIB -gdwarf-4 -O0 -ffunction-sections -Wno-packed -Wno-missing-variable-declarations -Wno-missing-prototypes -Wno-missing-noreturn -Wno-sign-conversion -Wno-nonportable-include-path -Wno-reserved-id-macro -Wno-unused-macros -Wno-documentation-unknown-command -Wno-documentation -Wno-license-management -Wno-parentheses-equality -Wno-reserved-identifier -Wno-covered-switch-default -Wno-unreachable-code-break -I ../../source/third_party/CMSIS/Core/Include -I ../../source -I ../ -I ../App -I ../BSP -I ../HAL -I ../OSAL -I ../Config -I ./FreeRTOS/include -I ./FreeRTOS/portable/MemMang -I ./FreeRTOS/portable/GCC/ARM_CM0 -I ./FreeRTOS/src-D__UVISION_VERSION="537" -D__MSPM0G3507__ -D__MSPM0G3507__-o ./objects/osal_queue.o -MD)
-I (..\OSAL\osal_api.h)(0x69F47ADF)
-I (..\OSAL\osal_config.h)(0x69F473FC)
+I (FreeRTOS\include\FreeRTOS.h)(0x69F98C9F)
+I (..\FreeRTOSConfig.h)(0x69F98C9F)
+I (FreeRTOS\include\projdefs.h)(0x69F98C9F)
+I (FreeRTOS\include\portable.h)(0x69F98C9F)
+I (FreeRTOS\include\deprecated_definitions.h)(0x69F98C9F)
+I (FreeRTOS\portable\GCC\ARM_CM0\portmacro.h)(0x69F98C9F)
+I (FreeRTOS\include\mpu_wrappers.h)(0x69F98C9F)
+I (FreeRTOS\include\task.h)(0x69F98C9F)
+I (FreeRTOS\include\list.h)(0x69F98C9F)
+I (FreeRTOS\include\semphr.h)(0x69F98C9F)
+I (FreeRTOS\include\queue.h)(0x69F98C9F)
+F (..\OSAL\osal_queue.c)(0x69F98C9F)(-xc -std=c99 --target=arm-arm-none-eabi -mcpu=cortex-m0plus -c-fno-rtti -funsigned-char -fshort-enums -fshort-wchar-D__MICROLIB -gdwarf-4 -O0 -ffunction-sections -Wno-packed -Wno-missing-variable-declarations -Wno-missing-prototypes -Wno-missing-noreturn -Wno-sign-conversion -Wno-nonportable-include-path -Wno-reserved-id-macro -Wno-unused-macros -Wno-documentation-unknown-command -Wno-documentation -Wno-license-management -Wno-parentheses-equality -Wno-reserved-identifier -Wno-covered-switch-default -Wno-unreachable-code-break -I ../../source/third_party/CMSIS/Core/Include -I ../../source -I ../ -I ../App -I ../BSP -I ../HAL -I ../OSAL -I ../Config -I ./FreeRTOS/include -I ./FreeRTOS/portable/MemMang -I ./FreeRTOS/portable/GCC/ARM_CM0 -I ./FreeRTOS/src-D__UVISION_VERSION="537" -D__MSPM0G3507__ -D__MSPM0G3507__-o ./objects/osal_queue.o -MD)
+I (..\OSAL\osal_api.h)(0x69F98C9F)
+I (..\OSAL\osal_config.h)(0x69F98C9F)
 I (D:\Keil5\Core\ARM\ARMCLANG\include\stdint.h)(0x625260D8)
 I (D:\Keil5\Core\ARM\ARMCLANG\include\stdbool.h)(0x625260D6)
 I (D:\Keil5\Core\ARM\ARMCLANG\include\stddef.h)(0x625260D6)
-I (FreeRTOS\include\FreeRTOS.h)(0x69CF7DC6)
-I (..\FreeRTOSConfig.h)(0x69DDFB74)
-I (FreeRTOS\include\projdefs.h)(0x69CF7DC6)
-I (FreeRTOS\include\portable.h)(0x69CF7DC6)
-I (FreeRTOS\include\deprecated_definitions.h)(0x69CF7DC6)
-I (FreeRTOS\portable\GCC\ARM_CM0\portmacro.h)(0x69CF7DC6)
-I (FreeRTOS\include\mpu_wrappers.h)(0x69CF7DC6)
-I (FreeRTOS\include\task.h)(0x69CF7DC6)
-I (FreeRTOS\include\list.h)(0x69CF7DC6)
-I (FreeRTOS\include\semphr.h)(0x69CF7DC6)
-I (FreeRTOS\include\queue.h)(0x69CF7DC6)
-F (..\OSAL\osal_sem.c)(0x69F47460)(-xc -std=c99 --target=arm-arm-none-eabi -mcpu=cortex-m0plus -c-fno-rtti -funsigned-char -fshort-enums -fshort-wchar-D__MICROLIB -gdwarf-4 -O0 -ffunction-sections -Wno-packed -Wno-missing-variable-declarations -Wno-missing-prototypes -Wno-missing-noreturn -Wno-sign-conversion -Wno-nonportable-include-path -Wno-reserved-id-macro -Wno-unused-macros -Wno-documentation-unknown-command -Wno-documentation -Wno-license-management -Wno-parentheses-equality -Wno-reserved-identifier -Wno-covered-switch-default -Wno-unreachable-code-break -I ../../source/third_party/CMSIS/Core/Include -I ../../source -I ../ -I ../App -I ../BSP -I ../HAL -I ../OSAL -I ../Config -I ./FreeRTOS/include -I ./FreeRTOS/portable/MemMang -I ./FreeRTOS/portable/GCC/ARM_CM0 -I ./FreeRTOS/src-D__UVISION_VERSION="537" -D__MSPM0G3507__ -D__MSPM0G3507__-o ./objects/osal_sem.o -MD)
-I (..\OSAL\osal_api.h)(0x69F47ADF)
-I (..\OSAL\osal_config.h)(0x69F473FC)
+I (FreeRTOS\include\FreeRTOS.h)(0x69F98C9F)
+I (..\FreeRTOSConfig.h)(0x69F98C9F)
+I (FreeRTOS\include\projdefs.h)(0x69F98C9F)
+I (FreeRTOS\include\portable.h)(0x69F98C9F)
+I (FreeRTOS\include\deprecated_definitions.h)(0x69F98C9F)
+I (FreeRTOS\portable\GCC\ARM_CM0\portmacro.h)(0x69F98C9F)
+I (FreeRTOS\include\mpu_wrappers.h)(0x69F98C9F)
+I (FreeRTOS\include\task.h)(0x69F98C9F)
+I (FreeRTOS\include\list.h)(0x69F98C9F)
+I (FreeRTOS\include\semphr.h)(0x69F98C9F)
+I (FreeRTOS\include\queue.h)(0x69F98C9F)
+F (..\OSAL\osal_sem.c)(0x69F98C9F)(-xc -std=c99 --target=arm-arm-none-eabi -mcpu=cortex-m0plus -c-fno-rtti -funsigned-char -fshort-enums -fshort-wchar-D__MICROLIB -gdwarf-4 -O0 -ffunction-sections -Wno-packed -Wno-missing-variable-declarations -Wno-missing-prototypes -Wno-missing-noreturn -Wno-sign-conversion -Wno-nonportable-include-path -Wno-reserved-id-macro -Wno-unused-macros -Wno-documentation-unknown-command -Wno-documentation -Wno-license-management -Wno-parentheses-equality -Wno-reserved-identifier -Wno-covered-switch-default -Wno-unreachable-code-break -I ../../source/third_party/CMSIS/Core/Include -I ../../source -I ../ -I ../App -I ../BSP -I ../HAL -I ../OSAL -I ../Config -I ./FreeRTOS/include -I ./FreeRTOS/portable/MemMang -I ./FreeRTOS/portable/GCC/ARM_CM0 -I ./FreeRTOS/src-D__UVISION_VERSION="537" -D__MSPM0G3507__ -D__MSPM0G3507__-o ./objects/osal_sem.o -MD)
+I (..\OSAL\osal_api.h)(0x69F98C9F)
+I (..\OSAL\osal_config.h)(0x69F98C9F)
 I (D:\Keil5\Core\ARM\ARMCLANG\include\stdint.h)(0x625260D8)
 I (D:\Keil5\Core\ARM\ARMCLANG\include\stdbool.h)(0x625260D6)
 I (D:\Keil5\Core\ARM\ARMCLANG\include\stddef.h)(0x625260D6)
-I (FreeRTOS\include\FreeRTOS.h)(0x69CF7DC6)
-I (..\FreeRTOSConfig.h)(0x69DDFB74)
-I (FreeRTOS\include\projdefs.h)(0x69CF7DC6)
-I (FreeRTOS\include\portable.h)(0x69CF7DC6)
-I (FreeRTOS\include\deprecated_definitions.h)(0x69CF7DC6)
-I (FreeRTOS\portable\GCC\ARM_CM0\portmacro.h)(0x69CF7DC6)
-I (FreeRTOS\include\mpu_wrappers.h)(0x69CF7DC6)
-I (FreeRTOS\include\task.h)(0x69CF7DC6)
-I (FreeRTOS\include\list.h)(0x69CF7DC6)
-I (FreeRTOS\include\semphr.h)(0x69CF7DC6)
-I (FreeRTOS\include\queue.h)(0x69CF7DC6)
-F (..\OSAL\osal_task.c)(0x69F47460)(-xc -std=c99 --target=arm-arm-none-eabi -mcpu=cortex-m0plus -c-fno-rtti -funsigned-char -fshort-enums -fshort-wchar-D__MICROLIB -gdwarf-4 -O0 -ffunction-sections -Wno-packed -Wno-missing-variable-declarations -Wno-missing-prototypes -Wno-missing-noreturn -Wno-sign-conversion -Wno-nonportable-include-path -Wno-reserved-id-macro -Wno-unused-macros -Wno-documentation-unknown-command -Wno-documentation -Wno-license-management -Wno-parentheses-equality -Wno-reserved-identifier -Wno-covered-switch-default -Wno-unreachable-code-break -I ../../source/third_party/CMSIS/Core/Include -I ../../source -I ../ -I ../App -I ../BSP -I ../HAL -I ../OSAL -I ../Config -I ./FreeRTOS/include -I ./FreeRTOS/portable/MemMang -I ./FreeRTOS/portable/GCC/ARM_CM0 -I ./FreeRTOS/src-D__UVISION_VERSION="537" -D__MSPM0G3507__ -D__MSPM0G3507__-o ./objects/osal_task.o -MD)
-I (..\OSAL\osal_api.h)(0x69F47ADF)
-I (..\OSAL\osal_config.h)(0x69F473FC)
+I (FreeRTOS\include\FreeRTOS.h)(0x69F98C9F)
+I (..\FreeRTOSConfig.h)(0x69F98C9F)
+I (FreeRTOS\include\projdefs.h)(0x69F98C9F)
+I (FreeRTOS\include\portable.h)(0x69F98C9F)
+I (FreeRTOS\include\deprecated_definitions.h)(0x69F98C9F)
+I (FreeRTOS\portable\GCC\ARM_CM0\portmacro.h)(0x69F98C9F)
+I (FreeRTOS\include\mpu_wrappers.h)(0x69F98C9F)
+I (FreeRTOS\include\task.h)(0x69F98C9F)
+I (FreeRTOS\include\list.h)(0x69F98C9F)
+I (FreeRTOS\include\semphr.h)(0x69F98C9F)
+I (FreeRTOS\include\queue.h)(0x69F98C9F)
+F (..\OSAL\osal_task.c)(0x69F98C9F)(-xc -std=c99 --target=arm-arm-none-eabi -mcpu=cortex-m0plus -c-fno-rtti -funsigned-char -fshort-enums -fshort-wchar-D__MICROLIB -gdwarf-4 -O0 -ffunction-sections -Wno-packed -Wno-missing-variable-declarations -Wno-missing-prototypes -Wno-missing-noreturn -Wno-sign-conversion -Wno-nonportable-include-path -Wno-reserved-id-macro -Wno-unused-macros -Wno-documentation-unknown-command -Wno-documentation -Wno-license-management -Wno-parentheses-equality -Wno-reserved-identifier -Wno-covered-switch-default -Wno-unreachable-code-break -I ../../source/third_party/CMSIS/Core/Include -I ../../source -I ../ -I ../App -I ../BSP -I ../HAL -I ../OSAL -I ../Config -I ./FreeRTOS/include -I ./FreeRTOS/portable/MemMang -I ./FreeRTOS/portable/GCC/ARM_CM0 -I ./FreeRTOS/src-D__UVISION_VERSION="537" -D__MSPM0G3507__ -D__MSPM0G3507__-o ./objects/osal_task.o -MD)
+I (..\OSAL\osal_api.h)(0x69F98C9F)
+I (..\OSAL\osal_config.h)(0x69F98C9F)
 I (D:\Keil5\Core\ARM\ARMCLANG\include\stdint.h)(0x625260D8)
 I (D:\Keil5\Core\ARM\ARMCLANG\include\stdbool.h)(0x625260D6)
 I (D:\Keil5\Core\ARM\ARMCLANG\include\stddef.h)(0x625260D6)
-I (FreeRTOS\include\FreeRTOS.h)(0x69CF7DC6)
-I (..\FreeRTOSConfig.h)(0x69DDFB74)
-I (FreeRTOS\include\projdefs.h)(0x69CF7DC6)
-I (FreeRTOS\include\portable.h)(0x69CF7DC6)
-I (FreeRTOS\include\deprecated_definitions.h)(0x69CF7DC6)
-I (FreeRTOS\portable\GCC\ARM_CM0\portmacro.h)(0x69CF7DC6)
-I (FreeRTOS\include\mpu_wrappers.h)(0x69CF7DC6)
-I (FreeRTOS\include\task.h)(0x69CF7DC6)
-I (FreeRTOS\include\list.h)(0x69CF7DC6)
-I (FreeRTOS\include\semphr.h)(0x69CF7DC6)
-I (FreeRTOS\include\queue.h)(0x69CF7DC6)
-F (..\Config\project_config.h)(0x69F8EB62)()
-F (.\FreeRTOS\src\croutine.c)(0x69CF7DC6)(-xc -std=c99 --target=arm-arm-none-eabi -mcpu=cortex-m0plus -c-fno-rtti -funsigned-char -fshort-enums -fshort-wchar-D__MICROLIB -gdwarf-4 -O0 -ffunction-sections -Wno-packed -Wno-missing-variable-declarations -Wno-missing-prototypes -Wno-missing-noreturn -Wno-sign-conversion -Wno-nonportable-include-path -Wno-reserved-id-macro -Wno-unused-macros -Wno-documentation-unknown-command -Wno-documentation -Wno-license-management -Wno-parentheses-equality -Wno-reserved-identifier -Wno-covered-switch-default -Wno-unreachable-code-break -I ../../source/third_party/CMSIS/Core/Include -I ../../source -I ../ -I ../App -I ../BSP -I ../HAL -I ../OSAL -I ../Config -I ./FreeRTOS/include -I ./FreeRTOS/portable/MemMang -I ./FreeRTOS/portable/GCC/ARM_CM0 -I ./FreeRTOS/src-D__UVISION_VERSION="537" -D__MSPM0G3507__ -D__MSPM0G3507__-o ./objects/croutine.o -MD)
-I (FreeRTOS\include\FreeRTOS.h)(0x69CF7DC6)
+I (FreeRTOS\include\FreeRTOS.h)(0x69F98C9F)
+I (..\FreeRTOSConfig.h)(0x69F98C9F)
+I (FreeRTOS\include\projdefs.h)(0x69F98C9F)
+I (FreeRTOS\include\portable.h)(0x69F98C9F)
+I (FreeRTOS\include\deprecated_definitions.h)(0x69F98C9F)
+I (FreeRTOS\portable\GCC\ARM_CM0\portmacro.h)(0x69F98C9F)
+I (FreeRTOS\include\mpu_wrappers.h)(0x69F98C9F)
+I (FreeRTOS\include\task.h)(0x69F98C9F)
+I (FreeRTOS\include\list.h)(0x69F98C9F)
+I (FreeRTOS\include\semphr.h)(0x69F98C9F)
+I (FreeRTOS\include\queue.h)(0x69F98C9F)
+F (..\Config\project_config.h)(0x69F98C9F)()
+F (.\FreeRTOS\src\croutine.c)(0x69F98C9F)(-xc -std=c99 --target=arm-arm-none-eabi -mcpu=cortex-m0plus -c-fno-rtti -funsigned-char -fshort-enums -fshort-wchar-D__MICROLIB -gdwarf-4 -O0 -ffunction-sections -Wno-packed -Wno-missing-variable-declarations -Wno-missing-prototypes -Wno-missing-noreturn -Wno-sign-conversion -Wno-nonportable-include-path -Wno-reserved-id-macro -Wno-unused-macros -Wno-documentation-unknown-command -Wno-documentation -Wno-license-management -Wno-parentheses-equality -Wno-reserved-identifier -Wno-covered-switch-default -Wno-unreachable-code-break -I ../../source/third_party/CMSIS/Core/Include -I ../../source -I ../ -I ../App -I ../BSP -I ../HAL -I ../OSAL -I ../Config -I ./FreeRTOS/include -I ./FreeRTOS/portable/MemMang -I ./FreeRTOS/portable/GCC/ARM_CM0 -I ./FreeRTOS/src-D__UVISION_VERSION="537" -D__MSPM0G3507__ -D__MSPM0G3507__-o ./objects/croutine.o -MD)
+I (FreeRTOS\include\FreeRTOS.h)(0x69F98C9F)
 I (D:\Keil5\Core\ARM\ARMCLANG\include\stddef.h)(0x625260D6)
 I (D:\Keil5\Core\ARM\ARMCLANG\include\stdint.h)(0x625260D8)
-I (..\..\MSPM0G3507_FreeRTOS\FreeRTOSConfig.h)(0x69DDFB74)
-I (FreeRTOS\include\projdefs.h)(0x69CF7DC6)
-I (FreeRTOS\include\portable.h)(0x69CF7DC6)
-I (FreeRTOS\include\deprecated_definitions.h)(0x69CF7DC6)
-I (FreeRTOS\portable\GCC\ARM_CM0\portmacro.h)(0x69CF7DC6)
-I (FreeRTOS\include\mpu_wrappers.h)(0x69CF7DC6)
-I (FreeRTOS\include\task.h)(0x69CF7DC6)
-I (FreeRTOS\include\list.h)(0x69CF7DC6)
-I (FreeRTOS\include\croutine.h)(0x69CF7DC6)
-F (.\FreeRTOS\src\event_groups.c)(0x69CF7DC6)(-xc -std=c99 --target=arm-arm-none-eabi -mcpu=cortex-m0plus -c-fno-rtti -funsigned-char -fshort-enums -fshort-wchar-D__MICROLIB -gdwarf-4 -O0 -ffunction-sections -Wno-packed -Wno-missing-variable-declarations -Wno-missing-prototypes -Wno-missing-noreturn -Wno-sign-conversion -Wno-nonportable-include-path -Wno-reserved-id-macro -Wno-unused-macros -Wno-documentation-unknown-command -Wno-documentation -Wno-license-management -Wno-parentheses-equality -Wno-reserved-identifier -Wno-covered-switch-default -Wno-unreachable-code-break -I ../../source/third_party/CMSIS/Core/Include -I ../../source -I ../ -I ../App -I ../BSP -I ../HAL -I ../OSAL -I ../Config -I ./FreeRTOS/include -I ./FreeRTOS/portable/MemMang -I ./FreeRTOS/portable/GCC/ARM_CM0 -I ./FreeRTOS/src-D__UVISION_VERSION="537" -D__MSPM0G3507__ -D__MSPM0G3507__-o ./objects/event_groups.o -MD)
+I (..\FreeRTOSConfig.h)(0x69F98C9F)
+I (FreeRTOS\include\projdefs.h)(0x69F98C9F)
+I (FreeRTOS\include\portable.h)(0x69F98C9F)
+I (FreeRTOS\include\deprecated_definitions.h)(0x69F98C9F)
+I (FreeRTOS\portable\GCC\ARM_CM0\portmacro.h)(0x69F98C9F)
+I (FreeRTOS\include\mpu_wrappers.h)(0x69F98C9F)
+I (FreeRTOS\include\task.h)(0x69F98C9F)
+I (FreeRTOS\include\list.h)(0x69F98C9F)
+I (FreeRTOS\include\croutine.h)(0x69F98C9F)
+F (.\FreeRTOS\src\event_groups.c)(0x69F98C9F)(-xc -std=c99 --target=arm-arm-none-eabi -mcpu=cortex-m0plus -c-fno-rtti -funsigned-char -fshort-enums -fshort-wchar-D__MICROLIB -gdwarf-4 -O0 -ffunction-sections -Wno-packed -Wno-missing-variable-declarations -Wno-missing-prototypes -Wno-missing-noreturn -Wno-sign-conversion -Wno-nonportable-include-path -Wno-reserved-id-macro -Wno-unused-macros -Wno-documentation-unknown-command -Wno-documentation -Wno-license-management -Wno-parentheses-equality -Wno-reserved-identifier -Wno-covered-switch-default -Wno-unreachable-code-break -I ../../source/third_party/CMSIS/Core/Include -I ../../source -I ../ -I ../App -I ../BSP -I ../HAL -I ../OSAL -I ../Config -I ./FreeRTOS/include -I ./FreeRTOS/portable/MemMang -I ./FreeRTOS/portable/GCC/ARM_CM0 -I ./FreeRTOS/src-D__UVISION_VERSION="537" -D__MSPM0G3507__ -D__MSPM0G3507__-o ./objects/event_groups.o -MD)
 I (D:\Keil5\Core\ARM\ARMCLANG\include\stdlib.h)(0x625260D6)
-I (FreeRTOS\include\FreeRTOS.h)(0x69CF7DC6)
+I (FreeRTOS\include\FreeRTOS.h)(0x69F98C9F)
 I (D:\Keil5\Core\ARM\ARMCLANG\include\stddef.h)(0x625260D6)
 I (D:\Keil5\Core\ARM\ARMCLANG\include\stdint.h)(0x625260D8)
-I (..\..\MSPM0G3507_FreeRTOS\FreeRTOSConfig.h)(0x69DDFB74)
-I (FreeRTOS\include\projdefs.h)(0x69CF7DC6)
-I (FreeRTOS\include\portable.h)(0x69CF7DC6)
-I (FreeRTOS\include\deprecated_definitions.h)(0x69CF7DC6)
-I (FreeRTOS\portable\GCC\ARM_CM0\portmacro.h)(0x69CF7DC6)
-I (FreeRTOS\include\mpu_wrappers.h)(0x69CF7DC6)
-I (FreeRTOS\include\task.h)(0x69CF7DC6)
-I (FreeRTOS\include\list.h)(0x69CF7DC6)
-I (FreeRTOS\include\timers.h)(0x69CF7DC6)
-I (FreeRTOS\include\event_groups.h)(0x69CF7DC6)
-F (.\FreeRTOS\src\list.c)(0x69CF7DC6)(-xc -std=c99 --target=arm-arm-none-eabi -mcpu=cortex-m0plus -c-fno-rtti -funsigned-char -fshort-enums -fshort-wchar-D__MICROLIB -gdwarf-4 -O0 -ffunction-sections -Wno-packed -Wno-missing-variable-declarations -Wno-missing-prototypes -Wno-missing-noreturn -Wno-sign-conversion -Wno-nonportable-include-path -Wno-reserved-id-macro -Wno-unused-macros -Wno-documentation-unknown-command -Wno-documentation -Wno-license-management -Wno-parentheses-equality -Wno-reserved-identifier -Wno-covered-switch-default -Wno-unreachable-code-break -I ../../source/third_party/CMSIS/Core/Include -I ../../source -I ../ -I ../App -I ../BSP -I ../HAL -I ../OSAL -I ../Config -I ./FreeRTOS/include -I ./FreeRTOS/portable/MemMang -I ./FreeRTOS/portable/GCC/ARM_CM0 -I ./FreeRTOS/src-D__UVISION_VERSION="537" -D__MSPM0G3507__ -D__MSPM0G3507__-o ./objects/list.o -MD)
+I (..\FreeRTOSConfig.h)(0x69F98C9F)
+I (FreeRTOS\include\projdefs.h)(0x69F98C9F)
+I (FreeRTOS\include\portable.h)(0x69F98C9F)
+I (FreeRTOS\include\deprecated_definitions.h)(0x69F98C9F)
+I (FreeRTOS\portable\GCC\ARM_CM0\portmacro.h)(0x69F98C9F)
+I (FreeRTOS\include\mpu_wrappers.h)(0x69F98C9F)
+I (FreeRTOS\include\task.h)(0x69F98C9F)
+I (FreeRTOS\include\list.h)(0x69F98C9F)
+I (FreeRTOS\include\timers.h)(0x69F98C9F)
+I (FreeRTOS\include\event_groups.h)(0x69F98C9F)
+F (.\FreeRTOS\src\list.c)(0x69F98C9F)(-xc -std=c99 --target=arm-arm-none-eabi -mcpu=cortex-m0plus -c-fno-rtti -funsigned-char -fshort-enums -fshort-wchar-D__MICROLIB -gdwarf-4 -O0 -ffunction-sections -Wno-packed -Wno-missing-variable-declarations -Wno-missing-prototypes -Wno-missing-noreturn -Wno-sign-conversion -Wno-nonportable-include-path -Wno-reserved-id-macro -Wno-unused-macros -Wno-documentation-unknown-command -Wno-documentation -Wno-license-management -Wno-parentheses-equality -Wno-reserved-identifier -Wno-covered-switch-default -Wno-unreachable-code-break -I ../../source/third_party/CMSIS/Core/Include -I ../../source -I ../ -I ../App -I ../BSP -I ../HAL -I ../OSAL -I ../Config -I ./FreeRTOS/include -I ./FreeRTOS/portable/MemMang -I ./FreeRTOS/portable/GCC/ARM_CM0 -I ./FreeRTOS/src-D__UVISION_VERSION="537" -D__MSPM0G3507__ -D__MSPM0G3507__-o ./objects/list.o -MD)
 I (D:\Keil5\Core\ARM\ARMCLANG\include\stdlib.h)(0x625260D6)
-I (FreeRTOS\include\FreeRTOS.h)(0x69CF7DC6)
+I (FreeRTOS\include\FreeRTOS.h)(0x69F98C9F)
 I (D:\Keil5\Core\ARM\ARMCLANG\include\stddef.h)(0x625260D6)
 I (D:\Keil5\Core\ARM\ARMCLANG\include\stdint.h)(0x625260D8)
-I (..\..\MSPM0G3507_FreeRTOS\FreeRTOSConfig.h)(0x69DDFB74)
-I (FreeRTOS\include\projdefs.h)(0x69CF7DC6)
-I (FreeRTOS\include\portable.h)(0x69CF7DC6)
-I (FreeRTOS\include\deprecated_definitions.h)(0x69CF7DC6)
-I (FreeRTOS\portable\GCC\ARM_CM0\portmacro.h)(0x69CF7DC6)
-I (FreeRTOS\include\mpu_wrappers.h)(0x69CF7DC6)
-I (FreeRTOS\include\list.h)(0x69CF7DC6)
-F (.\FreeRTOS\src\queue.c)(0x69CF7DC6)(-xc -std=c99 --target=arm-arm-none-eabi -mcpu=cortex-m0plus -c-fno-rtti -funsigned-char -fshort-enums -fshort-wchar-D__MICROLIB -gdwarf-4 -O0 -ffunction-sections -Wno-packed -Wno-missing-variable-declarations -Wno-missing-prototypes -Wno-missing-noreturn -Wno-sign-conversion -Wno-nonportable-include-path -Wno-reserved-id-macro -Wno-unused-macros -Wno-documentation-unknown-command -Wno-documentation -Wno-license-management -Wno-parentheses-equality -Wno-reserved-identifier -Wno-covered-switch-default -Wno-unreachable-code-break -I ../../source/third_party/CMSIS/Core/Include -I ../../source -I ../ -I ../App -I ../BSP -I ../HAL -I ../OSAL -I ../Config -I ./FreeRTOS/include -I ./FreeRTOS/portable/MemMang -I ./FreeRTOS/portable/GCC/ARM_CM0 -I ./FreeRTOS/src-D__UVISION_VERSION="537" -D__MSPM0G3507__ -D__MSPM0G3507__-o ./objects/queue.o -MD)
-I (D:\Keil5\Core\ARM\ARMCLANG\include\stdlib.h)(0x625260D6)
-I (D:\Keil5\Core\ARM\ARMCLANG\include\string.h)(0x625260D6)
-I (FreeRTOS\include\FreeRTOS.h)(0x69CF7DC6)
-I (D:\Keil5\Core\ARM\ARMCLANG\include\stddef.h)(0x625260D6)
-I (D:\Keil5\Core\ARM\ARMCLANG\include\stdint.h)(0x625260D8)
-I (..\..\MSPM0G3507_FreeRTOS\FreeRTOSConfig.h)(0x69DDFB74)
-I (FreeRTOS\include\projdefs.h)(0x69CF7DC6)
-I (FreeRTOS\include\portable.h)(0x69CF7DC6)
-I (FreeRTOS\include\deprecated_definitions.h)(0x69CF7DC6)
-I (FreeRTOS\portable\GCC\ARM_CM0\portmacro.h)(0x69CF7DC6)
-I (FreeRTOS\include\mpu_wrappers.h)(0x69CF7DC6)
-I (FreeRTOS\include\task.h)(0x69CF7DC6)
-I (FreeRTOS\include\list.h)(0x69CF7DC6)
-I (FreeRTOS\include\queue.h)(0x69CF7DC6)
-F (.\FreeRTOS\src\stream_buffer.c)(0x69CF7DC6)(-xc -std=c99 --target=arm-arm-none-eabi -mcpu=cortex-m0plus -c-fno-rtti -funsigned-char -fshort-enums -fshort-wchar-D__MICROLIB -gdwarf-4 -O0 -ffunction-sections -Wno-packed -Wno-missing-variable-declarations -Wno-missing-prototypes -Wno-missing-noreturn -Wno-sign-conversion -Wno-nonportable-include-path -Wno-reserved-id-macro -Wno-unused-macros -Wno-documentation-unknown-command -Wno-documentation -Wno-license-management -Wno-parentheses-equality -Wno-reserved-identifier -Wno-covered-switch-default -Wno-unreachable-code-break -I ../../source/third_party/CMSIS/Core/Include -I ../../source -I ../ -I ../App -I ../BSP -I ../HAL -I ../OSAL -I ../Config -I ./FreeRTOS/include -I ./FreeRTOS/portable/MemMang -I ./FreeRTOS/portable/GCC/ARM_CM0 -I ./FreeRTOS/src-D__UVISION_VERSION="537" -D__MSPM0G3507__ -D__MSPM0G3507__-o ./objects/stream_buffer.o -MD)
-I (D:\Keil5\Core\ARM\ARMCLANG\include\stdint.h)(0x625260D8)
-I (D:\Keil5\Core\ARM\ARMCLANG\include\string.h)(0x625260D6)
-I (FreeRTOS\include\FreeRTOS.h)(0x69CF7DC6)
-I (D:\Keil5\Core\ARM\ARMCLANG\include\stddef.h)(0x625260D6)
-I (..\..\MSPM0G3507_FreeRTOS\FreeRTOSConfig.h)(0x69DDFB74)
-I (FreeRTOS\include\projdefs.h)(0x69CF7DC6)
-I (FreeRTOS\include\portable.h)(0x69CF7DC6)
-I (FreeRTOS\include\deprecated_definitions.h)(0x69CF7DC6)
-I (FreeRTOS\portable\GCC\ARM_CM0\portmacro.h)(0x69CF7DC6)
-I (FreeRTOS\include\mpu_wrappers.h)(0x69CF7DC6)
-I (FreeRTOS\include\task.h)(0x69CF7DC6)
-I (FreeRTOS\include\list.h)(0x69CF7DC6)
-I (FreeRTOS\include\stream_buffer.h)(0x69CF7DC6)
-F (.\FreeRTOS\src\tasks.c)(0x69F74FB3)(-xc -std=c99 --target=arm-arm-none-eabi -mcpu=cortex-m0plus -c-fno-rtti -funsigned-char -fshort-enums -fshort-wchar-D__MICROLIB -gdwarf-4 -O0 -ffunction-sections -Wno-packed -Wno-missing-variable-declarations -Wno-missing-prototypes -Wno-missing-noreturn -Wno-sign-conversion -Wno-nonportable-include-path -Wno-reserved-id-macro -Wno-unused-macros -Wno-documentation-unknown-command -Wno-documentation -Wno-license-management -Wno-parentheses-equality -Wno-reserved-identifier -Wno-covered-switch-default -Wno-unreachable-code-break -I ../../source/third_party/CMSIS/Core/Include -I ../../source -I ../ -I ../App -I ../BSP -I ../HAL -I ../OSAL -I ../Config -I ./FreeRTOS/include -I ./FreeRTOS/portable/MemMang -I ./FreeRTOS/portable/GCC/ARM_CM0 -I ./FreeRTOS/src-D__UVISION_VERSION="537" -D__MSPM0G3507__ -D__MSPM0G3507__-o ./objects/tasks.o -MD)
+I (..\FreeRTOSConfig.h)(0x69F98C9F)
+I (FreeRTOS\include\projdefs.h)(0x69F98C9F)
+I (FreeRTOS\include\portable.h)(0x69F98C9F)
+I (FreeRTOS\include\deprecated_definitions.h)(0x69F98C9F)
+I (FreeRTOS\portable\GCC\ARM_CM0\portmacro.h)(0x69F98C9F)
+I (FreeRTOS\include\mpu_wrappers.h)(0x69F98C9F)
+I (FreeRTOS\include\list.h)(0x69F98C9F)
+F (.\FreeRTOS\src\queue.c)(0x69F98C9F)(-xc -std=c99 --target=arm-arm-none-eabi -mcpu=cortex-m0plus -c-fno-rtti -funsigned-char -fshort-enums -fshort-wchar-D__MICROLIB -gdwarf-4 -O0 -ffunction-sections -Wno-packed -Wno-missing-variable-declarations -Wno-missing-prototypes -Wno-missing-noreturn -Wno-sign-conversion -Wno-nonportable-include-path -Wno-reserved-id-macro -Wno-unused-macros -Wno-documentation-unknown-command -Wno-documentation -Wno-license-management -Wno-parentheses-equality -Wno-reserved-identifier -Wno-covered-switch-default -Wno-unreachable-code-break -I ../../source/third_party/CMSIS/Core/Include -I ../../source -I ../ -I ../App -I ../BSP -I ../HAL -I ../OSAL -I ../Config -I ./FreeRTOS/include -I ./FreeRTOS/portable/MemMang -I ./FreeRTOS/portable/GCC/ARM_CM0 -I ./FreeRTOS/src-D__UVISION_VERSION="537" -D__MSPM0G3507__ -D__MSPM0G3507__-o ./objects/queue.o -MD)
 I (D:\Keil5\Core\ARM\ARMCLANG\include\stdlib.h)(0x625260D6)
 I (D:\Keil5\Core\ARM\ARMCLANG\include\string.h)(0x625260D6)
-I (FreeRTOS\include\FreeRTOS.h)(0x69CF7DC6)
+I (FreeRTOS\include\FreeRTOS.h)(0x69F98C9F)
 I (D:\Keil5\Core\ARM\ARMCLANG\include\stddef.h)(0x625260D6)
 I (D:\Keil5\Core\ARM\ARMCLANG\include\stdint.h)(0x625260D8)
-I (..\..\MSPM0G3507_FreeRTOS\FreeRTOSConfig.h)(0x69DDFB74)
-I (FreeRTOS\include\projdefs.h)(0x69CF7DC6)
-I (FreeRTOS\include\portable.h)(0x69CF7DC6)
-I (FreeRTOS\include\deprecated_definitions.h)(0x69CF7DC6)
-I (FreeRTOS\portable\GCC\ARM_CM0\portmacro.h)(0x69CF7DC6)
-I (FreeRTOS\include\mpu_wrappers.h)(0x69CF7DC6)
-I (FreeRTOS\include\task.h)(0x69CF7DC6)
-I (FreeRTOS\include\list.h)(0x69CF7DC6)
-I (FreeRTOS\include\timers.h)(0x69CF7DC6)
-I (FreeRTOS\include\stack_macros.h)(0x69CF7DC6)
-F (.\FreeRTOS\src\timers.c)(0x69CF7DC6)(-xc -std=c99 --target=arm-arm-none-eabi -mcpu=cortex-m0plus -c-fno-rtti -funsigned-char -fshort-enums -fshort-wchar-D__MICROLIB -gdwarf-4 -O0 -ffunction-sections -Wno-packed -Wno-missing-variable-declarations -Wno-missing-prototypes -Wno-missing-noreturn -Wno-sign-conversion -Wno-nonportable-include-path -Wno-reserved-id-macro -Wno-unused-macros -Wno-documentation-unknown-command -Wno-documentation -Wno-license-management -Wno-parentheses-equality -Wno-reserved-identifier -Wno-covered-switch-default -Wno-unreachable-code-break -I ../../source/third_party/CMSIS/Core/Include -I ../../source -I ../ -I ../App -I ../BSP -I ../HAL -I ../OSAL -I ../Config -I ./FreeRTOS/include -I ./FreeRTOS/portable/MemMang -I ./FreeRTOS/portable/GCC/ARM_CM0 -I ./FreeRTOS/src-D__UVISION_VERSION="537" -D__MSPM0G3507__ -D__MSPM0G3507__-o ./objects/timers.o -MD)
+I (..\FreeRTOSConfig.h)(0x69F98C9F)
+I (FreeRTOS\include\projdefs.h)(0x69F98C9F)
+I (FreeRTOS\include\portable.h)(0x69F98C9F)
+I (FreeRTOS\include\deprecated_definitions.h)(0x69F98C9F)
+I (FreeRTOS\portable\GCC\ARM_CM0\portmacro.h)(0x69F98C9F)
+I (FreeRTOS\include\mpu_wrappers.h)(0x69F98C9F)
+I (FreeRTOS\include\task.h)(0x69F98C9F)
+I (FreeRTOS\include\list.h)(0x69F98C9F)
+I (FreeRTOS\include\queue.h)(0x69F98C9F)
+F (.\FreeRTOS\src\stream_buffer.c)(0x69F98C9F)(-xc -std=c99 --target=arm-arm-none-eabi -mcpu=cortex-m0plus -c-fno-rtti -funsigned-char -fshort-enums -fshort-wchar-D__MICROLIB -gdwarf-4 -O0 -ffunction-sections -Wno-packed -Wno-missing-variable-declarations -Wno-missing-prototypes -Wno-missing-noreturn -Wno-sign-conversion -Wno-nonportable-include-path -Wno-reserved-id-macro -Wno-unused-macros -Wno-documentation-unknown-command -Wno-documentation -Wno-license-management -Wno-parentheses-equality -Wno-reserved-identifier -Wno-covered-switch-default -Wno-unreachable-code-break -I ../../source/third_party/CMSIS/Core/Include -I ../../source -I ../ -I ../App -I ../BSP -I ../HAL -I ../OSAL -I ../Config -I ./FreeRTOS/include -I ./FreeRTOS/portable/MemMang -I ./FreeRTOS/portable/GCC/ARM_CM0 -I ./FreeRTOS/src-D__UVISION_VERSION="537" -D__MSPM0G3507__ -D__MSPM0G3507__-o ./objects/stream_buffer.o -MD)
+I (D:\Keil5\Core\ARM\ARMCLANG\include\stdint.h)(0x625260D8)
+I (D:\Keil5\Core\ARM\ARMCLANG\include\string.h)(0x625260D6)
+I (FreeRTOS\include\FreeRTOS.h)(0x69F98C9F)
+I (D:\Keil5\Core\ARM\ARMCLANG\include\stddef.h)(0x625260D6)
+I (..\FreeRTOSConfig.h)(0x69F98C9F)
+I (FreeRTOS\include\projdefs.h)(0x69F98C9F)
+I (FreeRTOS\include\portable.h)(0x69F98C9F)
+I (FreeRTOS\include\deprecated_definitions.h)(0x69F98C9F)
+I (FreeRTOS\portable\GCC\ARM_CM0\portmacro.h)(0x69F98C9F)
+I (FreeRTOS\include\mpu_wrappers.h)(0x69F98C9F)
+I (FreeRTOS\include\task.h)(0x69F98C9F)
+I (FreeRTOS\include\list.h)(0x69F98C9F)
+I (FreeRTOS\include\stream_buffer.h)(0x69F98C9F)
+F (.\FreeRTOS\src\tasks.c)(0x69F98C9F)(-xc -std=c99 --target=arm-arm-none-eabi -mcpu=cortex-m0plus -c-fno-rtti -funsigned-char -fshort-enums -fshort-wchar-D__MICROLIB -gdwarf-4 -O0 -ffunction-sections -Wno-packed -Wno-missing-variable-declarations -Wno-missing-prototypes -Wno-missing-noreturn -Wno-sign-conversion -Wno-nonportable-include-path -Wno-reserved-id-macro -Wno-unused-macros -Wno-documentation-unknown-command -Wno-documentation -Wno-license-management -Wno-parentheses-equality -Wno-reserved-identifier -Wno-covered-switch-default -Wno-unreachable-code-break -I ../../source/third_party/CMSIS/Core/Include -I ../../source -I ../ -I ../App -I ../BSP -I ../HAL -I ../OSAL -I ../Config -I ./FreeRTOS/include -I ./FreeRTOS/portable/MemMang -I ./FreeRTOS/portable/GCC/ARM_CM0 -I ./FreeRTOS/src-D__UVISION_VERSION="537" -D__MSPM0G3507__ -D__MSPM0G3507__-o ./objects/tasks.o -MD)
 I (D:\Keil5\Core\ARM\ARMCLANG\include\stdlib.h)(0x625260D6)
-I (FreeRTOS\include\FreeRTOS.h)(0x69CF7DC6)
+I (D:\Keil5\Core\ARM\ARMCLANG\include\string.h)(0x625260D6)
+I (FreeRTOS\include\FreeRTOS.h)(0x69F98C9F)
 I (D:\Keil5\Core\ARM\ARMCLANG\include\stddef.h)(0x625260D6)
 I (D:\Keil5\Core\ARM\ARMCLANG\include\stdint.h)(0x625260D8)
-I (..\..\MSPM0G3507_FreeRTOS\FreeRTOSConfig.h)(0x69DDFB74)
-I (FreeRTOS\include\projdefs.h)(0x69CF7DC6)
-I (FreeRTOS\include\portable.h)(0x69CF7DC6)
-I (FreeRTOS\include\deprecated_definitions.h)(0x69CF7DC6)
-I (FreeRTOS\portable\GCC\ARM_CM0\portmacro.h)(0x69CF7DC6)
-I (FreeRTOS\include\mpu_wrappers.h)(0x69CF7DC6)
-I (FreeRTOS\include\task.h)(0x69CF7DC6)
-I (FreeRTOS\include\list.h)(0x69CF7DC6)
-I (FreeRTOS\include\queue.h)(0x69CF7DC6)
-I (FreeRTOS\include\timers.h)(0x69CF7DC6)
-F (.\FreeRTOS\portable\MemMang\heap_4.c)(0x69CF7DC6)(-xc -std=c99 --target=arm-arm-none-eabi -mcpu=cortex-m0plus -c-fno-rtti -funsigned-char -fshort-enums -fshort-wchar-D__MICROLIB -gdwarf-4 -O0 -ffunction-sections -Wno-packed -Wno-missing-variable-declarations -Wno-missing-prototypes -Wno-missing-noreturn -Wno-sign-conversion -Wno-nonportable-include-path -Wno-reserved-id-macro -Wno-unused-macros -Wno-documentation-unknown-command -Wno-documentation -Wno-license-management -Wno-parentheses-equality -Wno-reserved-identifier -Wno-covered-switch-default -Wno-unreachable-code-break -I ../../source/third_party/CMSIS/Core/Include -I ../../source -I ../ -I ../App -I ../BSP -I ../HAL -I ../OSAL -I ../Config -I ./FreeRTOS/include -I ./FreeRTOS/portable/MemMang -I ./FreeRTOS/portable/GCC/ARM_CM0 -I ./FreeRTOS/src-D__UVISION_VERSION="537" -D__MSPM0G3507__ -D__MSPM0G3507__-o ./objects/heap_4.o -MD)
+I (..\FreeRTOSConfig.h)(0x69F98C9F)
+I (FreeRTOS\include\projdefs.h)(0x69F98C9F)
+I (FreeRTOS\include\portable.h)(0x69F98C9F)
+I (FreeRTOS\include\deprecated_definitions.h)(0x69F98C9F)
+I (FreeRTOS\portable\GCC\ARM_CM0\portmacro.h)(0x69F98C9F)
+I (FreeRTOS\include\mpu_wrappers.h)(0x69F98C9F)
+I (FreeRTOS\include\task.h)(0x69F98C9F)
+I (FreeRTOS\include\list.h)(0x69F98C9F)
+I (FreeRTOS\include\timers.h)(0x69F98C9F)
+I (FreeRTOS\include\stack_macros.h)(0x69F98C9F)
+F (.\FreeRTOS\src\timers.c)(0x69F98C9F)(-xc -std=c99 --target=arm-arm-none-eabi -mcpu=cortex-m0plus -c-fno-rtti -funsigned-char -fshort-enums -fshort-wchar-D__MICROLIB -gdwarf-4 -O0 -ffunction-sections -Wno-packed -Wno-missing-variable-declarations -Wno-missing-prototypes -Wno-missing-noreturn -Wno-sign-conversion -Wno-nonportable-include-path -Wno-reserved-id-macro -Wno-unused-macros -Wno-documentation-unknown-command -Wno-documentation -Wno-license-management -Wno-parentheses-equality -Wno-reserved-identifier -Wno-covered-switch-default -Wno-unreachable-code-break -I ../../source/third_party/CMSIS/Core/Include -I ../../source -I ../ -I ../App -I ../BSP -I ../HAL -I ../OSAL -I ../Config -I ./FreeRTOS/include -I ./FreeRTOS/portable/MemMang -I ./FreeRTOS/portable/GCC/ARM_CM0 -I ./FreeRTOS/src-D__UVISION_VERSION="537" -D__MSPM0G3507__ -D__MSPM0G3507__-o ./objects/timers.o -MD)
 I (D:\Keil5\Core\ARM\ARMCLANG\include\stdlib.h)(0x625260D6)
-I (FreeRTOS\include\FreeRTOS.h)(0x69CF7DC6)
+I (FreeRTOS\include\FreeRTOS.h)(0x69F98C9F)
 I (D:\Keil5\Core\ARM\ARMCLANG\include\stddef.h)(0x625260D6)
 I (D:\Keil5\Core\ARM\ARMCLANG\include\stdint.h)(0x625260D8)
-I (..\..\MSPM0G3507_FreeRTOS\FreeRTOSConfig.h)(0x69DDFB74)
-I (FreeRTOS\include\projdefs.h)(0x69CF7DC6)
-I (FreeRTOS\include\portable.h)(0x69CF7DC6)
-I (FreeRTOS\include\deprecated_definitions.h)(0x69CF7DC6)
-I (FreeRTOS\portable\GCC\ARM_CM0\portmacro.h)(0x69CF7DC6)
-I (FreeRTOS\include\mpu_wrappers.h)(0x69CF7DC6)
-I (FreeRTOS\include\task.h)(0x69CF7DC6)
-I (FreeRTOS\include\list.h)(0x69CF7DC6)
-F (.\FreeRTOS\portable\GCC\ARM_CM0\port.c)(0x69CF7DC6)(-xc -std=c99 --target=arm-arm-none-eabi -mcpu=cortex-m0plus -c-fno-rtti -funsigned-char -fshort-enums -fshort-wchar-D__MICROLIB -gdwarf-4 -O0 -ffunction-sections -Wno-packed -Wno-missing-variable-declarations -Wno-missing-prototypes -Wno-missing-noreturn -Wno-sign-conversion -Wno-nonportable-include-path -Wno-reserved-id-macro -Wno-unused-macros -Wno-documentation-unknown-command -Wno-documentation -Wno-license-management -Wno-parentheses-equality -Wno-reserved-identifier -Wno-covered-switch-default -Wno-unreachable-code-break -I ../../source/third_party/CMSIS/Core/Include -I ../../source -I ../ -I ../App -I ../BSP -I ../HAL -I ../OSAL -I ../Config -I ./FreeRTOS/include -I ./FreeRTOS/portable/MemMang -I ./FreeRTOS/portable/GCC/ARM_CM0 -I ./FreeRTOS/src-D__UVISION_VERSION="537" -D__MSPM0G3507__ -D__MSPM0G3507__-o ./objects/port.o -MD)
-I (FreeRTOS\include\FreeRTOS.h)(0x69CF7DC6)
+I (..\FreeRTOSConfig.h)(0x69F98C9F)
+I (FreeRTOS\include\projdefs.h)(0x69F98C9F)
+I (FreeRTOS\include\portable.h)(0x69F98C9F)
+I (FreeRTOS\include\deprecated_definitions.h)(0x69F98C9F)
+I (FreeRTOS\portable\GCC\ARM_CM0\portmacro.h)(0x69F98C9F)
+I (FreeRTOS\include\mpu_wrappers.h)(0x69F98C9F)
+I (FreeRTOS\include\task.h)(0x69F98C9F)
+I (FreeRTOS\include\list.h)(0x69F98C9F)
+I (FreeRTOS\include\queue.h)(0x69F98C9F)
+I (FreeRTOS\include\timers.h)(0x69F98C9F)
+F (.\FreeRTOS\portable\MemMang\heap_4.c)(0x69F98C9F)(-xc -std=c99 --target=arm-arm-none-eabi -mcpu=cortex-m0plus -c-fno-rtti -funsigned-char -fshort-enums -fshort-wchar-D__MICROLIB -gdwarf-4 -O0 -ffunction-sections -Wno-packed -Wno-missing-variable-declarations -Wno-missing-prototypes -Wno-missing-noreturn -Wno-sign-conversion -Wno-nonportable-include-path -Wno-reserved-id-macro -Wno-unused-macros -Wno-documentation-unknown-command -Wno-documentation -Wno-license-management -Wno-parentheses-equality -Wno-reserved-identifier -Wno-covered-switch-default -Wno-unreachable-code-break -I ../../source/third_party/CMSIS/Core/Include -I ../../source -I ../ -I ../App -I ../BSP -I ../HAL -I ../OSAL -I ../Config -I ./FreeRTOS/include -I ./FreeRTOS/portable/MemMang -I ./FreeRTOS/portable/GCC/ARM_CM0 -I ./FreeRTOS/src-D__UVISION_VERSION="537" -D__MSPM0G3507__ -D__MSPM0G3507__-o ./objects/heap_4.o -MD)
+I (D:\Keil5\Core\ARM\ARMCLANG\include\stdlib.h)(0x625260D6)
+I (FreeRTOS\include\FreeRTOS.h)(0x69F98C9F)
 I (D:\Keil5\Core\ARM\ARMCLANG\include\stddef.h)(0x625260D6)
 I (D:\Keil5\Core\ARM\ARMCLANG\include\stdint.h)(0x625260D8)
-I (..\..\MSPM0G3507_FreeRTOS\FreeRTOSConfig.h)(0x69DDFB74)
-I (FreeRTOS\include\projdefs.h)(0x69CF7DC6)
-I (FreeRTOS\include\portable.h)(0x69CF7DC6)
-I (FreeRTOS\include\deprecated_definitions.h)(0x69CF7DC6)
-I (FreeRTOS\portable\GCC\ARM_CM0\portmacro.h)(0x69CF7DC6)
-I (FreeRTOS\include\mpu_wrappers.h)(0x69CF7DC6)
-I (FreeRTOS\include\task.h)(0x69CF7DC6)
-I (FreeRTOS\include\list.h)(0x69CF7DC6)
-F (..\BSP\bsp_adc.c)(0x69F49D06)(-xc -std=c99 --target=arm-arm-none-eabi -mcpu=cortex-m0plus -c-fno-rtti -funsigned-char -fshort-enums -fshort-wchar-D__MICROLIB -gdwarf-4 -O0 -ffunction-sections -Wno-packed -Wno-missing-variable-declarations -Wno-missing-prototypes -Wno-missing-noreturn -Wno-sign-conversion -Wno-nonportable-include-path -Wno-reserved-id-macro -Wno-unused-macros -Wno-documentation-unknown-command -Wno-documentation -Wno-license-management -Wno-parentheses-equality -Wno-reserved-identifier -Wno-covered-switch-default -Wno-unreachable-code-break -I ../../source/third_party/CMSIS/Core/Include -I ../../source -I ../ -I ../App -I ../BSP -I ../HAL -I ../OSAL -I ../Config -I ./FreeRTOS/include -I ./FreeRTOS/portable/MemMang -I ./FreeRTOS/portable/GCC/ARM_CM0 -I ./FreeRTOS/src-D__UVISION_VERSION="537" -D__MSPM0G3507__ -D__MSPM0G3507__-o ./objects/bsp_adc.o -MD)
-I (..\BSP\bsp_adc.h)(0x69F48013)
-I (..\BSP\bsp_common.h)(0x69F4790F)
+I (..\FreeRTOSConfig.h)(0x69F98C9F)
+I (FreeRTOS\include\projdefs.h)(0x69F98C9F)
+I (FreeRTOS\include\portable.h)(0x69F98C9F)
+I (FreeRTOS\include\deprecated_definitions.h)(0x69F98C9F)
+I (FreeRTOS\portable\GCC\ARM_CM0\portmacro.h)(0x69F98C9F)
+I (FreeRTOS\include\mpu_wrappers.h)(0x69F98C9F)
+I (FreeRTOS\include\task.h)(0x69F98C9F)
+I (FreeRTOS\include\list.h)(0x69F98C9F)
+F (.\FreeRTOS\portable\GCC\ARM_CM0\port.c)(0x69F98C9F)(-xc -std=c99 --target=arm-arm-none-eabi -mcpu=cortex-m0plus -c-fno-rtti -funsigned-char -fshort-enums -fshort-wchar-D__MICROLIB -gdwarf-4 -O0 -ffunction-sections -Wno-packed -Wno-missing-variable-declarations -Wno-missing-prototypes -Wno-missing-noreturn -Wno-sign-conversion -Wno-nonportable-include-path -Wno-reserved-id-macro -Wno-unused-macros -Wno-documentation-unknown-command -Wno-documentation -Wno-license-management -Wno-parentheses-equality -Wno-reserved-identifier -Wno-covered-switch-default -Wno-unreachable-code-break -I ../../source/third_party/CMSIS/Core/Include -I ../../source -I ../ -I ../App -I ../BSP -I ../HAL -I ../OSAL -I ../Config -I ./FreeRTOS/include -I ./FreeRTOS/portable/MemMang -I ./FreeRTOS/portable/GCC/ARM_CM0 -I ./FreeRTOS/src-D__UVISION_VERSION="537" -D__MSPM0G3507__ -D__MSPM0G3507__-o ./objects/port.o -MD)
+I (FreeRTOS\include\FreeRTOS.h)(0x69F98C9F)
+I (D:\Keil5\Core\ARM\ARMCLANG\include\stddef.h)(0x625260D6)
+I (D:\Keil5\Core\ARM\ARMCLANG\include\stdint.h)(0x625260D8)
+I (..\FreeRTOSConfig.h)(0x69F98C9F)
+I (FreeRTOS\include\projdefs.h)(0x69F98C9F)
+I (FreeRTOS\include\portable.h)(0x69F98C9F)
+I (FreeRTOS\include\deprecated_definitions.h)(0x69F98C9F)
+I (FreeRTOS\portable\GCC\ARM_CM0\portmacro.h)(0x69F98C9F)
+I (FreeRTOS\include\mpu_wrappers.h)(0x69F98C9F)
+I (FreeRTOS\include\task.h)(0x69F98C9F)
+I (FreeRTOS\include\list.h)(0x69F98C9F)
+F (..\BSP\bsp_adc.c)(0x69F98C9F)(-xc -std=c99 --target=arm-arm-none-eabi -mcpu=cortex-m0plus -c-fno-rtti -funsigned-char -fshort-enums -fshort-wchar-D__MICROLIB -gdwarf-4 -O0 -ffunction-sections -Wno-packed -Wno-missing-variable-declarations -Wno-missing-prototypes -Wno-missing-noreturn -Wno-sign-conversion -Wno-nonportable-include-path -Wno-reserved-id-macro -Wno-unused-macros -Wno-documentation-unknown-command -Wno-documentation -Wno-license-management -Wno-parentheses-equality -Wno-reserved-identifier -Wno-covered-switch-default -Wno-unreachable-code-break -I ../../source/third_party/CMSIS/Core/Include -I ../../source -I ../ -I ../App -I ../BSP -I ../HAL -I ../OSAL -I ../Config -I ./FreeRTOS/include -I ./FreeRTOS/portable/MemMang -I ./FreeRTOS/portable/GCC/ARM_CM0 -I ./FreeRTOS/src-D__UVISION_VERSION="537" -D__MSPM0G3507__ -D__MSPM0G3507__-o ./objects/bsp_adc.o -MD)
+I (..\BSP\bsp_adc.h)(0x69F98C9F)
+I (..\BSP\bsp_common.h)(0x69F98C9F)
 I (D:\Keil5\Core\ARM\ARMCLANG\include\stdint.h)(0x625260D8)
 I (D:\Keil5\Core\ARM\ARMCLANG\include\stdbool.h)(0x625260D6)
 I (D:\Keil5\Core\ARM\ARMCLANG\include\stddef.h)(0x625260D6)
-I (..\HAL\hal_adc.h)(0x69F49CFC)
-I (..\HAL\hal_common.h)(0x69F4713E)
-I (..\Config\project_config.h)(0x69F8EB62)
-I (..\ti_msp_dl_config.h)(0x69F983E9)
+I (..\HAL\hal_adc.h)(0x69F98C9F)
+I (..\HAL\hal_common.h)(0x69F98C9F)
+I (..\Config\project_config.h)(0x69F98C9F)
+I (..\ti_msp_dl_config.h)(0x69F997C0)
 I (..\..\source\ti\devices\msp\msp.h)(0x69CF7DC9)
 I (..\..\source\ti\devices\DeviceFamily.h)(0x69CF7DC9)
 I (..\..\source\ti\devices\msp\m0p\mspm0g350x.h)(0x69CF7DC9)
@@ -1112,44 +1112,44 @@ I (..\..\source\ti\driverlib\dl_vref.h)(0x69CF7DCA)
 I (..\..\source\ti\driverlib\dl_wwdt.h)(0x69CF7DCA)
 I (..\..\source\ti\driverlib\m0p\dl_interrupt.h)(0x69CF7DCA)
 I (..\..\source\ti\driverlib\m0p\dl_systick.h)(0x69CF7DCA)
-I (..\OSAL\osal_api.h)(0x69F47ADF)
-I (..\OSAL\osal_config.h)(0x69F473FC)
-I (FreeRTOS\include\FreeRTOS.h)(0x69CF7DC6)
-I (..\FreeRTOSConfig.h)(0x69DDFB74)
-I (FreeRTOS\include\projdefs.h)(0x69CF7DC6)
-I (FreeRTOS\include\portable.h)(0x69CF7DC6)
-I (FreeRTOS\include\deprecated_definitions.h)(0x69CF7DC6)
-I (FreeRTOS\portable\GCC\ARM_CM0\portmacro.h)(0x69CF7DC6)
-I (FreeRTOS\include\mpu_wrappers.h)(0x69CF7DC6)
-I (FreeRTOS\include\task.h)(0x69CF7DC6)
-I (FreeRTOS\include\list.h)(0x69CF7DC6)
-I (FreeRTOS\include\semphr.h)(0x69CF7DC6)
-I (FreeRTOS\include\queue.h)(0x69CF7DC6)
-F (..\BSP\bsp_adc.h)(0x69F48013)()
-F (..\BSP\bsp_common.h)(0x69F4790F)()
-F (..\BSP\bsp_encoder.c)(0x69F97A88)(-xc -std=c99 --target=arm-arm-none-eabi -mcpu=cortex-m0plus -c-fno-rtti -funsigned-char -fshort-enums -fshort-wchar-D__MICROLIB -gdwarf-4 -O0 -ffunction-sections -Wno-packed -Wno-missing-variable-declarations -Wno-missing-prototypes -Wno-missing-noreturn -Wno-sign-conversion -Wno-nonportable-include-path -Wno-reserved-id-macro -Wno-unused-macros -Wno-documentation-unknown-command -Wno-documentation -Wno-license-management -Wno-parentheses-equality -Wno-reserved-identifier -Wno-covered-switch-default -Wno-unreachable-code-break -I ../../source/third_party/CMSIS/Core/Include -I ../../source -I ../ -I ../App -I ../BSP -I ../HAL -I ../OSAL -I ../Config -I ./FreeRTOS/include -I ./FreeRTOS/portable/MemMang -I ./FreeRTOS/portable/GCC/ARM_CM0 -I ./FreeRTOS/src-D__UVISION_VERSION="537" -D__MSPM0G3507__ -D__MSPM0G3507__-o ./objects/bsp_encoder.o -MD)
-I (..\BSP\bsp_encoder.h)(0x69F8A8ED)
-I (..\BSP\bsp_common.h)(0x69F4790F)
+I (..\OSAL\osal_api.h)(0x69F98C9F)
+I (..\OSAL\osal_config.h)(0x69F98C9F)
+I (FreeRTOS\include\FreeRTOS.h)(0x69F98C9F)
+I (..\FreeRTOSConfig.h)(0x69F98C9F)
+I (FreeRTOS\include\projdefs.h)(0x69F98C9F)
+I (FreeRTOS\include\portable.h)(0x69F98C9F)
+I (FreeRTOS\include\deprecated_definitions.h)(0x69F98C9F)
+I (FreeRTOS\portable\GCC\ARM_CM0\portmacro.h)(0x69F98C9F)
+I (FreeRTOS\include\mpu_wrappers.h)(0x69F98C9F)
+I (FreeRTOS\include\task.h)(0x69F98C9F)
+I (FreeRTOS\include\list.h)(0x69F98C9F)
+I (FreeRTOS\include\semphr.h)(0x69F98C9F)
+I (FreeRTOS\include\queue.h)(0x69F98C9F)
+F (..\BSP\bsp_adc.h)(0x69F98C9F)()
+F (..\BSP\bsp_common.h)(0x69F98C9F)()
+F (..\BSP\bsp_encoder.c)(0x69F98C9F)(-xc -std=c99 --target=arm-arm-none-eabi -mcpu=cortex-m0plus -c-fno-rtti -funsigned-char -fshort-enums -fshort-wchar-D__MICROLIB -gdwarf-4 -O0 -ffunction-sections -Wno-packed -Wno-missing-variable-declarations -Wno-missing-prototypes -Wno-missing-noreturn -Wno-sign-conversion -Wno-nonportable-include-path -Wno-reserved-id-macro -Wno-unused-macros -Wno-documentation-unknown-command -Wno-documentation -Wno-license-management -Wno-parentheses-equality -Wno-reserved-identifier -Wno-covered-switch-default -Wno-unreachable-code-break -I ../../source/third_party/CMSIS/Core/Include -I ../../source -I ../ -I ../App -I ../BSP -I ../HAL -I ../OSAL -I ../Config -I ./FreeRTOS/include -I ./FreeRTOS/portable/MemMang -I ./FreeRTOS/portable/GCC/ARM_CM0 -I ./FreeRTOS/src-D__UVISION_VERSION="537" -D__MSPM0G3507__ -D__MSPM0G3507__-o ./objects/bsp_encoder.o -MD)
+I (..\BSP\bsp_encoder.h)(0x69F98C9F)
+I (..\BSP\bsp_common.h)(0x69F98C9F)
 I (D:\Keil5\Core\ARM\ARMCLANG\include\stdint.h)(0x625260D8)
 I (D:\Keil5\Core\ARM\ARMCLANG\include\stdbool.h)(0x625260D6)
 I (D:\Keil5\Core\ARM\ARMCLANG\include\stddef.h)(0x625260D6)
-I (..\HAL\hal_gpio.h)(0x69F47150)
-I (..\HAL\hal_common.h)(0x69F4713E)
-I (..\HAL\hal_timer.h)(0x69F89E63)
-I (..\OSAL\osal_api.h)(0x69F47ADF)
-I (..\OSAL\osal_config.h)(0x69F473FC)
-I (FreeRTOS\include\FreeRTOS.h)(0x69CF7DC6)
-I (..\FreeRTOSConfig.h)(0x69DDFB74)
-I (FreeRTOS\include\projdefs.h)(0x69CF7DC6)
-I (FreeRTOS\include\portable.h)(0x69CF7DC6)
-I (FreeRTOS\include\deprecated_definitions.h)(0x69CF7DC6)
-I (FreeRTOS\portable\GCC\ARM_CM0\portmacro.h)(0x69CF7DC6)
-I (FreeRTOS\include\mpu_wrappers.h)(0x69CF7DC6)
-I (FreeRTOS\include\task.h)(0x69CF7DC6)
-I (FreeRTOS\include\list.h)(0x69CF7DC6)
-I (FreeRTOS\include\semphr.h)(0x69CF7DC6)
-I (FreeRTOS\include\queue.h)(0x69CF7DC6)
-I (..\ti_msp_dl_config.h)(0x69F983E9)
+I (..\HAL\hal_gpio.h)(0x69F98C9F)
+I (..\HAL\hal_common.h)(0x69F98C9F)
+I (..\HAL\hal_timer.h)(0x69F98C9F)
+I (..\OSAL\osal_api.h)(0x69F98C9F)
+I (..\OSAL\osal_config.h)(0x69F98C9F)
+I (FreeRTOS\include\FreeRTOS.h)(0x69F98C9F)
+I (..\FreeRTOSConfig.h)(0x69F98C9F)
+I (FreeRTOS\include\projdefs.h)(0x69F98C9F)
+I (FreeRTOS\include\portable.h)(0x69F98C9F)
+I (FreeRTOS\include\deprecated_definitions.h)(0x69F98C9F)
+I (FreeRTOS\portable\GCC\ARM_CM0\portmacro.h)(0x69F98C9F)
+I (FreeRTOS\include\mpu_wrappers.h)(0x69F98C9F)
+I (FreeRTOS\include\task.h)(0x69F98C9F)
+I (FreeRTOS\include\list.h)(0x69F98C9F)
+I (FreeRTOS\include\semphr.h)(0x69F98C9F)
+I (FreeRTOS\include\queue.h)(0x69F98C9F)
+I (..\ti_msp_dl_config.h)(0x69F997C0)
 I (..\..\source\ti\devices\msp\msp.h)(0x69CF7DC9)
 I (..\..\source\ti\devices\DeviceFamily.h)(0x69CF7DC9)
 I (..\..\source\ti\devices\msp\m0p\mspm0g350x.h)(0x69CF7DC9)
@@ -1230,18 +1230,18 @@ I (..\..\source\ti\driverlib\dl_vref.h)(0x69CF7DCA)
 I (..\..\source\ti\driverlib\dl_wwdt.h)(0x69CF7DCA)
 I (..\..\source\ti\driverlib\m0p\dl_interrupt.h)(0x69CF7DCA)
 I (..\..\source\ti\driverlib\m0p\dl_systick.h)(0x69CF7DCA)
-I (..\Config\project_config.h)(0x69F8EB62)
-F (..\BSP\bsp_encoder.h)(0x69F8A8ED)()
-F (..\BSP\bsp_led.c)(0x69F47D43)(-xc -std=c99 --target=arm-arm-none-eabi -mcpu=cortex-m0plus -c-fno-rtti -funsigned-char -fshort-enums -fshort-wchar-D__MICROLIB -gdwarf-4 -O0 -ffunction-sections -Wno-packed -Wno-missing-variable-declarations -Wno-missing-prototypes -Wno-missing-noreturn -Wno-sign-conversion -Wno-nonportable-include-path -Wno-reserved-id-macro -Wno-unused-macros -Wno-documentation-unknown-command -Wno-documentation -Wno-license-management -Wno-parentheses-equality -Wno-reserved-identifier -Wno-covered-switch-default -Wno-unreachable-code-break -I ../../source/third_party/CMSIS/Core/Include -I ../../source -I ../ -I ../App -I ../BSP -I ../HAL -I ../OSAL -I ../Config -I ./FreeRTOS/include -I ./FreeRTOS/portable/MemMang -I ./FreeRTOS/portable/GCC/ARM_CM0 -I ./FreeRTOS/src-D__UVISION_VERSION="537" -D__MSPM0G3507__ -D__MSPM0G3507__-o ./objects/bsp_led.o -MD)
-I (..\BSP\bsp_led.h)(0x69F47D43)
-I (..\BSP\bsp_common.h)(0x69F4790F)
+I (..\Config\project_config.h)(0x69F98C9F)
+F (..\BSP\bsp_encoder.h)(0x69F98C9F)()
+F (..\BSP\bsp_led.c)(0x69F98C9F)(-xc -std=c99 --target=arm-arm-none-eabi -mcpu=cortex-m0plus -c-fno-rtti -funsigned-char -fshort-enums -fshort-wchar-D__MICROLIB -gdwarf-4 -O0 -ffunction-sections -Wno-packed -Wno-missing-variable-declarations -Wno-missing-prototypes -Wno-missing-noreturn -Wno-sign-conversion -Wno-nonportable-include-path -Wno-reserved-id-macro -Wno-unused-macros -Wno-documentation-unknown-command -Wno-documentation -Wno-license-management -Wno-parentheses-equality -Wno-reserved-identifier -Wno-covered-switch-default -Wno-unreachable-code-break -I ../../source/third_party/CMSIS/Core/Include -I ../../source -I ../ -I ../App -I ../BSP -I ../HAL -I ../OSAL -I ../Config -I ./FreeRTOS/include -I ./FreeRTOS/portable/MemMang -I ./FreeRTOS/portable/GCC/ARM_CM0 -I ./FreeRTOS/src-D__UVISION_VERSION="537" -D__MSPM0G3507__ -D__MSPM0G3507__-o ./objects/bsp_led.o -MD)
+I (..\BSP\bsp_led.h)(0x69F98C9F)
+I (..\BSP\bsp_common.h)(0x69F98C9F)
 I (D:\Keil5\Core\ARM\ARMCLANG\include\stdint.h)(0x625260D8)
 I (D:\Keil5\Core\ARM\ARMCLANG\include\stdbool.h)(0x625260D6)
 I (D:\Keil5\Core\ARM\ARMCLANG\include\stddef.h)(0x625260D6)
-I (..\HAL\hal_gpio.h)(0x69F47150)
-I (..\HAL\hal_common.h)(0x69F4713E)
-I (..\Config\project_config.h)(0x69F8EB62)
-I (..\ti_msp_dl_config.h)(0x69F983E9)
+I (..\HAL\hal_gpio.h)(0x69F98C9F)
+I (..\HAL\hal_common.h)(0x69F98C9F)
+I (..\Config\project_config.h)(0x69F98C9F)
+I (..\ti_msp_dl_config.h)(0x69F997C0)
 I (..\..\source\ti\devices\msp\msp.h)(0x69CF7DC9)
 I (..\..\source\ti\devices\DeviceFamily.h)(0x69CF7DC9)
 I (..\..\source\ti\devices\msp\m0p\mspm0g350x.h)(0x69CF7DC9)
@@ -1322,53 +1322,53 @@ I (..\..\source\ti\driverlib\dl_vref.h)(0x69CF7DCA)
 I (..\..\source\ti\driverlib\dl_wwdt.h)(0x69CF7DCA)
 I (..\..\source\ti\driverlib\m0p\dl_interrupt.h)(0x69CF7DCA)
 I (..\..\source\ti\driverlib\m0p\dl_systick.h)(0x69CF7DCA)
-F (..\BSP\bsp_led.h)(0x69F47D43)()
-F (..\BSP\bsp_motor.c)(0x69F6DF78)(-xc -std=c99 --target=arm-arm-none-eabi -mcpu=cortex-m0plus -c-fno-rtti -funsigned-char -fshort-enums -fshort-wchar-D__MICROLIB -gdwarf-4 -O0 -ffunction-sections -Wno-packed -Wno-missing-variable-declarations -Wno-missing-prototypes -Wno-missing-noreturn -Wno-sign-conversion -Wno-nonportable-include-path -Wno-reserved-id-macro -Wno-unused-macros -Wno-documentation-unknown-command -Wno-documentation -Wno-license-management -Wno-parentheses-equality -Wno-reserved-identifier -Wno-covered-switch-default -Wno-unreachable-code-break -I ../../source/third_party/CMSIS/Core/Include -I ../../source -I ../ -I ../App -I ../BSP -I ../HAL -I ../OSAL -I ../Config -I ./FreeRTOS/include -I ./FreeRTOS/portable/MemMang -I ./FreeRTOS/portable/GCC/ARM_CM0 -I ./FreeRTOS/src-D__UVISION_VERSION="537" -D__MSPM0G3507__ -D__MSPM0G3507__-o ./objects/bsp_motor.o -MD)
-I (..\BSP\bsp_motor.h)(0x69F6DF39)
-I (..\BSP\bsp_common.h)(0x69F4790F)
+F (..\BSP\bsp_led.h)(0x69F98C9F)()
+F (..\BSP\bsp_motor.c)(0x69F98C9F)(-xc -std=c99 --target=arm-arm-none-eabi -mcpu=cortex-m0plus -c-fno-rtti -funsigned-char -fshort-enums -fshort-wchar-D__MICROLIB -gdwarf-4 -O0 -ffunction-sections -Wno-packed -Wno-missing-variable-declarations -Wno-missing-prototypes -Wno-missing-noreturn -Wno-sign-conversion -Wno-nonportable-include-path -Wno-reserved-id-macro -Wno-unused-macros -Wno-documentation-unknown-command -Wno-documentation -Wno-license-management -Wno-parentheses-equality -Wno-reserved-identifier -Wno-covered-switch-default -Wno-unreachable-code-break -I ../../source/third_party/CMSIS/Core/Include -I ../../source -I ../ -I ../App -I ../BSP -I ../HAL -I ../OSAL -I ../Config -I ./FreeRTOS/include -I ./FreeRTOS/portable/MemMang -I ./FreeRTOS/portable/GCC/ARM_CM0 -I ./FreeRTOS/src-D__UVISION_VERSION="537" -D__MSPM0G3507__ -D__MSPM0G3507__-o ./objects/bsp_motor.o -MD)
+I (..\BSP\bsp_motor.h)(0x69F98C9F)
+I (..\BSP\bsp_common.h)(0x69F98C9F)
 I (D:\Keil5\Core\ARM\ARMCLANG\include\stdint.h)(0x625260D8)
 I (D:\Keil5\Core\ARM\ARMCLANG\include\stdbool.h)(0x625260D6)
 I (D:\Keil5\Core\ARM\ARMCLANG\include\stddef.h)(0x625260D6)
-I (..\HAL\hal_gpio.h)(0x69F47150)
-I (..\HAL\hal_common.h)(0x69F4713E)
-I (..\HAL\hal_timer.h)(0x69F89E63)
-I (..\OSAL\osal_api.h)(0x69F47ADF)
-I (..\OSAL\osal_config.h)(0x69F473FC)
-I (FreeRTOS\include\FreeRTOS.h)(0x69CF7DC6)
-I (..\FreeRTOSConfig.h)(0x69DDFB74)
-I (FreeRTOS\include\projdefs.h)(0x69CF7DC6)
-I (FreeRTOS\include\portable.h)(0x69CF7DC6)
-I (FreeRTOS\include\deprecated_definitions.h)(0x69CF7DC6)
-I (FreeRTOS\portable\GCC\ARM_CM0\portmacro.h)(0x69CF7DC6)
-I (FreeRTOS\include\mpu_wrappers.h)(0x69CF7DC6)
-I (FreeRTOS\include\task.h)(0x69CF7DC6)
-I (FreeRTOS\include\list.h)(0x69CF7DC6)
-I (FreeRTOS\include\semphr.h)(0x69CF7DC6)
-I (FreeRTOS\include\queue.h)(0x69CF7DC6)
-F (..\BSP\bsp_motor.h)(0x69F6DF39)()
-F (..\BSP\bsp_soft_i2c.c)(0x69F47D64)(-xc -std=c99 --target=arm-arm-none-eabi -mcpu=cortex-m0plus -c-fno-rtti -funsigned-char -fshort-enums -fshort-wchar-D__MICROLIB -gdwarf-4 -O0 -ffunction-sections -Wno-packed -Wno-missing-variable-declarations -Wno-missing-prototypes -Wno-missing-noreturn -Wno-sign-conversion -Wno-nonportable-include-path -Wno-reserved-id-macro -Wno-unused-macros -Wno-documentation-unknown-command -Wno-documentation -Wno-license-management -Wno-parentheses-equality -Wno-reserved-identifier -Wno-covered-switch-default -Wno-unreachable-code-break -I ../../source/third_party/CMSIS/Core/Include -I ../../source -I ../ -I ../App -I ../BSP -I ../HAL -I ../OSAL -I ../Config -I ./FreeRTOS/include -I ./FreeRTOS/portable/MemMang -I ./FreeRTOS/portable/GCC/ARM_CM0 -I ./FreeRTOS/src-D__UVISION_VERSION="537" -D__MSPM0G3507__ -D__MSPM0G3507__-o ./objects/bsp_soft_i2c.o -MD)
-I (..\BSP\bsp_soft_i2c.h)(0x69F47D43)
-I (..\BSP\bsp_common.h)(0x69F4790F)
+I (..\HAL\hal_gpio.h)(0x69F98C9F)
+I (..\HAL\hal_common.h)(0x69F98C9F)
+I (..\HAL\hal_timer.h)(0x69F98C9F)
+I (..\OSAL\osal_api.h)(0x69F98C9F)
+I (..\OSAL\osal_config.h)(0x69F98C9F)
+I (FreeRTOS\include\FreeRTOS.h)(0x69F98C9F)
+I (..\FreeRTOSConfig.h)(0x69F98C9F)
+I (FreeRTOS\include\projdefs.h)(0x69F98C9F)
+I (FreeRTOS\include\portable.h)(0x69F98C9F)
+I (FreeRTOS\include\deprecated_definitions.h)(0x69F98C9F)
+I (FreeRTOS\portable\GCC\ARM_CM0\portmacro.h)(0x69F98C9F)
+I (FreeRTOS\include\mpu_wrappers.h)(0x69F98C9F)
+I (FreeRTOS\include\task.h)(0x69F98C9F)
+I (FreeRTOS\include\list.h)(0x69F98C9F)
+I (FreeRTOS\include\semphr.h)(0x69F98C9F)
+I (FreeRTOS\include\queue.h)(0x69F98C9F)
+F (..\BSP\bsp_motor.h)(0x69F98C9F)()
+F (..\BSP\bsp_soft_i2c.c)(0x69F98C9F)(-xc -std=c99 --target=arm-arm-none-eabi -mcpu=cortex-m0plus -c-fno-rtti -funsigned-char -fshort-enums -fshort-wchar-D__MICROLIB -gdwarf-4 -O0 -ffunction-sections -Wno-packed -Wno-missing-variable-declarations -Wno-missing-prototypes -Wno-missing-noreturn -Wno-sign-conversion -Wno-nonportable-include-path -Wno-reserved-id-macro -Wno-unused-macros -Wno-documentation-unknown-command -Wno-documentation -Wno-license-management -Wno-parentheses-equality -Wno-reserved-identifier -Wno-covered-switch-default -Wno-unreachable-code-break -I ../../source/third_party/CMSIS/Core/Include -I ../../source -I ../ -I ../App -I ../BSP -I ../HAL -I ../OSAL -I ../Config -I ./FreeRTOS/include -I ./FreeRTOS/portable/MemMang -I ./FreeRTOS/portable/GCC/ARM_CM0 -I ./FreeRTOS/src-D__UVISION_VERSION="537" -D__MSPM0G3507__ -D__MSPM0G3507__-o ./objects/bsp_soft_i2c.o -MD)
+I (..\BSP\bsp_soft_i2c.h)(0x69F98C9F)
+I (..\BSP\bsp_common.h)(0x69F98C9F)
 I (D:\Keil5\Core\ARM\ARMCLANG\include\stdint.h)(0x625260D8)
 I (D:\Keil5\Core\ARM\ARMCLANG\include\stdbool.h)(0x625260D6)
 I (D:\Keil5\Core\ARM\ARMCLANG\include\stddef.h)(0x625260D6)
-I (..\HAL\hal_gpio.h)(0x69F47150)
-I (..\HAL\hal_common.h)(0x69F4713E)
-I (..\OSAL\osal_api.h)(0x69F47ADF)
-I (..\OSAL\osal_config.h)(0x69F473FC)
-I (FreeRTOS\include\FreeRTOS.h)(0x69CF7DC6)
-I (..\FreeRTOSConfig.h)(0x69DDFB74)
-I (FreeRTOS\include\projdefs.h)(0x69CF7DC6)
-I (FreeRTOS\include\portable.h)(0x69CF7DC6)
-I (FreeRTOS\include\deprecated_definitions.h)(0x69CF7DC6)
-I (FreeRTOS\portable\GCC\ARM_CM0\portmacro.h)(0x69CF7DC6)
-I (FreeRTOS\include\mpu_wrappers.h)(0x69CF7DC6)
-I (FreeRTOS\include\task.h)(0x69CF7DC6)
-I (FreeRTOS\include\list.h)(0x69CF7DC6)
-I (FreeRTOS\include\semphr.h)(0x69CF7DC6)
-I (FreeRTOS\include\queue.h)(0x69CF7DC6)
-I (..\Config\project_config.h)(0x69F8EB62)
-I (..\ti_msp_dl_config.h)(0x69F983E9)
+I (..\HAL\hal_gpio.h)(0x69F98C9F)
+I (..\HAL\hal_common.h)(0x69F98C9F)
+I (..\OSAL\osal_api.h)(0x69F98C9F)
+I (..\OSAL\osal_config.h)(0x69F98C9F)
+I (FreeRTOS\include\FreeRTOS.h)(0x69F98C9F)
+I (..\FreeRTOSConfig.h)(0x69F98C9F)
+I (FreeRTOS\include\projdefs.h)(0x69F98C9F)
+I (FreeRTOS\include\portable.h)(0x69F98C9F)
+I (FreeRTOS\include\deprecated_definitions.h)(0x69F98C9F)
+I (FreeRTOS\portable\GCC\ARM_CM0\portmacro.h)(0x69F98C9F)
+I (FreeRTOS\include\mpu_wrappers.h)(0x69F98C9F)
+I (FreeRTOS\include\task.h)(0x69F98C9F)
+I (FreeRTOS\include\list.h)(0x69F98C9F)
+I (FreeRTOS\include\semphr.h)(0x69F98C9F)
+I (FreeRTOS\include\queue.h)(0x69F98C9F)
+I (..\Config\project_config.h)(0x69F98C9F)
+I (..\ti_msp_dl_config.h)(0x69F997C0)
 I (..\..\source\ti\devices\msp\msp.h)(0x69CF7DC9)
 I (..\..\source\ti\devices\DeviceFamily.h)(0x69CF7DC9)
 I (..\..\source\ti\devices\msp\m0p\mspm0g350x.h)(0x69CF7DC9)
@@ -1449,30 +1449,30 @@ I (..\..\source\ti\driverlib\dl_vref.h)(0x69CF7DCA)
 I (..\..\source\ti\driverlib\dl_wwdt.h)(0x69CF7DCA)
 I (..\..\source\ti\driverlib\m0p\dl_interrupt.h)(0x69CF7DCA)
 I (..\..\source\ti\driverlib\m0p\dl_systick.h)(0x69CF7DCA)
-F (..\BSP\bsp_soft_i2c.h)(0x69F47D43)()
-F (..\BSP\bsp_uart.c)(0x69F47D43)(-xc -std=c99 --target=arm-arm-none-eabi -mcpu=cortex-m0plus -c-fno-rtti -funsigned-char -fshort-enums -fshort-wchar-D__MICROLIB -gdwarf-4 -O0 -ffunction-sections -Wno-packed -Wno-missing-variable-declarations -Wno-missing-prototypes -Wno-missing-noreturn -Wno-sign-conversion -Wno-nonportable-include-path -Wno-reserved-id-macro -Wno-unused-macros -Wno-documentation-unknown-command -Wno-documentation -Wno-license-management -Wno-parentheses-equality -Wno-reserved-identifier -Wno-covered-switch-default -Wno-unreachable-code-break -I ../../source/third_party/CMSIS/Core/Include -I ../../source -I ../ -I ../App -I ../BSP -I ../HAL -I ../OSAL -I ../Config -I ./FreeRTOS/include -I ./FreeRTOS/portable/MemMang -I ./FreeRTOS/portable/GCC/ARM_CM0 -I ./FreeRTOS/src-D__UVISION_VERSION="537" -D__MSPM0G3507__ -D__MSPM0G3507__-o ./objects/bsp_uart.o -MD)
-I (..\BSP\bsp_uart.h)(0x69F47D43)
-I (..\BSP\bsp_common.h)(0x69F4790F)
+F (..\BSP\bsp_soft_i2c.h)(0x69F98C9F)()
+F (..\BSP\bsp_uart.c)(0x69F98C9F)(-xc -std=c99 --target=arm-arm-none-eabi -mcpu=cortex-m0plus -c-fno-rtti -funsigned-char -fshort-enums -fshort-wchar-D__MICROLIB -gdwarf-4 -O0 -ffunction-sections -Wno-packed -Wno-missing-variable-declarations -Wno-missing-prototypes -Wno-missing-noreturn -Wno-sign-conversion -Wno-nonportable-include-path -Wno-reserved-id-macro -Wno-unused-macros -Wno-documentation-unknown-command -Wno-documentation -Wno-license-management -Wno-parentheses-equality -Wno-reserved-identifier -Wno-covered-switch-default -Wno-unreachable-code-break -I ../../source/third_party/CMSIS/Core/Include -I ../../source -I ../ -I ../App -I ../BSP -I ../HAL -I ../OSAL -I ../Config -I ./FreeRTOS/include -I ./FreeRTOS/portable/MemMang -I ./FreeRTOS/portable/GCC/ARM_CM0 -I ./FreeRTOS/src-D__UVISION_VERSION="537" -D__MSPM0G3507__ -D__MSPM0G3507__-o ./objects/bsp_uart.o -MD)
+I (..\BSP\bsp_uart.h)(0x69F98C9F)
+I (..\BSP\bsp_common.h)(0x69F98C9F)
 I (D:\Keil5\Core\ARM\ARMCLANG\include\stdint.h)(0x625260D8)
 I (D:\Keil5\Core\ARM\ARMCLANG\include\stdbool.h)(0x625260D6)
 I (D:\Keil5\Core\ARM\ARMCLANG\include\stddef.h)(0x625260D6)
-I (..\HAL\hal_uart.h)(0x69F49D30)
-I (..\HAL\hal_common.h)(0x69F4713E)
-I (..\OSAL\osal_api.h)(0x69F47ADF)
-I (..\OSAL\osal_config.h)(0x69F473FC)
-I (FreeRTOS\include\FreeRTOS.h)(0x69CF7DC6)
-I (..\FreeRTOSConfig.h)(0x69DDFB74)
-I (FreeRTOS\include\projdefs.h)(0x69CF7DC6)
-I (FreeRTOS\include\portable.h)(0x69CF7DC6)
-I (FreeRTOS\include\deprecated_definitions.h)(0x69CF7DC6)
-I (FreeRTOS\portable\GCC\ARM_CM0\portmacro.h)(0x69CF7DC6)
-I (FreeRTOS\include\mpu_wrappers.h)(0x69CF7DC6)
-I (FreeRTOS\include\task.h)(0x69CF7DC6)
-I (FreeRTOS\include\list.h)(0x69CF7DC6)
-I (FreeRTOS\include\semphr.h)(0x69CF7DC6)
-I (FreeRTOS\include\queue.h)(0x69CF7DC6)
-I (..\Config\project_config.h)(0x69F8EB62)
-I (..\ti_msp_dl_config.h)(0x69F983E9)
+I (..\HAL\hal_uart.h)(0x69F98C9F)
+I (..\HAL\hal_common.h)(0x69F98C9F)
+I (..\OSAL\osal_api.h)(0x69F98C9F)
+I (..\OSAL\osal_config.h)(0x69F98C9F)
+I (FreeRTOS\include\FreeRTOS.h)(0x69F98C9F)
+I (..\FreeRTOSConfig.h)(0x69F98C9F)
+I (FreeRTOS\include\projdefs.h)(0x69F98C9F)
+I (FreeRTOS\include\portable.h)(0x69F98C9F)
+I (FreeRTOS\include\deprecated_definitions.h)(0x69F98C9F)
+I (FreeRTOS\portable\GCC\ARM_CM0\portmacro.h)(0x69F98C9F)
+I (FreeRTOS\include\mpu_wrappers.h)(0x69F98C9F)
+I (FreeRTOS\include\task.h)(0x69F98C9F)
+I (FreeRTOS\include\list.h)(0x69F98C9F)
+I (FreeRTOS\include\semphr.h)(0x69F98C9F)
+I (FreeRTOS\include\queue.h)(0x69F98C9F)
+I (..\Config\project_config.h)(0x69F98C9F)
+I (..\ti_msp_dl_config.h)(0x69F997C0)
 I (..\..\source\ti\devices\msp\msp.h)(0x69CF7DC9)
 I (..\..\source\ti\devices\DeviceFamily.h)(0x69CF7DC9)
 I (..\..\source\ti\devices\msp\m0p\mspm0g350x.h)(0x69CF7DC9)
@@ -1553,4 +1553,4 @@ I (..\..\source\ti\driverlib\dl_vref.h)(0x69CF7DCA)
 I (..\..\source\ti\driverlib\dl_wwdt.h)(0x69CF7DCA)
 I (..\..\source\ti\driverlib\m0p\dl_interrupt.h)(0x69CF7DCA)
 I (..\..\source\ti\driverlib\m0p\dl_systick.h)(0x69CF7DCA)
-F (..\BSP\bsp_uart.h)(0x69F47D43)()
+F (..\BSP\bsp_uart.h)(0x69F98C9F)()
