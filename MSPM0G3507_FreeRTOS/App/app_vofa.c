@@ -9,6 +9,7 @@
 #include "app_pid.h"
 #include "bsp_uart.h"
 #include "bsp_motor.h"
+#include "axiomtrace.h"
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
@@ -208,41 +209,53 @@ void app_vofa_apply_cmd(const vofa_cmd_t *cmd,
     switch (cmd->type) {
     case VOFA_CMD_SET_KP:
         if (cmd->has_value) {
+            float old_val;
             OSAL_CRITICAL_SECTION {
+                old_val = ctx->pid[mid].kp;
                 ctx->pid[mid].kp = cmd->value;
             }
-            (void)printf("[%lu] Kp=%.2f\r\n",
-                (unsigned long)mid, (double)cmd->value);
+            (void)printf("[%lu] Kp %.2f -> %.2f\r\n",
+                (unsigned long)mid,
+                (double)old_val, (double)cmd->value);
         }
         break;
 
     case VOFA_CMD_SET_KI:
         if (cmd->has_value) {
+            float old_val;
             OSAL_CRITICAL_SECTION {
+                old_val = ctx->pid[mid].ki;
                 ctx->pid[mid].ki = cmd->value;
             }
-            (void)printf("[%lu] Ki=%.2f\r\n",
-                (unsigned long)mid, (double)cmd->value);
+            (void)printf("[%lu] Ki %.2f -> %.2f\r\n",
+                (unsigned long)mid,
+                (double)old_val, (double)cmd->value);
         }
         break;
 
     case VOFA_CMD_SET_KD:
         if (cmd->has_value) {
+            float old_val;
             OSAL_CRITICAL_SECTION {
+                old_val = ctx->pid[mid].kd;
                 ctx->pid[mid].kd = cmd->value;
             }
-            (void)printf("[%lu] Kd=%.2f\r\n",
-                (unsigned long)mid, (double)cmd->value);
+            (void)printf("[%lu] Kd %.2f -> %.2f\r\n",
+                (unsigned long)mid,
+                (double)old_val, (double)cmd->value);
         }
         break;
 
     case VOFA_CMD_SET_TARGET:
         if (cmd->has_value) {
+            float old_sp;
             OSAL_CRITICAL_SECTION {
+                old_sp = ctx->pid[mid].setpoint;
                 app_pid_set_setpoint(&ctx->pid[mid], cmd->value);
             }
-            (void)printf("[%lu] Target=%.0f RPM\r\n",
-                (unsigned long)mid, (double)cmd->value);
+            (void)printf("[%lu] Target %.0f -> %.0f RPM\r\n",
+                (unsigned long)mid,
+                (double)old_sp, (double)cmd->value);
         }
         break;
 
@@ -257,7 +270,9 @@ void app_vofa_apply_cmd(const vofa_cmd_t *cmd,
                 ctx->pid[mid].setpoint);
             ctx->motor_enabled[mid] = true;
         }
-        (void)printf("[%lu] Run\r\n", (unsigned long)mid);
+        (void)printf("[%lu] Run (target=%.0f RPM)\r\n",
+            (unsigned long)mid,
+            (double)ctx->pid[mid].setpoint);
         break;
 
     case VOFA_CMD_STOP:

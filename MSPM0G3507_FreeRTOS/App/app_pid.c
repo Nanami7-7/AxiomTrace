@@ -113,11 +113,27 @@ float app_pid_compute(app_pid_t *pid, float feedback,
                + pid->kd * derivative;
 
     } else {
-        /* ---- 增量式PID ---- */
+        /*
+         * ---- 增量式PID ----
+         * 增量式PID公式: Δu = Kp*Δe + Ki*e + Kd*Δ²e
+         *   Δe  = e(k) - e(k-1)          (偏差增量)
+         *   Δ²e = e(k) - 2*e(k-1) + e(k-2) (偏差二阶差分)
+         *   u(k) = u(k-1) + Δu            (输出累加)
+         *
+         * 本实现中, pid->integral 用于存储"上次输出 u(k-1)",
+         * 而非传统位置式PID中的"积分累积和".
+         * 因此 integral_min/max 的限幅实际约束的是输出幅度,
+         * 这也是为什么在 app_main.c 中将 integral 限幅设为
+         * 与输出限幅一致的原因.
+         */
         if (pid->is_first_run) {
-            /* 首次运行: 无历史偏差,输出为比例项 */
+            /*
+             * 首次运行: 无历史偏差, 用当前偏差估算初始输出
+             * output ≈ Kp*e + Ki*e (等效 P+I 启动)
+             */
             output = pid->kp * error + pid->ki * error;
         } else {
+            /* 计算偏差增量和二阶差分 */
             float delta_error =
                 error - pid->last_error;
             float delta2_error = 0.0f;
@@ -127,13 +143,13 @@ float app_pid_compute(app_pid_t *pid, float feedback,
                     + pid->last_last_error;
             }
 
-            /* 增量 */
+            /* 计算输出增量 Δu */
             float delta_out =
                 pid->kp * delta_error
               + pid->ki * error
               + pid->kd * delta2_error;
 
-            /* 累加到上次输出(先限幅再累加,抗饱和) */
+            /* 累加到上次输出, 先限幅再累加(抗饱和) */
             pid->integral = clamp_f(
                 pid->integral + delta_out,
                 pid->integral_min, pid->integral_max);
@@ -141,7 +157,7 @@ float app_pid_compute(app_pid_t *pid, float feedback,
                 pid->integral,
                 pid->out_min, pid->out_max);
         }
-        /* 增量式中integral存储上次输出 */
+        /* 保存本次输出为下次的 u(k-1) */
         pid->integral = output;
         pid->last_last_error = pid->last_error;
     }

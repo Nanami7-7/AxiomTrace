@@ -18,6 +18,8 @@
 #include "bsp_uart.h"
 #include "hal_gpio.h"
 #include "project_config.h"
+#include "axiomtrace.h"
+#include "app_pid.h"
 
 /* ======================== 私有变量 ======================== */
 
@@ -109,7 +111,27 @@ int32_t app_main_init(void)
     }
 
     /* 串口输出启动信息 */
-    (void)printf("\r\n=== MSPM0G3507 FreeRTOS ===\r\n");
+    AX_LOG_INFO("=== MSPM0G3507 FreeRTOS ===");
+    (void)printf("\r\n");
+    (void)printf("============================================================\r\n");
+    (void)printf("  MSPM0G3507 4-Motor PID Speed Control (FreeRTOS)\r\n");
+    (void)printf("============================================================\r\n");
+    (void)printf("  Motors  : %lu (A/B/C/D)\r\n",
+        (unsigned long)BSP_MOTOR_COUNT);
+    (void)printf("  Encoder : %lu PPR, M-method speed calc\r\n",
+        (unsigned long)PRJ_ENCODER_PULSES_PER_REV);
+    (void)printf("  PID     : Kp=%.2f Ki=%.2f Kd=%.2f (Increment)\r\n",
+        (double)APP_PID_DEFAULT_KP,
+        (double)APP_PID_DEFAULT_KI,
+        (double)APP_PID_DEFAULT_KD);
+    (void)printf("  Control : %lu ms | Menu: %lu ms\r\n",
+        (unsigned long)APP_CONTROL_PERIOD_MS,
+        (unsigned long)APP_MENU_POLL_PERIOD_MS);
+    (void)printf("  VOFA+   : FireWater @ %lu ms\r\n",
+        (unsigned long)APP_RPM_OUTPUT_PERIOD_MS);
+    (void)printf("  Debug   : AxiomTrace AX_LOG (DEV profile)\r\n");
+    (void)printf("============================================================\r\n");
+    (void)printf("\r\n");
 
     /* 创建控制任务 */
     s_control_task_handle = osal_task_create(

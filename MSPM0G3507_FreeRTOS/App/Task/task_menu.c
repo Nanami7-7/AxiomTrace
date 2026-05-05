@@ -16,6 +16,7 @@
 #include "bsp_led.h"
 #include "bsp_motor.h"
 #include "bsp_uart.h"
+#include "axiomtrace.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -190,7 +191,7 @@ static void menu_state_main(menu_ctx_t *ctx)
             "Set KP KI KD for Motor %s (e.g. 1.5 0.3 0.1, q=back):\r\n",
             s_motor_names[ctx->selected_motor]);
         break;
-    case 'd':
+    case 'd': {
         ctx->state = MENU_STATE_RUNNING;
         /* 设PID目标值(RPM)并使能电机(原子操作) */
         OSAL_CRITICAL_SECTION {
@@ -199,9 +200,16 @@ static void menu_state_main(menu_ctx_t *ctx)
                 (float)ctx->target_rpm);
             ctx->shared->motor_enabled[ctx->selected_motor] = true;
         }
+        char info[48];
+        (void)snprintf(info, sizeof(info),
+            "Motor %s RUN target=%ld RPM",
+            s_motor_names[ctx->selected_motor],
+            (long)ctx->target_rpm);
+        AX_LOG_INFO(info);
         (void)printf("Motor %s running (q=stop):\r\n",
             s_motor_names[ctx->selected_motor]);
         break;
+    }
     default:
         break;
     }

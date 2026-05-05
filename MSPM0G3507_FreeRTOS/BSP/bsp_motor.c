@@ -19,6 +19,8 @@
 #include "hal_timer.h"
 #include "hal_gpio.h"
 #include "osal_api.h"
+#include "axiomtrace.h"
+#include <stdio.h>
 
 /* ======================== 私有变量 ======================== */
 
@@ -177,6 +179,13 @@ bsp_status_t bsp_motor_set_speed(bsp_motor_id_t motor, int32_t speed)
     if (new_dir != 0 && s_motor_prev_dir[motor] != 0 &&
         new_dir != s_motor_prev_dir[motor]) {
         /* 方向突变: 紧急刹车 */
+        {
+            char dbg[48];
+            (void)snprintf(dbg, sizeof(dbg),
+                "Motor %lu dir-reversal brake",
+                (unsigned long)motor);
+            AX_LOG_DEBUG(dbg);
+        }
         set_brake(motor);
         (void)hal_timer_set_pwm_duty(s_pwm_timer,
             s_motor_cfg[motor].pwm_ch, 0U);

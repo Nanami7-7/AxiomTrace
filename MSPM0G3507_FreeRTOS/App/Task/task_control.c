@@ -9,7 +9,9 @@
 #include "osal_api.h"
 #include "bsp_motor.h"
 #include "bsp_encoder.h"
+#include "axiomtrace.h"
 #include <math.h>
+#include <stdio.h>
 
 void app_control_task(void *param)
 {
@@ -53,6 +55,13 @@ void app_control_task(void *param)
 
             /* NaN/Inf 保护 */
             if (!isfinite(output)) {
+                char warn[64];
+                (void)snprintf(warn, sizeof(warn),
+                    "Motor %lu NaN/Inf! set=%.0f fb=%.0f",
+                    (unsigned long)i,
+                    (double)ctx->pid[i].setpoint,
+                    (double)feedback);
+                AX_LOG_WARN(warn);
                 output = 0.0f;
                 app_pid_reset(&ctx->pid[i]);
             }
