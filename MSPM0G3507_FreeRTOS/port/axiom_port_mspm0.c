@@ -5,11 +5,10 @@
  */
 #include "axiom_port.h"
 #include "bsp_uart.h"
-#include <string.h>
 
 void axiom_port_string_out(const char *str)
 {
     if (str != NULL) {
-        (void)bsp_uart_puts((const uint8_t *)str, (uint32_t)strlen(str));
+        (void)bsp_uart_puts(str);
     }
 }

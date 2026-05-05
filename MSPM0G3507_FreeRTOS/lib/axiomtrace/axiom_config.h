@@ -6,8 +6,13 @@
 #ifndef AXIOM_CONFIG_H
 #define AXIOM_CONFIG_H
 
+/* Profile 定义 (必须在 AXIOM_PROFILE 之前定义) */
+#define AXIOM_PROFILE_DEV    0   /* 开发模式: 启用所有日志 */
+#define AXIOM_PROFILE_FIELD  1   /* 现场模式: 启用所有日志 */
+#define AXIOM_PROFILE_PROD   2   /* 生产模式: 日志全部静默 */
+
 /* 编译配置 */
-#define AXIOM_PROFILE       AXIOM_PROFILE_DEV   /* 开发模式: 启用日志输出 */
+#define AXIOM_PROFILE       AXIOM_PROFILE_DEV   /* 当前选择开发模式 */
 #define AXIOM_LOG_MAX_LINE  128                 /* 单行日志最大长度 */
 
 /* Level 定义 (仅用于条件编译开关, 不参与二进制协议) */
