@@ -7,12 +7,14 @@
  */
 #include "app_vofa.h"
 #include "app_pid.h"
+#include "osal_api.h"
 #include "bsp_uart.h"
 #include "bsp_motor.h"
 #include "axiomtrace.h"
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
+#include <math.h>
 
 /* ======================== 私有辅助函数 ======================== */
 
@@ -209,53 +211,85 @@ void app_vofa_apply_cmd(const vofa_cmd_t *cmd,
     switch (cmd->type) {
     case VOFA_CMD_SET_KP:
         if (cmd->has_value) {
-            float old_val;
-            OSAL_CRITICAL_SECTION {
-                old_val = ctx->pid[mid].kp;
-                ctx->pid[mid].kp = cmd->value;
+            if (!isfinite(cmd->value)) {
+                (void)printf("[%lu] Kp rejected: NaN/Inf\r\n",
+                    (unsigned long)mid);
+            } else {
+                float val = cmd->value;
+                if (val > VOFA_PID_PARAM_MAX) { val = VOFA_PID_PARAM_MAX; }
+                if (val < -VOFA_PID_PARAM_MAX) { val = -VOFA_PID_PARAM_MAX; }
+                float old_val;
+                OSAL_CRITICAL_SECTION {
+                    old_val = ctx->pid[mid].kp;
+                    ctx->pid[mid].kp = val;
+                }
+                (void)printf("[%lu] Kp %.2f -> %.2f\r\n",
+                    (unsigned long)mid,
+                    (double)old_val, (double)val);
             }
-            (void)printf("[%lu] Kp %.2f -> %.2f\r\n",
-                (unsigned long)mid,
-                (double)old_val, (double)cmd->value);
         }
         break;
 
     case VOFA_CMD_SET_KI:
         if (cmd->has_value) {
-            float old_val;
-            OSAL_CRITICAL_SECTION {
-                old_val = ctx->pid[mid].ki;
-                ctx->pid[mid].ki = cmd->value;
+            if (!isfinite(cmd->value)) {
+                (void)printf("[%lu] Ki rejected: NaN/Inf\r\n",
+                    (unsigned long)mid);
+            } else {
+                float val = cmd->value;
+                if (val > VOFA_PID_PARAM_MAX) { val = VOFA_PID_PARAM_MAX; }
+                if (val < -VOFA_PID_PARAM_MAX) { val = -VOFA_PID_PARAM_MAX; }
+                float old_val;
+                OSAL_CRITICAL_SECTION {
+                    old_val = ctx->pid[mid].ki;
+                    ctx->pid[mid].ki = val;
+                }
+                (void)printf("[%lu] Ki %.2f -> %.2f\r\n",
+                    (unsigned long)mid,
+                    (double)old_val, (double)val);
             }
-            (void)printf("[%lu] Ki %.2f -> %.2f\r\n",
-                (unsigned long)mid,
-                (double)old_val, (double)cmd->value);
         }
         break;
 
     case VOFA_CMD_SET_KD:
         if (cmd->has_value) {
-            float old_val;
-            OSAL_CRITICAL_SECTION {
-                old_val = ctx->pid[mid].kd;
-                ctx->pid[mid].kd = cmd->value;
+            if (!isfinite(cmd->value)) {
+                (void)printf("[%lu] Kd rejected: NaN/Inf\r\n",
+                    (unsigned long)mid);
+            } else {
+                float val = cmd->value;
+                if (val > VOFA_PID_PARAM_MAX) { val = VOFA_PID_PARAM_MAX; }
+                if (val < -VOFA_PID_PARAM_MAX) { val = -VOFA_PID_PARAM_MAX; }
+                float old_val;
+                OSAL_CRITICAL_SECTION {
+                    old_val = ctx->pid[mid].kd;
+                    ctx->pid[mid].kd = val;
+                }
+                (void)printf("[%lu] Kd %.2f -> %.2f\r\n",
+                    (unsigned long)mid,
+                    (double)old_val, (double)val);
             }
-            (void)printf("[%lu] Kd %.2f -> %.2f\r\n",
-                (unsigned long)mid,
-                (double)old_val, (double)cmd->value);
         }
         break;
 
     case VOFA_CMD_SET_TARGET:
         if (cmd->has_value) {
-            float old_sp;
-            OSAL_CRITICAL_SECTION {
-                old_sp = ctx->pid[mid].setpoint;
-                app_pid_set_setpoint(&ctx->pid[mid], cmd->value);
+            if (!isfinite(cmd->value)) {
+                (void)printf("[%lu] Target rejected: NaN/Inf\r\n",
+                    (unsigned long)mid);
+            } else {
+                float val = cmd->value;
+                if (val > VOFA_TARGET_RPM_MAX) { val = VOFA_TARGET_RPM_MAX; }
+                if (val < -VOFA_TARGET_RPM_MAX) { val = -VOFA_TARGET_RPM_MAX; }
+                float old_sp;
+                OSAL_CRITICAL_SECTION {
+                    old_sp = ctx->pid[mid].setpoint;
+                    app_pid_set_setpoint(&ctx->pid[mid], val);
+                }
+                (void)printf("[%lu] Target %.0f -> %.0f RPM\r\n",
+                    (unsigned long)mid,
+                    (double)old_sp, (double)val);
             }
-            (void)printf("[%lu] Target %.0f -> %.0f RPM\r\n",
-                (unsigned long)mid,
-                (double)old_sp, (double)cmd->value);
         }
         break;
 

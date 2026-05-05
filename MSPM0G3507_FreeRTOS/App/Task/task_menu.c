@@ -363,6 +363,9 @@ static void menu_state_running(menu_ctx_t *ctx)
                 menu_led_heartbeat(ctx,
                     APP_RPM_OUTPUT_PERIOD_MS);
                 return;
+            } else {
+                (void)printf("Unknown cmd: '%s'\r\n",
+                    ctx->line_buf);
             }
         }
         menu_line_reset(ctx);

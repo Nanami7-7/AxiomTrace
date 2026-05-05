@@ -10,8 +10,7 @@
       <TargetName>empty_LP_MSPM0G3507_nortos_keil</TargetName>
       <ToolsetNumber>0x4</ToolsetNumber>
       <ToolsetName>ARM-ADS</ToolsetName>
-      <pArmCC>6180000::V6.18::ARMCLANG</pArmCC>
-      <pCCUsed>6180000::V6.18::ARMCLANG</pCCUsed>
+      <pCCUsed>6240000::V6.24::ARMCLANG</pCCUsed>
       <uAC6>1</uAC6>
       <TargetOption>
         <TargetCommonOption>
@@ -454,6 +453,16 @@
               <FileName>app_pid.h</FileName>
               <FileType>5</FileType>
               <FilePath>..\App\app_pid.h</FilePath>
+            </File>
+            <File>
+              <FileName>app_vofa.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\App\app_vofa.c</FilePath>
+            </File>
+            <File>
+              <FileName>app_vofa.h</FileName>
+              <FileType>5</FileType>
+              <FilePath>..\App\app_vofa.h</FilePath>
             </File>
             <File>
               <FileName>task_control.c</FileName>

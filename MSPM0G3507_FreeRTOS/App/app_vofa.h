@@ -39,6 +39,12 @@ extern "C" {
 /** 下行命令最大长度 */
 #define VOFA_CMD_MAX_LEN           (64U)
 
+/** PID参数允许的最大绝对值 (防止极端值导致控制不稳定) */
+#define VOFA_PID_PARAM_MAX         (100.0f)
+
+/** Target RPM 上限 (防止PID长期饱和) */
+#define VOFA_TARGET_RPM_MAX        (500.0f)
+
 /* ======================== 类型定义 ======================== */
 
 /** VOFA+ 帧格式 */
