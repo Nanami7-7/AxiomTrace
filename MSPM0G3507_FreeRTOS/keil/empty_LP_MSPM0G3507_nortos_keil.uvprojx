@@ -341,7 +341,7 @@
               <MiscControls></MiscControls>
               <Define>__MSPM0G3507__</Define>
               <Undefine></Undefine>
-              <IncludePath>..\..\source\third_party\CMSIS\Core\Include;..\..\source;..\;..\App;..\App\Task;..\BSP;..\HAL;..\OSAL;..\Config;.\FreeRTOS\include;.\FreeRTOS\portable\MemMang;.\FreeRTOS\portable\GCC\ARM_CM0;.\FreeRTOS\src</IncludePath>
+              <IncludePath>..\..\source\third_party\CMSIS\Core\Include;..\..\source;..\;..\App;..\App\Task;..\BSP;..\HAL;..\OSAL;..\Config;..\lib\axiomtrace;.\FreeRTOS\include;.\FreeRTOS\portable\MemMang;.\FreeRTOS\portable\GCC\ARM_CM0;.\FreeRTOS\src</IncludePath>
             </VariousControls>
           </Cads>
           <Aads>
@@ -704,6 +704,36 @@
               <FileName>bsp_uart.h</FileName>
               <FileType>5</FileType>
               <FilePath>..\BSP\bsp_uart.h</FilePath>
+            </File>
+          </Files>
+        </Group>
+        <Group>
+          <GroupName>AxiomTrace</GroupName>
+          <Files>
+            <File>
+              <FileName>axiom_config.h</FileName>
+              <FileType>5</FileType>
+              <FilePath>..\lib\axiomtrace\axiom_config.h</FilePath>
+            </File>
+            <File>
+              <FileName>axiom_port.h</FileName>
+              <FileType>5</FileType>
+              <FilePath>..\lib\axiomtrace\axiom_port.h</FilePath>
+            </File>
+            <File>
+              <FileName>axiom_frontend.h</FileName>
+              <FileType>5</FileType>
+              <FilePath>..\lib\axiomtrace\axiom_frontend.h</FilePath>
+            </File>
+            <File>
+              <FileName>axiomtrace.h</FileName>
+              <FileType>5</FileType>
+              <FilePath>..\lib\axiomtrace\axiomtrace.h</FilePath>
+            </File>
+            <File>
+              <FileName>axiom_port_mspm0.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\port\axiom_port_mspm0.c</FilePath>
             </File>
           </Files>
         </Group>
