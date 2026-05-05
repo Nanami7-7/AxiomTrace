@@ -37,6 +37,9 @@ static uint32_t s_pwm_period = 0U;
 /** 电机初始化标志 */
 static bool s_motor_inited = false;
 
+/** 各电机上次方向(+1=正转, -1=反转, 0=刹车/停止) */
+static int8_t s_motor_prev_dir[BSP_MOTOR_COUNT] = {0};
+
 /* ======================== 私有函数 ======================== */
 
 /**
@@ -127,6 +130,7 @@ bsp_status_t bsp_motor_init(const bsp_motor_config_t *cfg,
         set_coast((bsp_motor_id_t)i);
         (void)hal_timer_set_pwm_duty(s_pwm_timer,
             s_motor_cfg[i].pwm_ch, 0U);
+        s_motor_prev_dir[i] = 0;
     }
 
     s_motor_inited = true;
@@ -154,6 +158,33 @@ bsp_status_t bsp_motor_set_speed(bsp_motor_id_t motor, int32_t speed)
     int32_t clamped_speed = clamp_int32(signed_speed,
         -(int32_t)s_pwm_period,
          (int32_t)s_pwm_period);
+
+    int8_t new_dir;
+    if (clamped_speed > 0) {
+        new_dir = 1;
+    } else if (clamped_speed < 0) {
+        new_dir = -1;
+    } else {
+        new_dir = 0;
+    }
+
+    /*
+     * 方向切换死区保护:
+     * 当方向从正转↔反转变化时, 先刹车1个控制周期(PWM=0),
+     * 避免H桥上下管直通. 本周期仅刹车, 不输出PWM,
+     * 下次调用时 s_motor_prev_dir 已更新, 正常输出.
+     */
+    if (new_dir != 0 && s_motor_prev_dir[motor] != 0 &&
+        new_dir != s_motor_prev_dir[motor]) {
+        /* 方向突变: 紧急刹车 */
+        set_brake(motor);
+        (void)hal_timer_set_pwm_duty(s_pwm_timer,
+            s_motor_cfg[motor].pwm_ch, 0U);
+        s_motor_prev_dir[motor] = 0;
+        return BSP_OK;
+    }
+
+    s_motor_prev_dir[motor] = new_dir;
 
     if (clamped_speed > 0) {
         /* 正转: IN1=1, IN2=0, PWM=占空比 */

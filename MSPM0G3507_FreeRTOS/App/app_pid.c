@@ -10,6 +10,7 @@
  *          5. 增加抗积分饱和和微分滤波
  */
 #include "app_pid.h"
+#include <math.h>
 
 /* ======================== 私有函数 ======================== */
 
@@ -150,7 +151,20 @@ float app_pid_compute(app_pid_t *pid, float feedback,
     pid->is_first_run = false;
 
     /* 输出限幅 */
-    return clamp_f(output, pid->out_min, pid->out_max);
+    output = clamp_f(output, pid->out_min, pid->out_max);
+
+    /*
+     * NaN/Inf 保护:
+     * 如果输出或内部状态出现 NaN/Inf, 说明输入异常(如编码器故障),
+     * 重置PID状态并返回0, 防止异常值传播到电机驱动.
+     */
+    if (!isfinite(output) || !isfinite(pid->integral) ||
+        !isfinite(pid->last_error)) {
+        app_pid_reset(pid);
+        output = 0.0f;
+    }
+
+    return output;
 }
 
 void app_pid_reset(app_pid_t *pid)
