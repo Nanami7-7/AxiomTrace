@@ -54,3 +54,32 @@ known_issues_FAQ.html
 manifest_*.html
 license_*.txt
 mspm0sdk_*.log
+
+# ========================
+# TI SDK 非项目目录 (参考代码, 不参与编译)
+# ========================
+examples/
+tools/
+imports.mak
+
+# ========================
+# AxiomTrace 参考源码 (仅提取部分到 lib/)
+# ========================
+AxiomTrace-main/
+
+# ========================
+# IDE / 工具元数据
+# ========================
+.codebuddy/
+.metadata/
+
+# ========================
+# 工程中未使用的辅助文件
+# ========================
+MSPM0G3507_FreeRTOS/Event.dot
+MSPM0G3507_FreeRTOS/README.html
+MSPM0G3507_FreeRTOS/BSP/_bsp_template.c
+MSPM0G3507_FreeRTOS/BSP/_bsp_template.h
+MSPM0G3507_FreeRTOS/HAL/_hal_template.c
+MSPM0G3507_FreeRTOS/keil/.vscode/
+MSPM0G3507_FreeRTOS/keil/EventRecorderStub.scvd
