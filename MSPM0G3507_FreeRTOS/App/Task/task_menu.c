@@ -11,6 +11,7 @@
 #include "task_menu.h"
 #include "app_main.h"
 #include "app_pid.h"
+#include "app_vofa.h"
 #include "osal_api.h"
 #include "bsp_led.h"
 #include "bsp_motor.h"
@@ -317,34 +318,58 @@ static void menu_state_tuning_pid(menu_ctx_t *ctx)
 }
 
 /**
- * @brief  运行状态处理
- * @note   10ms间隔输出RPM, q停电机返回
+ * @brief  运行状态处理(VOFA+ 协议输出 + 远程调参)
+ * @note   10ms间隔输出12通道VOFA+数据, 支持下行命令
+ *         通道分配(0~11):
+ *         0~3: 4电机实际RPM, 4~7: 4电机目标RPM, 8~11: 4电机PID输出
+ *         下行命令: Kp=x, Ki=x, Kd=x, Target=x, Run, Stop, StopAll
  */
 static void menu_state_running(menu_ctx_t *ctx)
 {
-    /* 检查是否有输入 */
-    uint8_t ch;
-    if (bsp_uart_getc(&ch) == BSP_OK) {
-        if (ch == 'q') {
-            motor_stop_and_disable(ctx, ctx->selected_motor);
-            (void)printf("Motor %s stopped\r\n",
-                s_motor_names[ctx->selected_motor]);
-            ctx->state = MENU_STATE_MAIN;
-            ctx->need_print = true;
-            menu_line_reset(ctx);
-            osal_task_delay_ms(APP_RPM_OUTPUT_PERIOD_MS);
-            menu_led_heartbeat(ctx,
-                APP_RPM_OUTPUT_PERIOD_MS);
-            return;
+    /* ---- 检查下行命令输入 ---- */
+    if (menu_read_line(ctx)) {
+        /* 尝试解析为 VOFA+ 命令 */
+        vofa_cmd_t cmd;
+        if (app_vofa_parse_cmd(ctx->line_buf, &cmd)) {
+            app_vofa_apply_cmd(&cmd, ctx->shared,
+                &ctx->selected_motor);
+        } else {
+            /* 非VOFA命令, 检查 'q' 退出 */
+            if (ctx->line_buf[0] == 'q') {
+                motor_stop_and_disable(ctx,
+                    ctx->selected_motor);
+                (void)printf("Motor %s stopped\r\n",
+                    s_motor_names[ctx->selected_motor]);
+                ctx->state = MENU_STATE_MAIN;
+                ctx->need_print = true;
+                menu_line_reset(ctx);
+                osal_task_delay_ms(
+                    APP_RPM_OUTPUT_PERIOD_MS);
+                menu_led_heartbeat(ctx,
+                    APP_RPM_OUTPUT_PERIOD_MS);
+                return;
+            }
+        }
+        menu_line_reset(ctx);
+    }
+
+    /* ---- 构建12通道数据 ---- */
+    float channels[12];
+    OSAL_CRITICAL_SECTION {
+        for (uint32_t i = 0; i < BSP_MOTOR_COUNT; i++) {
+            /* ch0~3: 实际RPM */
+            channels[i] = (float)ctx->shared->status.rpm[i];
+            /* ch4~7: 目标RPM */
+            channels[4 + i] =
+                ctx->shared->pid[i].setpoint;
+            /* ch8~11: PID输出 */
+            channels[8 + i] =
+                (float)ctx->shared->status.output[i];
         }
     }
 
-    /* 读取当前电机RPM并输出 */
-    int32_t rpm = 0;
-    OSAL_CRITICAL_SECTION {
-        rpm = ctx->shared->status.rpm[ctx->selected_motor];
-    }
-    (void)printf("%ld\r\n", (long)rpm);
+    /* ---- 发送 VOFA+ FireWater 格式 ---- */
+    app_vofa_send_firewater(channels, 12U);
 
     osal_task_delay_ms(APP_RPM_OUTPUT_PERIOD_MS);
     menu_led_heartbeat(ctx, APP_RPM_OUTPUT_PERIOD_MS);

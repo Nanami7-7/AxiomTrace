@@ -9,6 +9,7 @@
 #include "osal_api.h"
 #include "bsp_motor.h"
 #include "bsp_encoder.h"
+#include <math.h>
 
 void app_control_task(void *param)
 {
@@ -39,14 +40,30 @@ void app_control_task(void *param)
         /* PID计算 + 电机输出(仅使能电机) */
         for (uint32_t i = 0; i < BSP_MOTOR_COUNT; i++) {
             if (!ctx->motor_enabled[i]) {
+                /* 未使能时输出清零 */
+                OSAL_CRITICAL_SECTION {
+                    ctx->status.output[i] = 0;
+                }
                 continue;
             }
 
             float feedback = (float)rpm_local[i];
             float output = app_pid_compute(
                 &ctx->pid[i], feedback, dt_s);
+
+            /* NaN/Inf 保护 */
+            if (!isfinite(output)) {
+                output = 0.0f;
+                app_pid_reset(&ctx->pid[i]);
+            }
+
             (void)bsp_motor_set_speed(
                 (bsp_motor_id_t)i, (int32_t)output);
+
+            /* 将PID输出写入共享上下文(供VOFA+观察) */
+            OSAL_CRITICAL_SECTION {
+                ctx->status.output[i] = (int32_t)output;
+            }
         }
         /* 周期延时 */
         osal_task_delay_ms(APP_CONTROL_PERIOD_MS);
