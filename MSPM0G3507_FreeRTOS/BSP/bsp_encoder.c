@@ -236,9 +236,11 @@ int32_t bsp_encoder_counts_to_rpm(int32_t delta, uint32_t dt_ms)
         return 0;
     }
 
-    return (int32_t)(((int64_t)delta * 60000) /
-                     (int64_t)s_encoder_pulses_per_rev /
-                     (int64_t)dt_ms);
+    /* 合并为单次除法, 减少精度损失 */
+    int64_t denom = (int64_t)s_encoder_pulses_per_rev
+                   * (int64_t)dt_ms;
+    if (denom == 0) { return 0; }
+    return (int32_t)(((int64_t)delta * 60000) / denom);
 }
 
 float bsp_encoder_rpm_to_pulse(float rpm, uint32_t dt_ms)

@@ -164,8 +164,16 @@ static inline bool bsp_ringbuf_is_empty(const bsp_ringbuf_t *rb)
  */
 static inline void bsp_ringbuf_flush(bsp_ringbuf_t *rb)
 {
-    rb->head = 0U;
+    /*
+     * 先清 tail(生产者索引), 再清 head(消费者索引).
+     * 顺序不可颠倒: 若 ISR 在 head=0 和 tail=0 之间调用 put,
+     * put 会写入 buf[0] 并递增 tail; 随后 tail=0 会丢失该字节.
+     * 反之, 若先清 tail, ISR 的 put 看到 tail=0,
+     * 写入 buf[0] 并设 tail=1; 随后 head=0,
+     * count=(1-0)&mask=1, ISR 的数据被保留.
+     */
     rb->tail = 0U;
+    rb->head = 0U;
 }
 
 #ifdef __cplusplus

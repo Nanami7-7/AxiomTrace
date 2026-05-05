@@ -257,10 +257,13 @@ static void menu_state_set_rpm(menu_ctx_t *ctx)
         ctx->state = MENU_STATE_MAIN;
         ctx->need_print = true;
     } else {
-        int32_t rpm = atoi(ctx->line_buf);
-        if (rpm == 0) {
+        /* 使用 strtol 代替 atoi, 区分 "0" 和非法输入 */
+        char *endptr = NULL;
+        long rpm_long = strtol(ctx->line_buf, &endptr, 10);
+        if (endptr == ctx->line_buf || *endptr != '\0') {
             (void)printf("Invalid RPM!\r\n");
         } else {
+            int32_t rpm = (int32_t)rpm_long;
             ctx->target_rpm = rpm;
             (void)printf("Motor %s target: %ld RPM\r\n",
                 s_motor_names[ctx->selected_motor],

@@ -81,10 +81,12 @@ static void pid_controllers_init(void)
             -duty_max,
              duty_max);
 
-        /* 速度环: 积分限幅为输出限幅的50% */
-        app_pid_set_integral_limit(&s_shared_ctx.pid[i],
-            -duty_max * 0.5f,
-             duty_max * 0.5f);
+        /*
+         * 增量式PID中 integral 变量实际存储"上次输出累加值",
+         * 其限幅应与输出限幅一致, 否则会限制最大输出幅度.
+         * app_pid_init 已将 integral_min/max 设为 out_min/max,
+         * 此处不再额外缩小.
+         */
     }
 }
 
