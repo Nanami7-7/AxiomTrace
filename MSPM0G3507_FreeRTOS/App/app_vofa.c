@@ -208,7 +208,9 @@ void app_vofa_apply_cmd(const vofa_cmd_t *cmd,
     switch (cmd->type) {
     case VOFA_CMD_SET_KP:
         if (cmd->has_value) {
-            ctx->pid[mid].kp = cmd->value;
+            OSAL_CRITICAL_SECTION {
+                ctx->pid[mid].kp = cmd->value;
+            }
             (void)printf("[%lu] Kp=%.2f\r\n",
                 (unsigned long)mid, (double)cmd->value);
         }
@@ -216,7 +218,9 @@ void app_vofa_apply_cmd(const vofa_cmd_t *cmd,
 
     case VOFA_CMD_SET_KI:
         if (cmd->has_value) {
-            ctx->pid[mid].ki = cmd->value;
+            OSAL_CRITICAL_SECTION {
+                ctx->pid[mid].ki = cmd->value;
+            }
             (void)printf("[%lu] Ki=%.2f\r\n",
                 (unsigned long)mid, (double)cmd->value);
         }
@@ -224,7 +228,9 @@ void app_vofa_apply_cmd(const vofa_cmd_t *cmd,
 
     case VOFA_CMD_SET_KD:
         if (cmd->has_value) {
-            ctx->pid[mid].kd = cmd->value;
+            OSAL_CRITICAL_SECTION {
+                ctx->pid[mid].kd = cmd->value;
+            }
             (void)printf("[%lu] Kd=%.2f\r\n",
                 (unsigned long)mid, (double)cmd->value);
         }
@@ -232,7 +238,9 @@ void app_vofa_apply_cmd(const vofa_cmd_t *cmd,
 
     case VOFA_CMD_SET_TARGET:
         if (cmd->has_value) {
-            app_pid_set_setpoint(&ctx->pid[mid], cmd->value);
+            OSAL_CRITICAL_SECTION {
+                app_pid_set_setpoint(&ctx->pid[mid], cmd->value);
+            }
             (void)printf("[%lu] Target=%.0f RPM\r\n",
                 (unsigned long)mid, (double)cmd->value);
         }
@@ -244,28 +252,36 @@ void app_vofa_apply_cmd(const vofa_cmd_t *cmd,
         break;
 
     case VOFA_CMD_RUN:
-        app_pid_set_setpoint(&ctx->pid[mid],
-            ctx->pid[mid].setpoint);
-        ctx->motor_enabled[mid] = true;
+        OSAL_CRITICAL_SECTION {
+            app_pid_set_setpoint(&ctx->pid[mid],
+                ctx->pid[mid].setpoint);
+            ctx->motor_enabled[mid] = true;
+        }
         (void)printf("[%lu] Run\r\n", (unsigned long)mid);
         break;
 
     case VOFA_CMD_STOP:
-        ctx->motor_enabled[mid] = false;
+        OSAL_CRITICAL_SECTION {
+            ctx->motor_enabled[mid] = false;
+            app_pid_set_setpoint(&ctx->pid[mid], 0.0f);
+            app_pid_reset(&ctx->pid[mid]);
+        }
         (void)bsp_motor_stop((bsp_motor_id_t)mid,
             BSP_MOTOR_MODE_BRAKE);
-        app_pid_set_setpoint(&ctx->pid[mid], 0.0f);
-        app_pid_reset(&ctx->pid[mid]);
         (void)printf("[%lu] Stop\r\n", (unsigned long)mid);
         break;
 
     case VOFA_CMD_STOP_ALL:
+        OSAL_CRITICAL_SECTION {
+            for (uint32_t i = 0; i < BSP_MOTOR_COUNT; i++) {
+                ctx->motor_enabled[i] = false;
+                app_pid_set_setpoint(&ctx->pid[i], 0.0f);
+                app_pid_reset(&ctx->pid[i]);
+            }
+        }
         for (uint32_t i = 0; i < BSP_MOTOR_COUNT; i++) {
-            ctx->motor_enabled[i] = false;
             (void)bsp_motor_stop((bsp_motor_id_t)i,
                 BSP_MOTOR_MODE_BRAKE);
-            app_pid_set_setpoint(&ctx->pid[i], 0.0f);
-            app_pid_reset(&ctx->pid[i]);
         }
         (void)printf("All stopped\r\n");
         break;

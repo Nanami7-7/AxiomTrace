@@ -144,11 +144,13 @@ static void menu_print_main(const menu_ctx_t *ctx)
  */
 static void motor_stop_and_disable(menu_ctx_t *ctx, uint32_t motor_idx)
 {
-    ctx->shared->motor_enabled[motor_idx] = false;
+    OSAL_CRITICAL_SECTION {
+        ctx->shared->motor_enabled[motor_idx] = false;
+        app_pid_set_setpoint(&ctx->shared->pid[motor_idx], 0.0f);
+        app_pid_reset(&ctx->shared->pid[motor_idx]);
+    }
     (void)bsp_motor_stop((bsp_motor_id_t)motor_idx,
         BSP_MOTOR_MODE_BRAKE);
-    app_pid_set_setpoint(&ctx->shared->pid[motor_idx], 0.0f);
-    app_pid_reset(&ctx->shared->pid[motor_idx]);
 }
 
 /* ======================== 私有函数: 菜单状态处理 ======================== */
@@ -190,11 +192,13 @@ static void menu_state_main(menu_ctx_t *ctx)
         break;
     case 'd':
         ctx->state = MENU_STATE_RUNNING;
-        /* 设PID目标值(RPM)并使能电机 */
-        app_pid_set_setpoint(
-            &ctx->shared->pid[ctx->selected_motor],
-            (float)ctx->target_rpm);
-        ctx->shared->motor_enabled[ctx->selected_motor] = true;
+        /* 设PID目标值(RPM)并使能电机(原子操作) */
+        OSAL_CRITICAL_SECTION {
+            app_pid_set_setpoint(
+                &ctx->shared->pid[ctx->selected_motor],
+                (float)ctx->target_rpm);
+            ctx->shared->motor_enabled[ctx->selected_motor] = true;
+        }
         (void)printf("Motor %s running (q=stop):\r\n",
             s_motor_names[ctx->selected_motor]);
         break;

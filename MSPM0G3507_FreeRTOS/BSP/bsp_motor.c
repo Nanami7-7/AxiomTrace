@@ -230,6 +230,9 @@ bsp_status_t bsp_motor_stop(bsp_motor_id_t motor,
         set_coast(motor);
     }
 
+    /* 重置方向记录, 避免重启时触发不必要的方向切换死区 */
+    s_motor_prev_dir[motor] = 0;
+
     return BSP_OK;
 }
 

@@ -169,7 +169,6 @@ float app_pid_compute(app_pid_t *pid, float feedback,
 
 void app_pid_reset(app_pid_t *pid)
 {
-    pid->setpoint        = 0.0f;
     pid->last_error      = 0.0f;
     pid->last_last_error = 0.0f;
     pid->integral        = 0.0f;
