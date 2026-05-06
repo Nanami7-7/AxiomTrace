@@ -101,7 +101,6 @@ void app_motor_stop(app_shared_ctx_t *ctx, uint32_t motor_idx)
     }
     OSAL_CRITICAL_SECTION {
         ctx->motor_enabled[motor_idx] = false;
-        app_pid_set_setpoint(&ctx->pid[motor_idx], 0.0f);
         app_pid_reset(&ctx->pid[motor_idx]);
     }
     (void)bsp_motor_stop((bsp_motor_id_t)motor_idx,
@@ -116,7 +115,6 @@ void app_motor_stop_all(app_shared_ctx_t *ctx)
     OSAL_CRITICAL_SECTION {
         for (uint32_t i = 0; i < BSP_MOTOR_COUNT; i++) {
             ctx->motor_enabled[i] = false;
-            app_pid_set_setpoint(&ctx->pid[i], 0.0f);
             app_pid_reset(&ctx->pid[i]);
         }
     }

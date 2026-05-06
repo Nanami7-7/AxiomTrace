@@ -173,3 +173,19 @@ a:Motor b:RPM c:PID d:Run q:Back
 |------|--------|--------|------|
 | 控制任务 (control) | 5 (最高) | 256 字 | 5ms |
 | 菜单任务 (menu) | 2 (低) | 512 字 | 100ms (菜单) / 30ms (运行) |
+
+## 文档 / Documentation
+
+完整开发与使用文档位于 `docs/` 目录（中英双语）：
+
+| 文档 | 说明 |
+|------|------|
+| [docs/README.md](docs/README.md) | 文档索引 + 快速开始 |
+| [docs/architecture.md](docs/architecture.md) | 系统架构详解：四层架构、任务模型、数据流、同步机制 |
+| [docs/pid_controller.md](docs/pid_controller.md) | PID 算法详解：增量式/位置式公式推导、抗饱和、参数整定 |
+| [docs/vofa_protocol.md](docs/vofa_protocol.md) | VOFA+ 协议详解：上行格式、下行命令、通道分配、带宽分析 |
+| [docs/menu_guide.md](docs/menu_guide.md) | 菜单交互指南：状态机、操作流程、VOFA+ 运行模式 |
+| [docs/development_guide.md](docs/development_guide.md) | 开发指南：环境搭建、编码规范、新增模块、OSAL API |
+| [docs/hardware_setup.md](docs/hardware_setup.md) | 硬件配置：引脚分配、电机/编码器接线、电源要求 |
+| [docs/troubleshooting.md](docs/troubleshooting.md) | 故障排除：常见问题及解决方案 |
+| [docs/changelog.md](docs/changelog.md) | 变更日志 |
