@@ -33,6 +33,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Renamed and restructured `baremetal/` directory to align with v1.0 planes.
 
 ### Added
+- **API**: Added library version macros (`AXIOMTRACE_VERSION_MAJOR/MINOR/PATCH`) and compile-time `AXIOMTRACE_VERSION_CHECK()` macro for downstream version gating.
+- **API**: Added `AXIOM_MODULE_MAX` configurable constant (default 32) — replaces hardcoded `32` in filter logic.
+- **API**: Added `AXIOM_DEPRECATED(msg)` cross-compiler macro (GCC/Clang/MSVC/IAR) for future deprecation annotations.
+- **API**: Added `size` field to `axiom_backend_t` and `AXIOM_BACKEND_INIT(...)` designated-initializer wrapper — enables forward-compatible struct evolution. Old zero-initialized backends remain ABI-compatible (size==0 treated as legacy layout). `axiom_backend_register()` rejects undersized structs with `-3`.
 - `../project/RULES.md`: Enforced development rules including hot-path prohibitions (no malloc, no printf, no Flash erase), drop-summary requirements, and mandatory issue→design→spec→golden→impl→decoder→tests→benchmark→docs→changelog workflow.
 - `../project/PLAN.md` v1.0: Frozen target architecture, release gates, and design philosophy.
 - `../project/ROUTE.md` v1.0: Development stages from v0.1-core through v0.9-rc to v1.0-stable.

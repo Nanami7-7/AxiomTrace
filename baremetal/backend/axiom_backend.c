@@ -11,6 +11,13 @@ int axiom_backend_register(const axiom_backend_t *backend) {
     if (s_backend_count >= AXIOM_BACKEND_MAX) {
         return -2;
     }
+    /* Backward compatibility: old backends may be zero-initialized with size==0.
+     * Treat size==0 as legacy layout (v1 without the size field).
+     * size > 0 but < current sizeof means a newer library compiled against
+     * an older struct — reject to prevent reading garbage. */
+    if (backend->size != 0 && backend->size < sizeof(axiom_backend_t)) {
+        return -3; /* struct too small — recompile the backend */
+    }
     s_backends[s_backend_count++] = backend;
     return 0;
 }

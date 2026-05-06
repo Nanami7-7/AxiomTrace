@@ -9,6 +9,7 @@ OUT = ROOT.parent / "axiomtrace_amalgamated.h"
 
 FILES = [
     ROOT / "include" / "axiom_static_assert.h",
+    ROOT / "axiom_config.h",
     ROOT / "port" / "axiom_port.h",
     ROOT / "core" / "axiom_event.h",
     ROOT / "core" / "axiom_encode.h",

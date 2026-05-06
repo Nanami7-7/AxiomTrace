@@ -4,6 +4,37 @@
 #include <stdint.h>
 
 /* ---------------------------------------------------------------------------
+ * Library Version (SemVer 2.0.0)
+ * Bump on release. Checked at compile-time by downstream consumers.
+ * --------------------------------------------------------------------------- */
+#define AXIOMTRACE_VERSION_MAJOR 0u
+#define AXIOMTRACE_VERSION_MINOR 1u
+#define AXIOMTRACE_VERSION_PATCH 0u
+
+/* Compile-time version check: AXIOMTRACE_VERSION_CHECK(0,1,0) */
+#define AXIOMTRACE_VERSION_CHECK(ma, mi, pa) \
+    ((AXIOMTRACE_VERSION_MAJOR > (ma)) ||    \
+     (AXIOMTRACE_VERSION_MAJOR == (ma) && AXIOMTRACE_VERSION_MINOR > (mi)) || \
+     (AXIOMTRACE_VERSION_MAJOR == (ma) && AXIOMTRACE_VERSION_MINOR == (mi) && \
+      AXIOMTRACE_VERSION_PATCH >= (pa)))
+
+/* ---------------------------------------------------------------------------
+ * Compiler Helpers
+ * --------------------------------------------------------------------------- */
+
+/* Mark a symbol as deprecated with a migration hint.
+ * Example: AXIOM_DEPRECATED("use axiom_new_api() instead") */
+#if defined(__GNUC__) || defined(__clang__)
+#define AXIOM_DEPRECATED(msg) __attribute__((deprecated(msg)))
+#elif defined(_MSC_VER)
+#define AXIOM_DEPRECATED(msg) __declspec(deprecated(msg))
+#elif defined(__IAR_SYSTEMS_ICC__)
+#define AXIOM_DEPRECATED(msg) _Pragma("message=\"" msg "\"")
+#else
+#define AXIOM_DEPRECATED(msg)
+#endif
+
+/* ---------------------------------------------------------------------------
  * Core Configuration
  * --------------------------------------------------------------------------- */
 
@@ -24,6 +55,12 @@
 /* Maximum payload size per event in bytes. */
 #ifndef AXIOM_MAX_PAYLOAD_LEN
 #define AXIOM_MAX_PAYLOAD_LEN 128u
+#endif
+
+/* Maximum number of unique module IDs (0 .. AXIOM_MODULE_MAX-1).
+ * Determines the width of the module filter bitmask. */
+#ifndef AXIOM_MODULE_MAX
+#define AXIOM_MODULE_MAX 32u
 #endif
 
 /* ---------------------------------------------------------------------------

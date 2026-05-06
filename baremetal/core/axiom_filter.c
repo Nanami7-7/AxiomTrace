@@ -12,9 +12,9 @@ void axiom_filter_init(axiom_filter_t *filter) {
 bool axiom_filter_check(axiom_filter_t *filter, axiom_level_t level, uint8_t module_id) {
     if (level >= AXIOM_LEVEL_MAX) return false;
     if ((filter->level_mask & (1u << (uint32_t)level)) == 0) return false;
-    /* 32-bit mask limits per-module filtering to module_id 0..31.
-     * Modules with id >= 32 always pass the filter (no masking applied). */
-    if (module_id < 32 && (filter->module_mask & (1u << (uint32_t)module_id)) == 0) return false;
+    /* 32-bit mask limits per-module filtering to module_id 0..(AXIOM_MODULE_MAX-1).
+     * Modules with id >= AXIOM_MODULE_MAX always pass the filter (no masking applied). */
+    if (module_id < AXIOM_MODULE_MAX && (filter->module_mask & (1u << (uint32_t)module_id)) == 0) return false;
     return true;
 }
 

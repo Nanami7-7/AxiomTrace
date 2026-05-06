@@ -33,6 +33,10 @@
 - 重命名并重组了 `baremetal/` 目录，以匹配 v1.0 平面架构。
 
 ### 新增
+- **API**：新增库版本宏（`AXIOMTRACE_VERSION_MAJOR/MINOR/PATCH`）和编译时 `AXIOMTRACE_VERSION_CHECK()` 宏，支持下游版本检查。
+- **API**：新增 `AXIOM_MODULE_MAX` 可配置常量（默认 32）— 替换过滤器逻辑中的硬编码 `32`。
+- **API**：新增 `AXIOM_DEPRECATED(msg)` 跨编译器宏（GCC/Clang/MSVC/IAR），用于未来废弃标注。
+- **API**：为 `axiom_backend_t` 新增 `size` 字段和 `AXIOM_BACKEND_INIT(...)` 指定初始化器包装宏 — 支持结构体前向兼容演进。旧的零初始化后端保持 ABI 兼容（size==0 视为旧版布局）。`axiom_backend_register()` 对过小的结构体返回 `-3` 拒绝注册。
 - `../project/RULES.md`：强制执行开发规则，包括热路径禁令（无 malloc、无 printf、无 Flash 擦除）、丢弃摘要要求，以及强制性的 issue→design→spec→golden→impl→decoder→tests→benchmark→docs→changelog 工作流。
 - `../project/PLAN.md` v1.0：冻结目标架构、发布门槛和设计哲学。
 - `../project/ROUTE.md` v1.0：从 v0.1-core 到 v0.9-rc 再到 v1.0-stable 的开发阶段。
