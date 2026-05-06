@@ -50,29 +50,29 @@ void app_control_task(void *param)
             }
 
             float feedback = (float)rpm_local[i];
-            float output = app_pid_compute(
-                &ctx->pid[i], feedback, dt_s);
+            float output;
+            OSAL_CRITICAL_SECTION {
+                output = app_pid_compute(
+                    &ctx->pid[i], feedback, dt_s);
 
-            /* NaN/Inf 保护 */
-            if (!isfinite(output)) {
-                char warn[64];
-                (void)snprintf(warn, sizeof(warn),
-                    "Motor %lu NaN/Inf! set=%.0f fb=%.0f",
-                    (unsigned long)i,
-                    (double)ctx->pid[i].setpoint,
-                    (double)feedback);
-                AX_LOG_WARN(warn);
-                output = 0.0f;
-                app_pid_reset(&ctx->pid[i]);
+                /* NaN/Inf 保护 */
+                if (!isfinite(output)) {
+                    char warn[64];
+                    (void)snprintf(warn, sizeof(warn),
+                        "Motor %lu NaN/Inf! set=%.0f fb=%.0f",
+                        (unsigned long)i,
+                        (double)ctx->pid[i].setpoint,
+                        (double)feedback);
+                    AX_LOG_WARN(warn);
+                    output = 0.0f;
+                    app_pid_reset(&ctx->pid[i]);
+                }
+
+                ctx->status.output[i] = (int32_t)output;
             }
 
             (void)bsp_motor_set_speed(
                 (bsp_motor_id_t)i, (int32_t)output);
-
-            /* 将PID输出写入共享上下文(供VOFA+观察) */
-            OSAL_CRITICAL_SECTION {
-                ctx->status.output[i] = (int32_t)output;
-            }
         }
         /* 周期延时 */
         osal_task_delay_ms(APP_CONTROL_PERIOD_MS);

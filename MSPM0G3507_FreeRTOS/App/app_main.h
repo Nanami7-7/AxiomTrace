@@ -42,8 +42,8 @@ extern "C" {
 #define APP_CONTROL_PERIOD_MS       (5U)
 /** 菜单轮询周期(ms) */
 #define APP_MENU_POLL_PERIOD_MS     (100U)
-/** RPM输出周期(ms, 运行模式下) */
-#define APP_RPM_OUTPUT_PERIOD_MS    (10U)
+/** RPM输出周期(ms, 运行模式下, 需满足: 12通道×12字节/周期 < 波特率×周期) */
+#define APP_RPM_OUTPUT_PERIOD_MS    (30U)
 
 /* ======================== 菜单配置 ======================== */
 

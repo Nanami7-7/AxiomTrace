@@ -6,7 +6,7 @@
  *          - MOTOR_SELECT: 选择目标电机
  *          - SET_RPM: 设定目标RPM
  *          - TUNING_PID: 设定KP/KI/KD
- *          - RUNNING: 启动电机+10ms输出RPM
+ *          - RUNNING: 启动电机+30ms输出RPM
  */
 #include "task_menu.h"
 #include "app_main.h"
@@ -129,11 +129,15 @@ static void menu_print_main(const menu_ctx_t *ctx)
         s_motor_names[ctx->selected_motor]);
 
     for (uint32_t i = 0; i < BSP_MOTOR_COUNT; i++) {
+        float kp, ki, kd;
+        OSAL_CRITICAL_SECTION {
+            kp = ctx->shared->pid[i].kp;
+            ki = ctx->shared->pid[i].ki;
+            kd = ctx->shared->pid[i].kd;
+        }
         (void)printf("%c: KP=%.2f KI=%.2f KD=%.2f\r\n",
             'A' + (int)i,
-            (double)ctx->shared->pid[i].kp,
-            (double)ctx->shared->pid[i].ki,
-            (double)ctx->shared->pid[i].kd);
+            (double)kp, (double)ki, (double)kd);
     }
 
     (void)printf(
@@ -298,9 +302,11 @@ static void menu_state_tuning_pid(menu_ctx_t *ctx)
         int n = sscanf(ctx->line_buf, "%f %f %f",
             &kp, &ki, &kd);
         if (n == 3) {
-            app_pid_set_params(
-                &ctx->shared->pid[ctx->selected_motor],
-                kp, ki, kd);
+            OSAL_CRITICAL_SECTION {
+                app_pid_set_params(
+                    &ctx->shared->pid[ctx->selected_motor],
+                    kp, ki, kd);
+            }
             (void)printf(
                 "Motor %s: KP=%.2f KI=%.2f KD=%.2f\r\n",
                 s_motor_names[ctx->selected_motor],
@@ -320,7 +326,7 @@ static void menu_state_tuning_pid(menu_ctx_t *ctx)
 
 /**
  * @brief  运行状态处理(VOFA+ 协议输出 + 远程调参)
- * @note   10ms间隔输出12通道VOFA+数据, 支持下行命令
+ * @note   30ms间隔输出12通道VOFA+数据, 支持下行命令
  *         通道分配(0~11):
  *         0~3: 4电机实际RPM, 4~7: 4电机目标RPM, 8~11: 4电机PID输出
  *         下行命令: Kp=x, Ki=x, Kd=x, Target=x, Run, Stop, StopAll
