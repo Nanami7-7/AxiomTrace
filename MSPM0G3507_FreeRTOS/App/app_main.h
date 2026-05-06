@@ -84,6 +84,19 @@ typedef struct {
  */
 int32_t app_main_init(void);
 
+/**
+ * @brief  停止单个电机(禁用+PID重置+刹车)
+ * @param  ctx        共享上下文指针
+ * @param  motor_idx  电机索引(0~BSP_MOTOR_COUNT-1)
+ */
+void app_motor_stop(app_shared_ctx_t *ctx, uint32_t motor_idx);
+
+/**
+ * @brief  停止所有电机(禁用+PID重置+刹车)
+ * @param  ctx  共享上下文指针
+ */
+void app_motor_stop_all(app_shared_ctx_t *ctx);
+
 #ifdef __cplusplus
 }
 #endif

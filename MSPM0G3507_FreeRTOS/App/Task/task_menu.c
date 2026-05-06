@@ -140,20 +140,6 @@ static void menu_print_main(const menu_ctx_t *ctx)
         "a:Motor b:RPM c:PID d:Run q:Back\r\n");
 }
 
-/**
- * @brief  停止指定电机(刹车+禁用+PID重置)
- */
-static void motor_stop_and_disable(menu_ctx_t *ctx, uint32_t motor_idx)
-{
-    OSAL_CRITICAL_SECTION {
-        ctx->shared->motor_enabled[motor_idx] = false;
-        app_pid_set_setpoint(&ctx->shared->pid[motor_idx], 0.0f);
-        app_pid_reset(&ctx->shared->pid[motor_idx]);
-    }
-    (void)bsp_motor_stop((bsp_motor_id_t)motor_idx,
-        BSP_MOTOR_MODE_BRAKE);
-}
-
 /* ======================== 私有函数: 菜单状态处理 ======================== */
 
 /**
@@ -351,7 +337,7 @@ static void menu_state_running(menu_ctx_t *ctx)
         } else {
             /* 非VOFA命令, 检查 'q' 退出 */
             if (ctx->line_buf[0] == 'q') {
-                motor_stop_and_disable(ctx,
+                app_motor_stop(ctx->shared,
                     ctx->selected_motor);
                 (void)printf("Motor %s stopped\r\n",
                     s_motor_names[ctx->selected_motor]);

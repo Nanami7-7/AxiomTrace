@@ -310,28 +310,12 @@ void app_vofa_apply_cmd(const vofa_cmd_t *cmd,
         break;
 
     case VOFA_CMD_STOP:
-        OSAL_CRITICAL_SECTION {
-            ctx->motor_enabled[mid] = false;
-            app_pid_set_setpoint(&ctx->pid[mid], 0.0f);
-            app_pid_reset(&ctx->pid[mid]);
-        }
-        (void)bsp_motor_stop((bsp_motor_id_t)mid,
-            BSP_MOTOR_MODE_BRAKE);
+        app_motor_stop(ctx, mid);
         (void)printf("[%lu] Stop\r\n", (unsigned long)mid);
         break;
 
     case VOFA_CMD_STOP_ALL:
-        OSAL_CRITICAL_SECTION {
-            for (uint32_t i = 0; i < BSP_MOTOR_COUNT; i++) {
-                ctx->motor_enabled[i] = false;
-                app_pid_set_setpoint(&ctx->pid[i], 0.0f);
-                app_pid_reset(&ctx->pid[i]);
-            }
-        }
-        for (uint32_t i = 0; i < BSP_MOTOR_COUNT; i++) {
-            (void)bsp_motor_stop((bsp_motor_id_t)i,
-                BSP_MOTOR_MODE_BRAKE);
-        }
+        app_motor_stop_all(ctx);
         (void)printf("All stopped\r\n");
         break;
 
