@@ -2,7 +2,8 @@
  * @file    app_vofa.h
  * @brief   VOFA+ 通信协议接口
  * @note    支持 VOFA+ 的两种数据帧格式:
- *          1. FireWater (文本): "ch0:val0 ch1:val1 ... chN:valN\n"
+ *          1. FireWater (文本): "val0,val1,val2,...,valN\n"
+ *             - 逗号分隔浮点数, \n 结尾
  *             - 可读性好, 适合调试
  *             - 支持下行命令解析(VOFA+ 控件发送)
  *          2. JustFloat (二进制): float float ... float 0x00 0x00 0x80 0x7F
@@ -79,7 +80,7 @@ typedef struct {
 
 /**
  * @brief  发送 VOFA+ FireWater 格式数据
- * @note   输出格式: "ch0:val0 ch1:val1 ... chN:valN\n"
+ * @note   输出格式: "val0,val1,val2,...,valN\n"
  *         通过 printf -> fputc -> bsp_uart_putc 发送
  * @param  channels  通道数值数组
  * @param  count     通道数量

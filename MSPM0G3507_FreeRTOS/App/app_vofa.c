@@ -2,6 +2,7 @@
  * @file    app_vofa.c
  * @brief   VOFA+ 通信协议实现
  * @note    FireWater: 文本格式, printf 输出
+ *          格式: "val0,val1,val2,...,valN\n"
  *          JustFloat: 二进制格式, bsp_uart_putc 逐字节输出
  *          下行命令: 基于 sscanf/key-value 解析
  */
@@ -73,11 +74,10 @@ void app_vofa_send_firewater(const float channels[], uint32_t count)
 
     for (uint32_t i = 0; i < count; i++) {
         if (i > 0U) {
-            vofa_putc(' ');
+            vofa_putc(',');
         }
-        /* 格式: "ch0:123.45" */
-        (void)printf("ch%lu:%.2f",
-            (unsigned long)i, (double)channels[i]);
+        /* 格式: "val0,val1,...,valN\n" */
+        (void)printf("%.6f", (double)channels[i]);
     }
     vofa_putc('\n');
 }
