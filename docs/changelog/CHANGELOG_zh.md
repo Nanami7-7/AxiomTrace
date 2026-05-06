@@ -1,4 +1,4 @@
-﻿> [English](CHANGELOG.md) | [简体中文](CHANGELOG_zh.md)
+> [English](CHANGELOG.md) | [简体中文](CHANGELOG_zh.md)
 
 # 更新日志
 
@@ -9,7 +9,25 @@
 
 ## [未发布]
 
+### 修复
+- **并发**：修复 `axiom_timestamp_encode()` 竞态条件 — 将调用移入 `axiom_write()` 的临界区内，防止高优先级 ISR 抢占时破坏 `s_ts_ctx.last_raw`。
+- **并发**：修复丢弃摘要报告的竞态条件 — 在临界区内快照 `drop_count`/`drop_module`/`drop_event` 后再清零，防止被抢占的 ISR 破坏数据。
+- **正确性**：为 `axiom_filter_t` 中的 `level_mask` 和 `module_mask` 添加 `volatile` 限定符，确保 ISR 上下文中的读取正确。
+- **正确性**：修复 `axiom_timestamp_decode_len()` 对 `0xFE` 返回 3 而非 5 的错误 — 导致 delta 超过 21 位时帧解析错位和 CRC 校验失败。
+- **正确性**：修复 `axiom_backend_deferred_init()` 初始化了错误的 ring 实例，导致 `ring.mask = 0`，所有 deferred 写入都覆盖 `buf[0]`。
+- **正确性**：修复 `AXIOM_MAX_PAYLOAD_LEN` 重复定义 — `axiom_event.h`（64）与 `axiom_config.h`（128）冲突。现在 `axiom_event.h` 包含 `axiom_config.h` 作为唯一定义来源。
+- **正确性**：修复 `axiom_enc_timestamp()` 写入双份类型标签（`[0x08][0x05][val...]` 而非 `[0x08][val...]`）。
+- **文档**：修复时间戳编码注释中的过时 `0xFF` 引用 — 编码器/解码器使用 `0xFE` 作为 5 字节大 delta 标记。已修正 `axiom_event.h`、`wire_format.md` 和 `wire_format_zh.md`。
+- **链接**：为 `axiom_event.c` 中的 `s_filter` 全局变量添加 `static` 限定符，防止意外符号导出。
+
 ### 变更
+- **性能**：优化 `axiom_flush()` 和 `deferred_flush()`，使用新增的 `axiom_ring_consume()` 替代冗余的 `axiom_ring_read()`，每帧减少一次 `memcpy`。
+- **API**：新增 `axiom_ring_consume()` 环形缓冲区 API — 仅移动 tail 指针，不拷贝数据。
+- **文档**：修正环形缓冲区描述，从"无锁"改为"IRQ-safe SPSC，带临界区保护"。
+- **文档**：为 `axiom_port_generic.c` 中的默认空实现添加生产环境警告注释。
+- **文档**：为 `module_id < 32` 过滤器限制、未使用的 `baseline` 字段以及外部 `drop_summary_ready` / `drop_count_get_and_clear` API 用途添加文档注释。
+- **文档**：将 `axiom_backend_deferred.h` 中所有中文注释英文化，为 `AXIOM_BACKEND_CAP_*` 标志添加行内描述。
+- **文档**：为 `axiom_backend_register()` 添加线程安全说明 — 必须在任何 `axiom_write()` 调用之前调用。
 - **重大变更**：完成 v1.0 架构重构。项目从 v2.0 "文本优先、默认 Flash" 设计转向 v1.0 "以 Event Record 为唯一事实来源" 的微内核模型。
 - 将所有 v2.0 占位符实现替换为 v1.0 五平面架构（语义层 / 前端层 / 核心层 / 后端层 / 工具层）。
 - 重命名并重组了 `baremetal/` 目录，以匹配 v1.0 平面架构。
@@ -29,7 +47,7 @@
 ## [0.1.0] - 待定
 
 ### 新增
-- 核心层：无锁 ISR-safe RAM Ring 缓冲区，支持编译期配置大小和策略（丢弃/覆盖）。
+- 核心层：IRQ-safe SPSC RAM Ring 缓冲区（临界区保护），支持编译期配置大小和策略（丢弃/覆盖）。
 - 核心层：二进制 Event Record 编码器，支持 C11 `_Generic` 类型安全 payload 编码和自描述类型标签。
 - 核心层：CRC-16/CCITT-FALSE，带 256 字节 ROM 查表。
 - 核心层：压缩相对时间戳（delta 编码）。

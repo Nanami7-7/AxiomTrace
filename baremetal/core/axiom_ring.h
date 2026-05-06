@@ -22,7 +22,7 @@ extern "C" {
 #endif
 
 /* ---------------------------------------------------------------------------
- * Lock-free IRQ-safe RAM Ring Buffer
+ * IRQ-safe SPSC RAM Ring Buffer with critical-section protection.
  * Single-producer (ISR or main loop), single-consumer (backend drain).
  * --------------------------------------------------------------------------- */
 
@@ -50,6 +50,11 @@ uint16_t axiom_ring_read(axiom_ring_t *ring, uint8_t *out, uint16_t max_len);
 
 /* Peek at data without consuming. Returns bytes available. */
 uint16_t axiom_ring_peek(const axiom_ring_t *ring, uint8_t *out, uint16_t max_len);
+
+/* Advance tail by 'n' bytes without copying data.
+ * Caller must have already read the data (e.g., via axiom_ring_peek).
+ * Caller must ensure n <= axiom_ring_used(). */
+void axiom_ring_consume(axiom_ring_t *ring, uint16_t n);
 
 /* Bytes currently stored */
 static inline uint32_t axiom_ring_used(const axiom_ring_t *ring) {

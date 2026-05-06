@@ -8,28 +8,87 @@ build_*/
 bin/
 obj/
 
+# --- C compiled artifacts ---
+*.o
+*.a
+*.so
+*.lib
+*.dll
+*.obj
+*.d
+
+# --- Embedded firmware artifacts ---
+*.elf
+*.bin
+*.hex
+*.map
+*.uf2
+
+# --- CMake ---
+CMakeCache.txt
+CMakeFiles/
+cmake-build-*/
+compile_commands.json
+.cmake/
+
+# --- Coverage ---
+*.gcov
+*.gcda
+*.gcno
+htmlcov/
+.coverage
+coverage/
+
 # --- Python artifacts ---
 __pycache__/
 *.pyc
 *.pyo
+*.pyd
 *.egg-info/
-.pytest_cache/
+.eggs/
 *.egg
+dist/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.pylint.d/
+
+# --- Python virtual environments ---
+venv/
+.venv/
+env/
+.env
 
 # --- IDE and editor ---
 .vscode/
 .idea/
 *.swp
-*.sublime-project
+*.swo
+*~
+.sublime-project
 *.sublime-workspace
 *.code-workspace
+
+# --- clangd / ccls ---
+.cache/clangd/
+.ccls-cache/
+.ccls
 
 # --- OS ---
 .DS_Store
 Thumbs.db
+Desktop.ini
 
 # --- AI / development tools ---
 .sisyphus/
+
+# --- Archives ---
+*.tar.gz
+*.zip
+*.rar
+
+# --- Node.js (if tool/ subproject uses it) ---
+node_modules/
 
 # --- Project specific generated files ---
 axiomtrace_amalgamated.h

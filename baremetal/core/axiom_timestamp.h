@@ -14,7 +14,7 @@ extern "C" {
 
 typedef struct {
     uint32_t last_raw;
-    uint32_t baseline;
+    uint32_t baseline; /* Reserved for future time-sync anchor (Unix epoch mapping) */
 } axiom_timestamp_ctx_t;
 
 /* Initialize timestamp context */
@@ -28,7 +28,9 @@ uint8_t axiom_timestamp_encode(axiom_timestamp_ctx_t *ctx, uint8_t *out);
  */
 static inline uint8_t axiom_timestamp_decode_len(uint8_t first_byte) {
     if (first_byte >= 0xC0) {
-        return (first_byte == 0xFFu) ? 5 : 3;
+        /* 0xFE and 0xFF both signal 5-byte full-delta encoding.
+         * 0xC0..0xFD are 3-byte encoding (21-bit delta). */
+        return (first_byte >= 0xFEu) ? 5 : 3;
     } else if (first_byte >= 0x80) {
         return 2;
     }

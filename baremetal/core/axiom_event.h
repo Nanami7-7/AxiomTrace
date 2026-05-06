@@ -3,6 +3,7 @@
 
 #include <stdint.h>
 #include "axiom_static_assert.h"
+#include "axiom_config.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -60,13 +61,10 @@ AXIOM_CHECK_ALIGN(axiom_event_header_t, 1);
 #define AXIOM_WIRE_VERSION ((uint8_t)((AXIOM_WIRE_VERSION_MAJOR << 4u) | AXIOM_WIRE_VERSION_MINOR))
 
 /* ---------------------------------------------------------------------------
- * Frame limits
+ * Frame limits (AXIOM_MAX_PAYLOAD_LEN defined in axiom_config.h)
  * --------------------------------------------------------------------------- */
-#ifndef AXIOM_MAX_PAYLOAD_LEN
-#define AXIOM_MAX_PAYLOAD_LEN 64u
-#endif
 
-/* Max timestamp length is 5 bytes (0xFF + 4-byte full delta) */
+/* Max timestamp length is 5 bytes (0xFE + 4-byte full delta) */
 #define AXIOM_MAX_FRAME_LEN (8u + 5u + 1u + AXIOM_MAX_PAYLOAD_LEN + 2u)
 
 #ifdef __cplusplus

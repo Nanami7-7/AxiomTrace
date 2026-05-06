@@ -37,7 +37,7 @@ The timestamp field is auto-inserted by `axiom_write()` for every event. It uses
 | 0 – 127 | 1 | `0b0xxxxxxx` (7-bit value) |
 | 128 – 16,383 | 2 | `0b10xxxxxx` + 1 byte (13-bit value) |
 | 16,384 – 2,097,151 | 3 | `0b110xxxxx` + 2 bytes (19-bit value) |
-| 2,097,152 – 4,294,967,295 | 5 | `0xFF` + 4 bytes (full 32-bit) |
+| 2,097,152 – 4,294,967,295 | 5 | `0xFE` + 4 bytes (full 32-bit) |
 
 The timestamp is included in the CRC-16 calculation (Header + Timestamp + Payload Length + Payload). Decoders must decode the variable-length timestamp field before locating `payload_len` at `frame[8 + ts_len]`.
 

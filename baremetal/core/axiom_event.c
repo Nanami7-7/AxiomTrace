@@ -16,7 +16,7 @@
 static uint8_t s_ring_buf[AXIOM_RING_BUFFER_SIZE];
 static axiom_ring_t s_ring;
 static uint16_t s_seq;
-axiom_filter_t s_filter;
+static axiom_filter_t s_filter;
 static axiom_timestamp_ctx_t s_ts_ctx;
 
 void axiom_init(void) {
@@ -31,15 +31,16 @@ void axiom_flush(void) {
     uint16_t n;
     while ((n = axiom_ring_peek(&s_ring, frame, sizeof(frame))) > 0) {
         /* Frame structure: Header(8B) + Timestamp(1-5B) + PayloadLen(1B) + Payload(N) + CRC(2B) */
-        if (n < 12) break; /* Minimum: 8 + 1 + 1 + 0 + 2 = 12 */
+        /* Minimum frame: header(8) + timestamp(1) + payload_len(1) + crc(2) = 12 */
+        if (n < 12) break;
         /* Decode variable-length timestamp to find payload_len offset */
         uint8_t ts_len = axiom_timestamp_decode_len(frame[8]);
         /* Determine actual frame length */
         uint16_t payload_len = frame[8 + ts_len];
         uint16_t frame_len = (uint16_t)(8u + ts_len + 1u + payload_len + 2u);
         if (n < frame_len) break;
-        /* Consume from ring */
-        (void)axiom_ring_read(&s_ring, frame, frame_len);
+        /* Data already copied by peek — just advance the tail pointer */
+        axiom_ring_consume(&s_ring, frame_len);
         axiom_backend_dispatch(frame, frame_len);
     }
 }
@@ -57,12 +58,13 @@ void axiom_write(axiom_level_t level, uint8_t module_id, uint16_t event_id,
         axiom_port_fault_hook(module_id, event_id, payload, payload_len);
     }
 
-    /* Encode timestamp to determine length */
+    axiom_port_critical_enter();
+
+    /* Encode timestamp inside critical section — s_ts_ctx.last_raw
+     * must not be corrupted by a pre-empting ISR calling axiom_write() */
     uint8_t ts_buf[5];
     uint8_t ts_len = axiom_timestamp_encode(&s_ts_ctx, ts_buf);
     uint16_t total_len = (uint16_t)(8u + ts_len + 1u + payload_len + 2u);
-
-    axiom_port_critical_enter();
 
     /* Capacity check & Policy enforcement */
     uint32_t head = s_ring.head;
@@ -108,25 +110,48 @@ void axiom_write(axiom_level_t level, uint8_t module_id, uint16_t event_id,
     crc_buf[1] = (uint8_t)(crc >> 8);
     axiom_ring_write_chunk(&s_ring, crc_buf, 2, NULL);
 
+    /* Snapshot drop statistics atomically before leaving the critical section.
+     * Prevents a pre-empting ISR from corrupting drop_count mid-read. */
+    const bool     has_drop    = s_filter.drop_pending;
+    uint32_t       cached_lost = 0;
+    uint8_t        cached_mod  = 0;
+    uint16_t       cached_evt  = 0;
+    if (has_drop) {
+        cached_lost = s_filter.drop_count;
+        cached_mod  = s_filter.drop_module;
+        cached_evt  = s_filter.drop_event;
+        /* Clear atomically — next drop will start fresh */
+        s_filter.drop_count   = 0;
+        s_filter.drop_pending = false;
+        s_filter.drop_module  = 0;
+        s_filter.drop_event   = 0;
+    }
+
     axiom_port_critical_exit();
 
-    /* Emit DROP_SUMMARY if drops occurred */
-    if (axiom_filter_drop_summary_ready(&s_filter)) {
-        uint32_t lost = axiom_filter_drop_count_get_and_clear(&s_filter);
+    /* Emit DROP_SUMMARY outside critical section.
+     * Recursive axiom_write() is safe: it has its own critical section.
+     * Using cached_* locals avoids touching s_filter after CS exit. */
+    if (has_drop) {
         uint8_t summary[10];
         uint8_t sp = 0;
         summary[sp++] = AXIOM_TYPE_U32;
-        summary[sp++] = (uint8_t)(lost & 0xFFu);
-        summary[sp++] = (uint8_t)((lost >> 8) & 0xFFu);
-        summary[sp++] = (uint8_t)((lost >> 16) & 0xFFu);
-        summary[sp++] = (uint8_t)(lost >> 24);
+        summary[sp++] = (uint8_t)(cached_lost & 0xFFu);
+        summary[sp++] = (uint8_t)((cached_lost >> 8) & 0xFFu);
+        summary[sp++] = (uint8_t)((cached_lost >> 16) & 0xFFu);
+        summary[sp++] = (uint8_t)(cached_lost >> 24);
         summary[sp++] = AXIOM_TYPE_U8;
-        summary[sp++] = s_filter.drop_module;
+        summary[sp++] = cached_mod;
         summary[sp++] = AXIOM_TYPE_U16;
-        summary[sp++] = (uint8_t)(s_filter.drop_event & 0xFFu);
-        summary[sp++] = (uint8_t)(s_filter.drop_event >> 8);
+        summary[sp++] = (uint8_t)(cached_evt & 0xFFu);
+        summary[sp++] = (uint8_t)(cached_evt >> 8);
         axiom_write(AXIOM_LEVEL_WARN, 0x00, 0x0001, summary, sp);
     }
+
+    /* NOTE: axiom_filter_drop() above is called outside critical section.
+     * On 32-bit MCUs, drop_count++ is typically atomic (single LDR+STR),
+     * but under extreme contention a count increment may be lost.
+     * This is acceptable for statistics — no data corruption occurs. */
 }
 
 /* ---------------------------------------------------------------------------

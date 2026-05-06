@@ -10,14 +10,16 @@ extern "C" {
 
 /* ---------------------------------------------------------------------------
  * Backend Capability Flags
+ * Used by the backend registry to advertise transport capabilities.
+ * Query via backend.caps at registration or discovery time.
  * --------------------------------------------------------------------------- */
-#define AXIOM_BACKEND_CAP_MEMORY  (1u << 0)
-#define AXIOM_BACKEND_CAP_UART    (1u << 1)
-#define AXIOM_BACKEND_CAP_USB     (1u << 2)
-#define AXIOM_BACKEND_CAP_RTT     (1u << 3)
-#define AXIOM_BACKEND_CAP_SWO     (1u << 4)
-#define AXIOM_BACKEND_CAP_CANFD   (1u << 5)
-#define AXIOM_BACKEND_CAP_CAPSULE (1u << 6)
+#define AXIOM_BACKEND_CAP_MEMORY  (1u << 0) /* In-memory ring capture           */
+#define AXIOM_BACKEND_CAP_UART    (1u << 1) /* Serial UART transport            */
+#define AXIOM_BACKEND_CAP_USB     (1u << 2) /* USB CDC / bulk transport          */
+#define AXIOM_BACKEND_CAP_RTT     (1u << 3) /* SEGGER RTT transport             */
+#define AXIOM_BACKEND_CAP_SWO     (1u << 4) /* ARM SWO stimulus port            */
+#define AXIOM_BACKEND_CAP_CANFD   (1u << 5) /* CAN-FD transport                 */
+#define AXIOM_BACKEND_CAP_CAPSULE (1u << 6) /* Fault capsule (flash-persistent) */
 
 /* ---------------------------------------------------------------------------
  * Backend Contract
@@ -43,7 +45,8 @@ typedef struct {
 #define AXIOM_BACKEND_MAX 4
 #endif
 
-/* Register a backend. Returns 0 on success, negative on error. */
+/* Register a backend. Returns 0 on success, negative on error.
+ * MUST be called before any axiom_write() — not thread-safe. */
 int axiom_backend_register(const axiom_backend_t *backend);
 
 /* Dispatch a frame to all registered backends.

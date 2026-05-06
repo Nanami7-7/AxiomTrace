@@ -71,9 +71,11 @@ static inline void axiom_enc_f32(uint8_t *buf, uint8_t *pos, float val) {
 
 static inline void axiom_enc_timestamp(uint8_t *buf, uint8_t *pos, uint32_t val) {
     buf[(*pos)++] = AXIOM_TYPE_TIMESTAMP;
-    axiom_enc_u32(buf, pos, val);
-    /* Note: actual timestamp encoding uses delta compression in axiom_timestamp.c */
-    /* This helper writes raw timestamp for direct use */
+    /* Write raw 32-bit value (no duplicate type tag — unlike the other enc helpers) */
+    buf[(*pos)++] = (uint8_t)(val & 0xFFu);
+    buf[(*pos)++] = (uint8_t)((val >> 8) & 0xFFu);
+    buf[(*pos)++] = (uint8_t)((val >> 16) & 0xFFu);
+    buf[(*pos)++] = (uint8_t)(val >> 24);
 }
 
 static inline void axiom_enc_bytes(uint8_t *buf, uint8_t *pos, const uint8_t *data, uint8_t len) {

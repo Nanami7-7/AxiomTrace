@@ -24,6 +24,10 @@
 
 AXIOM_WEAK uint32_t axiom_port_timestamp(void) { return 0u; }
 
+/* NOTE: Default no-op implementation. Override for production builds
+ * to provide proper interrupt masking (e.g., __disable_irq/__enable_irq
+ * on ARM Cortex-M). Without override, concurrent axiom_write() calls
+ * will corrupt the ring buffer. */
 AXIOM_WEAK void axiom_port_critical_enter(void) { }
 
 AXIOM_WEAK void axiom_port_critical_exit(void) { }

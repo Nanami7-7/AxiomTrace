@@ -15,14 +15,14 @@ extern "C" {
  * Deferred Ring Configuration
  * --------------------------------------------------------------------------- */
 
-/* 默认 deferred ring 大小，可由用户覆盖 */
+/* Default deferred ring size — user-overridable at build time */
 #ifndef AXIOM_DEFERRED_RING_SIZE
 #define AXIOM_DEFERRED_RING_SIZE 256
 #endif
 
 /* ---------------------------------------------------------------------------
  * Deferred Ring Context
- * 独立 ring，与主 ring 隔离，固定大小静态分配
+ * Independent ring, isolated from the main ring, statically allocated.
  * --------------------------------------------------------------------------- */
 typedef struct {
     axiom_ring_t ring;
@@ -31,11 +31,11 @@ typedef struct {
 
 /* ---------------------------------------------------------------------------
  * Deferred Backend Context
- * 级联下游 actual backend，热路径不阻塞
+ * Cascades to a downstream (actual) backend; hot-path write() is non-blocking.
  * --------------------------------------------------------------------------- */
 typedef struct {
-    axiom_backend_t backend;           /* 可注册到 registry 的 backend */
-    const axiom_backend_t *downstream; /* 下游 actual backend */
+    axiom_backend_t backend;           /* Registrable backend instance            */
+    const axiom_backend_t *downstream; /* Downstream actual backend               */
     axiom_deferred_ring_ctx_t deferred_ring;
 } axiom_backend_deferred_ctx_t;
 
@@ -44,44 +44,44 @@ typedef struct {
  * --------------------------------------------------------------------------- */
 
 /**
- * @brief 初始化 deferred backend
+ * @brief Initialize a deferred backend.
  *
- * @param ctx deferred backend 上下文（需静态分配）
- * @param deferred_ring_ctx deferred ring 上下文（需静态分配）
- * @param downstream 下游 actual backend（deferred → actual）
- * @return int 0 成功，负值失败
+ * @param ctx          Deferred backend context (caller-allocated, static storage).
+ * @param deferred_ring_ctx  Deferred ring context (caller-allocated, kept for
+ *                           API compatibility — actual ring is embedded in ctx).
+ * @param downstream   Downstream actual backend (deferred -> actual).
+ * @return int  0 on success, negative on error.
  *
- * @note deferred backend 注册到 registry 后，热路径 write() 调用
- *       仅将数据写入本地 ring，立即返回，不阻塞。flush() 时
- *       才将数据级联到下游 backend。
- * @note 此函数不分配内存，所有缓冲区均为静态分配
+ * @note After registration, hot-path write() only copies data into the local
+ *       ring and returns immediately — no blocking.
+ *       Flush (axiom_backend_flush_all) cascades buffered frames to the
+ *       downstream backend at a later, non-ISR context.
+ * @note No dynamic memory allocation; all buffers are statically allocated.
  */
 int axiom_backend_deferred_init(axiom_backend_deferred_ctx_t *ctx,
                                  axiom_deferred_ring_ctx_t *deferred_ring_ctx,
                                  const axiom_backend_t *downstream);
 
 /**
- * @brief 获取 deferred backend 的 axiom_backend_t 实例
+ * @brief Get the backend instance for registration into the registry.
  *
- * @param ctx deferred backend 上下文
- * @return const axiom_backend_t* 用于注册到 registry
- *
- * @note 返回的 backend 结构需在 init 之后使用
+ * @param ctx  Deferred backend context.
+ * @return const axiom_backend_t*  Backend instance (valid after init).
  */
 const axiom_backend_t *axiom_backend_deferred_get_backend(axiom_backend_deferred_ctx_t *ctx);
 
 /**
- * @brief 检查 deferred ring 中缓存的数据量
+ * @brief Query the number of bytes currently buffered in the deferred ring.
  *
- * @param ctx deferred backend 上下文
- * @return uint32_t 已缓存字节数
+ * @param ctx  Deferred backend context.
+ * @return uint32_t  Buffered byte count.
  */
 uint32_t axiom_backend_deferred_pending(const axiom_backend_deferred_ctx_t *ctx);
 
 /**
- * @brief 重置 deferred ring（丢弃所有缓存数据）
+ * @brief Reset the deferred ring, discarding all buffered data.
  *
- * @param ctx deferred backend 上下文
+ * @param ctx  Deferred backend context.
  */
 void axiom_backend_deferred_reset(axiom_backend_deferred_ctx_t *ctx);
 

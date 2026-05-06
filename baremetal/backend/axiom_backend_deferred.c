@@ -73,8 +73,8 @@ static int deferred_flush(void *ctx) {
                 break; /* downstream busy or error — stop and retry next flush */
             }
         }
-        /* Only consume after successful write */
-        (void)axiom_ring_read(ring, frame_buf, frame_len);
+        /* Data already copied by peek — just advance tail pointer */
+        axiom_ring_consume(ring, frame_len);
         dispatched++;
     }
     return dispatched;
@@ -126,19 +126,16 @@ int axiom_backend_deferred_init(axiom_backend_deferred_ctx_t *ctx,
         return -2;  /* downstream 必须提供 write 回调 */
     }
 
-    /* 初始化 deferred ring */
-    memset(deferred_ring_ctx, 0, sizeof(*deferred_ring_ctx));
-    axiom_ring_init(&deferred_ring_ctx->ring,
-                    deferred_ring_ctx->buf,
-                    AXIOM_DEFERRED_RING_SIZE);
-
-    /* 初始化 deferred backend 上下文 */
+    /* Initialize deferred backend context.
+     * The actual ring buffer is embedded in ctx->deferred_ring, not the
+     * external deferred_ring_ctx parameter (which is kept for API compatibility
+     * but whose ring member is unused). */
     memset(ctx, 0, sizeof(*ctx));
     ctx->downstream = downstream;
-    ctx->deferred_ring.ring.head = 0;
-    ctx->deferred_ring.ring.tail = 0;
-    ctx->deferred_ring.ring.capacity = AXIOM_DEFERRED_RING_SIZE;
-    ctx->deferred_ring.ring.reserved = (uintptr_t)deferred_ring_ctx->buf;
+    axiom_ring_init(&ctx->deferred_ring.ring,
+                    ctx->deferred_ring.buf,
+                    AXIOM_DEFERRED_RING_SIZE);
+    (void)deferred_ring_ctx; /* API compatibility — not used */
 
     /* 初始化 embedded backend 结构，用于注册到 registry */
     ctx->backend = (axiom_backend_t){

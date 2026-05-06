@@ -124,6 +124,12 @@ uint16_t axiom_ring_peek(const axiom_ring_t *ring, uint8_t *out, uint16_t max_le
     return n;
 }
 
+void axiom_ring_consume(axiom_ring_t *ring, uint16_t n) {
+    axiom_port_critical_enter();
+    ring->tail += n;
+    axiom_port_critical_exit();
+}
+
 void axiom_ring_reset(axiom_ring_t *ring) {
     axiom_port_critical_enter();
     ring->head = 0;
