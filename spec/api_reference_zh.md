@@ -2,7 +2,7 @@
 
 # AxiomTrace API 参考手册
 
-> 版本：v1.0 | 状态：**冻结中（v0.3-frontend 定稿）**
+> 版本：v0.1 | 状态：**冻结中（v0.1-frontend 定稿）**
 
 ---
 
@@ -222,8 +222,12 @@ int  axiom_port_flash_write(uint32_t addr, const uint8_t *data, uint32_t len);
 |-------|---------|-------------|
 | `AXIOM_RING_BUFFER_SIZE` | 4096 | 主环形缓冲区大小（字节） |
 | `AXIOM_RING_BUFFER_POLICY` | `DROP` | `DROP` 或 `OVERWRITE` |
-| `AXIOM_MAX_PAYLOAD_LEN` | 64 | 每个事件的最大有效载荷字节数 |
+| `AXIOM_MAX_PAYLOAD_LEN` | 128 | 每个事件的最大有效载荷字节数 |
+| `AXIOM_MODULE_MAX` | 32 | 过滤器位掩码支持的最大模块 ID 数（0 .. MAX-1） |
 | `AXIOM_BACKEND_MAX` | 4 | 最大注册后端数量 |
+| `AXIOMTRACE_VERSION_MAJOR` | 0 | 库主版本号 |
+| `AXIOMTRACE_VERSION_MINOR` | 1 | 库次版本号 |
+| `AXIOMTRACE_VERSION_PATCH` | 0 | 库补丁版本号 |
 | `AXIOM_PROFILE` | `DEV` | `DEV`, `FIELD` 或 `PROD` |
 | `AXIOM_CAPSULE_ENABLED` | 1 | 启用故障舱 |
 | `AXIOM_CAPSULE_PRE_EVENTS` | 32 | 故障前窗口大小 |

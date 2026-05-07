@@ -2,7 +2,7 @@
 
 # AxiomTrace API Reference
 
-> Version: v1.0 | Status: **Frozen (v0.3-frontend finalized)**
+> Version: v0.1 | Status: **Frozen (v0.1-frontend finalized)**
 
 ---
 
@@ -222,8 +222,12 @@ int  axiom_port_flash_write(uint32_t addr, const uint8_t *data, uint32_t len);
 |-------|---------|-------------|
 | `AXIOM_RING_BUFFER_SIZE` | 4096 | Main ring buffer size in bytes |
 | `AXIOM_RING_BUFFER_POLICY` | `DROP` | `DROP` or `OVERWRITE` |
-| `AXIOM_MAX_PAYLOAD_LEN` | 64 | Maximum payload bytes per event |
+| `AXIOM_MAX_PAYLOAD_LEN` | 128 | Maximum payload bytes per event |
+| `AXIOM_MODULE_MAX` | 32 | Maximum module IDs for filter bitmask (0 .. MAX-1) |
 | `AXIOM_BACKEND_MAX` | 4 | Maximum registered backends |
+| `AXIOMTRACE_VERSION_MAJOR` | 0 | Library major version |
+| `AXIOMTRACE_VERSION_MINOR` | 1 | Library minor version |
+| `AXIOMTRACE_VERSION_PATCH` | 0 | Library patch version |
 | `AXIOM_PROFILE` | `DEV` | `DEV`, `FIELD`, or `PROD` |
 | `AXIOM_CAPSULE_ENABLED` | 1 | Enable fault capsule |
 | `AXIOM_CAPSULE_PRE_EVENTS` | 32 | Pre-fault window size |

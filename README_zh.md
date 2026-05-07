@@ -1,6 +1,6 @@
 > [English](README.md) | [简体中文](README_zh.md)
 
-# AxiomTrace v1.0 — 工业级 MCU 可观测微内核
+# AxiomTrace v0.1 — 工业级 MCU 可观测微内核
 
 AxiomTrace 是一个专为 MCU 裸机环境设计的高性能、确定性可观测性核心。它通过将复杂性推向主机端，并保持固件热路径纯净、快速且具备 O(1) 特性，彻底改变了嵌入式日志的处理方式。
 
@@ -38,9 +38,11 @@ AxiomTrace 保证每个日志调用的执行时间都是恒定的。通过采用
 ## 🛠️ 核心特性
 
 - **协议即本体架构**：文本/JSON/二进制只是视图；事件记录 (Event Record) 是唯一的真理。
-- **可插拔后端**：UART、USB、RTT、SWO 或 Flash 舱 (Capsule) — 无需触碰核心即可添加新后端。
+- **可插拔后端**：UART、USB、RTT、SWO 或 Flash 舱 (Capsule) — 无需触碰核心即可添加新后端。使用 `AXIOM_BACKEND_INIT(...)` 实现结构体前向兼容初始化。
 - **故障舱 (Fault Capsule)**：在发生严重故障期间自动冻结故障前/后窗口，并提交至非易失性存储。
 - **基于 Profile 的裁剪**：`PROD` 配置会在编译期自动移除调试探针和日志，实现零成本运行。
+- **库版本管理**：通过 `AXIOMTRACE_VERSION_CHECK(major, minor, patch)` 实现编译时版本检查。
+- **可配置模块上限**：`AXIOM_MODULE_MAX`（默认 32）控制模块过滤器位掩码宽度。
 - **双语文档**：英文与简体中文之间的无缝切换，助力全球化协作。
 
 ---

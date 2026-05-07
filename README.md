@@ -1,6 +1,6 @@
 > [English](README.md) | [简体中文](README_zh.md)
 
-# AxiomTrace v1.0 — Industrial Observability Microkernel
+# AxiomTrace v0.1 — Industrial Observability Microkernel
 
 AxiomTrace is a high-performance, deterministic observability core designed for bare-metal MCU environments. It transforms the way embedded logs are handled by pushing complexity to the host and keeping the firmware hot path pure, fast, and O(1).
 
@@ -38,9 +38,11 @@ Keep your firmware binary lean by storing only raw IDs and integers. Use the **H
 ## 🛠️ Key Features
 
 - **Protocol-Entity Architecture**: Text/JSON/Binary are just views; the Event Record is the only truth.
-- **Pluggable Backends**: UART, USB, RTT, SWO, or Flash Capsule — add new ones without touching the core.
+- **Pluggable Backends**: UART, USB, RTT, SWO, or Flash Capsule — add new ones without touching the core. Use `AXIOM_BACKEND_INIT(...)` for forward-compatible struct initialization.
 - **Fault Capsule**: Automatically freezes pre/post windows during critical faults and commits to non-volatile storage.
 - **Profile-based Pruning**: `PROD` profile automatically removes debug probes and logs at compile-time.
+- **Library Versioning**: Compile-time version check via `AXIOMTRACE_VERSION_CHECK(major, minor, patch)`.
+- **Configurable Module Limits**: `AXIOM_MODULE_MAX` (default 32) controls the module filter bitmask width.
 - **Bilingual Documentation**: Seamless transition between English and 简体中文 for global collaboration.
 
 ---

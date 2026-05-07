@@ -21,9 +21,9 @@ AxiomTrace 遵循 [SemVer 2.0.0](https://semver.org/) 规范：
 
 | API 层面                        | 稳定性保证                        |
 |---------------------------------|-----------------------------------|
-| `AXIOM_*` 日志宏                | 自 v1.0 起稳定                    |
-| `axiom_port_*` 弱符号接口       | 自 v1.0 起稳定                    |
-| `axiom_backend_register` 宏     | 自 v1.0 起稳定                    |
+| `AXIOM_*` 日志宏                | 自 v0.1 起稳定                    |
+| `axiom_port_*` 弱符号接口       | 自 v0.1 起稳定                    |
+| `axiom_backend_register` 函数   | 自 v0.1 起稳定                    |
 | 内部 `_Generic` 编码函数        | 可能会在次版本号更新中变更        |
 | `axiom_ring_*` 内部 API         | 可能会在次版本号更新中变更        |
 
@@ -31,4 +31,4 @@ AxiomTrace 遵循 [SemVer 2.0.0](https://semver.org/) 规范：
 
 - 每个主版本号内的头部大小 (Header Size) 和字段偏移量 (Field Offsets) 是固定的。
 - 新的有效负载类型标签 (Payload Type Tags) 采用追加方式，绝不重新排序。
-- 后端描述符结构体可能会在次版本号更新中向后扩展；后端必须进行零初始化。
+- 后端描述符结构体可能会在次版本号更新中向后扩展；推荐使用 `AXIOM_BACKEND_INIT(...)` 实现结构体前向兼容初始化。旧的零初始化后端（size==0）视为旧版布局。

@@ -21,9 +21,9 @@ The `version` byte in the event header encodes `major << 4 | minor`.
 
 | API Surface                     | Stability Guarantee               |
 |---------------------------------|-----------------------------------|
-| `AXIOM_*` logging macros        | Stable from v1.0                  |
-| `axiom_port_*` weak symbols     | Stable from v1.0                  |
-| `axiom_backend_register` macro  | Stable from v1.0                  |
+| `AXIOM_*` logging macros        | Stable from v0.1                  |
+| `axiom_port_*` weak symbols     | Stable from v0.1                  |
+| `axiom_backend_register` fn     | Stable from v0.1                  |
 | Internal `_Generic` encode fns  | May change in minor releases      |
 | `axiom_ring_*` internal API     | May change in minor releases      |
 
@@ -31,4 +31,4 @@ The `version` byte in the event header encodes `major << 4 | minor`.
 
 - Header size and field offsets are frozen per major version.
 - New payload type tags are appended, never reordered.
-- Backend descriptor struct may grow at the end in minor releases; backends must zero-initialize.
+- Backend descriptor struct may grow at the end in minor releases; use `AXIOM_BACKEND_INIT(...)` for forward-compatible initialization. Old zero-initialized backends (size==0) are treated as legacy layout.

@@ -2,7 +2,7 @@
 
 # AxiomTrace Backend Contract Specification
 
-> Version: v1.0 | Status: **FROZEN** | Ref: `baremetal/backend/axiom_backend.h`
+> Version: v0.1 | Status: **FROZEN** | Ref: `baremetal/backend/axiom_backend.h`
 
 ---
 
@@ -22,6 +22,7 @@ Backends are the transport layer that moves encoded Event Records from the Core 
 
 ```c
 typedef struct {
+    uint16_t size;              /* sizeof(this struct) at compile time */
     const char *name;
     uint32_t caps;
 
@@ -33,12 +34,16 @@ typedef struct {
     void (*on_drop)(uint32_t lost, void *ctx);
     void *ctx;
 } axiom_backend_t;
+
+/* Recommended: use AXIOM_BACKEND_INIT() for forward-compatible initialization */
+#define AXIOM_BACKEND_INIT(...)  { .size = sizeof(axiom_backend_t), __VA_ARGS__ }
 ```
 
 ### 2.1 Field Description
 
 | Field        | Type     | Required | Description |
 |--------------|----------|----------|-------------|
+| `size`       | `uint16_t` | Auto | Struct size at compile time. Filled automatically by `AXIOM_BACKEND_INIT()`. Old zero-initialized backends (size==0) are treated as legacy layout. |
 | `name`       | `const char *` | Yes | Human-readable name for diagnostics |
 | `caps`       | `uint32_t` | No | Capability flags (see §4) |
 | `write`      | `int (*)(...)` | Yes | Transmit a complete frame. Must be IRQ-safe or called from critical section. Return 0 on success, `-EAGAIN` if busy, negative on error. |
@@ -52,20 +57,21 @@ typedef struct {
 
 ```c
 /* User code: register a backend at boot time */
-axiom_backend_t my_uart = {
+static const axiom_backend_t my_uart = AXIOM_BACKEND_INIT(
     .name = "uart0",
     .write = my_uart_dma_send,
     .ready = my_uart_tx_ready,
-    .ctx = &uart0_handle,
-};
+    .ctx = &uart0_handle
+);
 axiom_backend_register(&my_uart);
 ```
 
 **Rules**:
 
 - Registration must occur before the first log call (typically in `main()` after peripheral init).
-- Registration is **not** auto-discovered via linker sections (v1.0 deliberately removed this for portability).
+- Registration is **not** auto-discovered via linker sections (deliberately removed for portability).
 - A maximum of `AXIOM_BACKEND_MAX` backends can be registered (default 4, compile-time configurable).
+- `axiom_backend_register()` returns `-3` if the struct's `size` field is non-zero but smaller than `sizeof(axiom_backend_t)` — indicating the backend was compiled against an older header. Recompile the backend.
 
 ---
 
