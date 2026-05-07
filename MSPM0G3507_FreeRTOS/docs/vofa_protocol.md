@@ -72,14 +72,14 @@ val0,val1,val2,val3,val4,val5,val6,val7,val8,val9,val10,val11\n
 
 | 通道 | 变量 | 含义 | 范围 |
 |---|---|---|---|
-| CH0 | `status.rpm[0]` | 电机 A 实际 RPM | ±500 |
-| CH1 | `status.rpm[1]` | 电机 B 实际 RPM | ±500 |
-| CH2 | `status.rpm[2]` | 电机 C 实际 RPM | ±500 |
-| CH3 | `status.rpm[3]` | 电机 D 实际 RPM | ±500 |
-| CH4 | `pid[0].setpoint` | 电机 A 目标 RPM | ±500 |
-| CH5 | `pid[1].setpoint` | 电机 B 目标 RPM | ±500 |
-| CH6 | `pid[2].setpoint` | 电机 C 目标 RPM | ±500 |
-| CH7 | `pid[3].setpoint` | 电机 D 目标 RPM | ±500 |
+| CH0 | `status.rpm[0]` | 电机 A 实际 RPM | ±800 |
+| CH1 | `status.rpm[1]` | 电机 B 实际 RPM | ±800 |
+| CH2 | `status.rpm[2]` | 电机 C 实际 RPM | ±800 |
+| CH3 | `status.rpm[3]` | 电机 D 实际 RPM | ±800 |
+| CH4 | `pid[0].setpoint` | 电机 A 目标 RPM | ±800 |
+| CH5 | `pid[1].setpoint` | 电机 B 目标 RPM | ±800 |
+| CH6 | `pid[2].setpoint` | 电机 C 目标 RPM | ±800 |
+| CH7 | `pid[3].setpoint` | 电机 D 目标 RPM | ±800 |
 | CH8 | `status.output[0]` | 电机 A PID 输出 (duty) | ±duty_max |
 | CH9 | `status.output[1]` | 电机 B PID 输出 (duty) | ±duty_max |
 | CH10 | `status.output[2]` | 电机 C PID 输出 (duty) | ±duty_max |
@@ -146,7 +146,7 @@ CH8 ──── CH11   PID 输出 (PID Output/Duty)    [控制信号]
 输出: [0] Target 200 -> 300 RPM
 ```
 
-- 参数范围：±500.0（超出范围自动限幅）
+- 参数范围：±800.0（超出范围自动限幅）
 - NaN/Inf 值被拒绝
 - 设置后立即生效（PID 下一周期使用新目标）
 
@@ -275,7 +275,7 @@ StopAll =  stopall =  STOPALL
 
 | 参数 | 最小值 | 最大值 | NaN/Inf |
 |---|---|---|---|
-| Target | -500.0 | +500.0 | 拒绝 |
+| Target | -800.0 | +800.0 | 拒绝 |
 
 ### 限幅行为 / Clamping Behavior
 
@@ -295,7 +295,7 @@ if (!isfinite(cmd->value)) {
 ### 保护目的 / Protection Purpose
 
 - **PID 参数 ±100**：防止极端参数导致控制不稳定或电机失控
-- **Target ±500**：防止 PID 长期饱和运行（M 法测速在高 RPM 时精度足够）
+- **Target ±800**：防止 PID 长期饱和运行（M 法测速在高 RPM 时精度足够）
 - **NaN/Inf 拒绝**：防止浮点异常传播到 PID 计算
 
 ---
@@ -446,6 +446,6 @@ Stop          ← 停止电机
 | `VOFA_FIREWATER_CH_MAX_LEN` | 32 | 单通道最大字符串长度 |
 | `VOFA_CMD_MAX_LEN` | 64 | 下行命令最大长度 |
 | `VOFA_PID_PARAM_MAX` | 100.0 | PID 参数限幅 |
-| `VOFA_TARGET_RPM_MAX` | 500.0 | 目标 RPM 限幅 |
+| `VOFA_TARGET_RPM_MAX` | 800.0 | 目标 RPM 限幅 |
 
 ---

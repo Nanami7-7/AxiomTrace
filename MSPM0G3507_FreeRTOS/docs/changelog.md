@@ -4,6 +4,16 @@ All notable changes to this project will be documented in this file.
 
 ---
 
+## [v2.2] - 2026-05-07
+
+### Changed
+- **Target RPM 上限调整** / **Target RPM limit adjustment**
+  - `VOFA_TARGET_RPM_MAX` 从 500.0 调整为 800.0
+  - VOFA+ 协议文档同步更新
+  - VOFA_TARGET_RPM_MAX increased from 500.0 to 800.0
+
+---
+
 ## [v2.1] - 2026-05-06
 
 ### Fixed

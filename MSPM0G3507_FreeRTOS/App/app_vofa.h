@@ -44,7 +44,7 @@ extern "C" {
 #define VOFA_PID_PARAM_MAX         (100.0f)
 
 /** Target RPM 上限 (防止PID长期饱和) */
-#define VOFA_TARGET_RPM_MAX        (500.0f)
+#define VOFA_TARGET_RPM_MAX        (800.0f)
 
 /* ======================== 类型定义 ======================== */
 
