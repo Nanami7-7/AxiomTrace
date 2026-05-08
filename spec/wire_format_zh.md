@@ -136,3 +136,18 @@
 - **次版本号 (Minor)** 的增加是可以安全忽略的（新增类型标签或新增保留字段）。
 
 当前版本：**0x10** (v1.0)。
+
+---
+
+## 8. 帧常量（命名定义）
+
+以下命名常量定义在 `baremetal/core/axiom_event.h` 中，用于替换硬编码魔数：
+
+| 常量 | 值 | 描述 |
+|------|-----|------|
+| `AXIOM_SYNC_BYTE` | `0xA5u` | 帧起始同步字节 |
+| `AXIOM_HEADER_LEN` | `8u` | 报头：sync(1) + version(1) + level(1) + module_id(1) + event_id(2) + seq(2) |
+| `AXIOM_CRC_LEN` | `2u` | 尾部 CRC-16/CCITT-FALSE 字节 |
+| `AXIOM_MAX_TIMESTAMP_LEN` | `5u` | 最大变长时间戳编码 |
+| `AXIOM_MAX_PAYLOAD_LEN` | `128u` | 每个事件的最大有效载荷字节 |
+| `AXIOM_TAG_SIZE` | `1u` | 每个有效载荷类型标签的固定大小 |

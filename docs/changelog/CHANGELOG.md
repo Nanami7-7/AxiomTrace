@@ -10,6 +10,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Fixed
+- **Concurrency**: Fixed race condition in `axiom_filter_drop()` — moved call inside critical section in both `axiom_write()` code paths (`AXIOM_SHORT_CS=0` and `AXIOM_SHORT_CS=1`) to protect `drop_count` read-modify-write from concurrent ISR pre-emption.
+- **Correctness**: Fixed `axiom_selftest.c` encoder test index offset — `test_encoder_roundtrip()` verification indices didn't match actual encoding layout.
+- **Correctness**: Fixed `axiom_selftest.c` implicit declaration of `axiom_port_log()` — switched to existing `axiom_port_string_out()` and added `#include "axiom_port.h"`.
+- **Correctness**: Fixed `axiom_selftest.c` overflow test logic — old logic filled `AXIOM_MAX_PAYLOAD_LEN` then checked inequality in wrong direction.
 - **Concurrency**: Fixed race condition in `axiom_timestamp_encode()` — moved call inside critical section in `axiom_write()` to prevent `s_ts_ctx.last_raw` corruption when pre-empted by a higher-priority ISR.
 - **Concurrency**: Fixed race condition in drop summary reporting — snapshot `drop_count`/`drop_module`/`drop_event` inside critical section before clearing, preventing data corruption from pre-empting ISR.
 - **Correctness**: Added `volatile` qualifier to `level_mask` and `module_mask` in `axiom_filter_t` to ensure correct ISR-context reads.
@@ -33,6 +37,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Renamed and restructured `baremetal/` directory to align with v1.0 planes.
 
 ### Added
+- **API**: Added `axiom_type_t` enum — named type tags (`AXIOM_TYPE_BOOL`, `AXIOM_TYPE_U8`, etc.) for payload encoding, replacing raw integer `#define` constants with type-safe enum while maintaining source-level backward compatibility.
+- **API**: Added `axiom_backend_err_t` enum — named error codes (`AXIOM_BACKEND_OK`, `AXIOM_BACKEND_ERR_NULL`, `AXIOM_BACKEND_ERR_FULL`, `AXIOM_BACKEND_ERR_STRUCT`) replacing integer return values.
+- **API**: Added `AXIOM_SYNC_BYTE`, `AXIOM_HEADER_LEN`, `AXIOM_CRC_LEN`, `AXIOM_MAX_TIMESTAMP_LEN`, `AXIOM_TAG_SIZE` named constants to replace hard-coded magic numbers in encoder and spec.
+- **API**: Added `axiom_backend_count()` to query registered backend count, pairing with existing `axiom_backend_active_count()`.
+- **Build**: Added CMake option `AXIOM_DEBUG` (default OFF) — global toggle for all module debug logging.
+- **Tests**: Added 4 new extended tests: `test_encoder` (14 groups), `test_ring_ext` (9 groups), `test_event_ext` (7 groups), `test_backend_ext` (8 groups) covering encoder edge cases, ring buffer full/append/consume, event seq/header/filter mask, and backend register/multi-dispatch/panic.
+- **Tests**: Extended `test_filter.c` to 9 groups covering all log levels, module mask, drop recording, and runtime mask set&get APIs.
+- **Tests**: Extended `test_crc.c` with CRC-16 incremental update and whole-frame CRC consistency verification.
 - **API**: Added library version macros (`AXIOMTRACE_VERSION_MAJOR/MINOR/PATCH`) and compile-time `AXIOMTRACE_VERSION_CHECK()` macro for downstream version gating.
 - **API**: Added `AXIOM_MODULE_MAX` configurable constant (default 32) — replaces hardcoded `32` in filter logic.
 - **API**: Added `AXIOM_DEPRECATED(msg)` cross-compiler macro (GCC/Clang/MSVC/IAR) for future deprecation annotations.

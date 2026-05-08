@@ -10,6 +10,10 @@
 ## [未发布]
 
 ### 修复
+- **并发**：修复 `axiom_filter_drop()` 竞态条件 — 在 `axiom_write()` 的两个代码路径（`AXIOM_SHORT_CS=0` 和 `AXIOM_SHORT_CS=1`）中将调用移入临界区，保护 `drop_count` 的 read-modify-write 免受并发 ISR 抢占。
+- **正确性**：修复 `axiom_selftest.c` 编码器测试索引偏移 — `test_encoder_roundtrip()` 中的验证索引与实际编码布局不匹配。
+- **正确性**：修复 `axiom_selftest.c` 中 `axiom_port_log()` 隐式声明 — 改用已有的 `axiom_port_string_out()`，并包含 `axiom_port.h`。
+- **正确性**：修复 `axiom_selftest.c` overflow 测试逻辑 — 旧逻辑用 `AXIOM_MAX_PAYLOAD_LEN` 填满后检查不等式方向错误。
 - **并发**：修复 `axiom_timestamp_encode()` 竞态条件 — 将调用移入 `axiom_write()` 的临界区内，防止高优先级 ISR 抢占时破坏 `s_ts_ctx.last_raw`。
 - **并发**：修复丢弃摘要报告的竞态条件 — 在临界区内快照 `drop_count`/`drop_module`/`drop_event` 后再清零，防止被抢占的 ISR 破坏数据。
 - **正确性**：为 `axiom_filter_t` 中的 `level_mask` 和 `module_mask` 添加 `volatile` 限定符，确保 ISR 上下文中的读取正确。
@@ -33,6 +37,14 @@
 - 重命名并重组了 `baremetal/` 目录，以匹配 v1.0 平面架构。
 
 ### 新增
+- **API**：新增 `axiom_type_t` 枚举——命名类型标签（`AXIOM_TYPE_BOOL`、`AXIOM_TYPE_U8` 等），用类型安全的枚举替代原始 `#define` 常量，同时保持源代码级向后兼容。
+- **API**：新增 `axiom_backend_err_t` 枚举——命名错误码（`AXIOM_BACKEND_OK`、`AXIOM_BACKEND_ERR_NULL`、`AXIOM_BACKEND_ERR_FULL`、`AXIOM_BACKEND_ERR_STRUCT`），替代整数返回值。
+- **API**：新增 `AXIOM_SYNC_BYTE`、`AXIOM_HEADER_LEN`、`AXIOM_CRC_LEN`、`AXIOM_MAX_TIMESTAMP_LEN`、`AXIOM_TAG_SIZE` 命名常量，替换编码器和规范中的硬编码魔数。
+- **API**：新增 `axiom_backend_count()` 查询已注册后端数量，与已有的 `axiom_backend_active_count()` 配对使用。
+- **构建**：新增 CMake 选项 `AXIOM_DEBUG`（默认 OFF）— 控制所有模块的调试日志输出，全局统一开关。
+- **测试**：新增 4 个扩展测试：`test_encoder`（14 组）、`test_ring_ext`（9 组）、`test_event_ext`（7 组）、`test_backend_ext`（8 组），覆盖编码器边界、环形缓冲区满/追加/消耗、事件序列号/帧头格式/过滤器掩码、后端注册/多后端分发/panic 写入等。
+- **测试**：扩展 `test_filter.c` 至 9 组，覆盖全部日志级别/模块掩码/丢弃记录/运行时 mask set&get API。
+- **测试**：扩展 `test_crc.c` 新增 CRC-16 增量更新与整帧 CRC 一致性验证。
 - **API**：新增库版本宏（`AXIOMTRACE_VERSION_MAJOR/MINOR/PATCH`）和编译时 `AXIOMTRACE_VERSION_CHECK()` 宏，支持下游版本检查。
 - **API**：新增 `AXIOM_MODULE_MAX` 可配置常量（默认 32）— 替换过滤器逻辑中的硬编码 `32`。
 - **API**：新增 `AXIOM_DEPRECATED(msg)` 跨编译器宏（GCC/Clang/MSVC/IAR），用于未来废弃标注。

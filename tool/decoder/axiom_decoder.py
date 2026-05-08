@@ -1,12 +1,18 @@
 #!/usr/bin/env python3
-"""AxiomTrace binary frame decoder."""
+"""AxiomTrace binary frame decoder (standalone legacy script).
+
+.. deprecated::
+    Use ``python -m axiomtrace_tools.cli <file>`` instead.
+    This file is kept for backward compatibility. The canonical decoder
+    implementation is in ``tool/src/axiomtrace_tools/decoder.py``.
+"""
 
 import struct
 import sys
 import json
 from pathlib import Path
 
-FRAME_SYNC = 0xA5
+FRAME_SYNC = 0xA5  # AXIOM_SYNC_BYTE
 WIRE_VERSION_MAJOR = 1
 
 TYPE_TAGS = {

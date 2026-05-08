@@ -71,7 +71,20 @@ axiom_backend_register(&my_uart);
 - Registration must occur before the first log call (typically in `main()` after peripheral init).
 - Registration is **not** auto-discovered via linker sections (deliberately removed for portability).
 - A maximum of `AXIOM_BACKEND_MAX` backends can be registered (default 4, compile-time configurable).
-- `axiom_backend_register()` returns `-3` if the struct's `size` field is non-zero but smaller than `sizeof(axiom_backend_t)` — indicating the backend was compiled against an older header. Recompile the backend.
+- `axiom_backend_register()` returns `AXIOM_BACKEND_ERR_STRUCT` (`-3`) if the struct's `size` field is non-zero but smaller than `sizeof(axiom_backend_t)` — indicating the backend was compiled against an older header. Recompile the backend.
+
+### 2.3 Backend Error Codes
+
+```c
+typedef enum {
+    AXIOM_BACKEND_OK        =  0,   /* Success */
+    AXIOM_BACKEND_ERR_NULL  = -1,   /* NULL pointer parameter */
+    AXIOM_BACKEND_ERR_FULL  = -2,   /* Registration table full */
+    AXIOM_BACKEND_ERR_STRUCT = -3   /* Corrupt struct (invalid .version or size) */
+} axiom_backend_err_t;
+```
+
+The original integer return values (`0`, `-1`, `-2`, `-3`) are preserved for source-level backward compatibility.
 
 ---
 
@@ -124,7 +137,7 @@ AxiomTrace provides **templates** for common backends. A template is a `.c` file
 ## 6. Constraints
 
 - `write()` must be IRQ-safe or called only from critical sections (the dispatcher guarantees this).
-- `write()` must not block indefinitely; if the transport is busy, return `-EAGAIN`.
+- **`write()` must not block indefinitely**. If the transport is busy, return `-EAGAIN`. Blocking writes (e.g., waiting for DMA completion or UART TX FIFO drain) will stall all ISR-driven logging and may cause **priority inversion** or **watchdog resets** on safety-critical MCUs.
 - Backends must not allocate memory dynamically.
 - Backends must not modify the frame buffer passed to `write()`.
 - `panic_write()` should avoid DMA, IRQ, or complex state machines. Polled byte output is preferred.

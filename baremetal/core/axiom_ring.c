@@ -17,13 +17,21 @@
 #define AXIOM_RING_BUFFER_POLICY AXIOM_RING_BUFFER_POLICY_DROP
 #endif
 
-/* Internal: store data buffer pointer in reserved field */
-#define RING_BUF(ring) ((uint8_t *)(ring)->reserved)
+/* Internal: retrieve the data buffer pointer stored in the reserved field.
+ * Returns a writable pointer to the ring buffer's backing storage. */
+static inline uint8_t *ring_buf(axiom_ring_t *ring) {
+    return (uint8_t *)ring->reserved;
+}
+
+/* Helper: cast ring for const contexts (e.g. axiom_ring_peek) */
+static inline const uint8_t *ring_buf_const(const axiom_ring_t *ring) {
+    return (const uint8_t *)ring->reserved;
+}
 
 void axiom_ring_write_chunk(axiom_ring_t *ring, const uint8_t *data, uint16_t len, uint16_t *crc) {
     uint32_t head = ring->head;
     uint32_t mask = ring->mask;
-    uint8_t *buf = RING_BUF(ring);
+    uint8_t *buf = ring_buf(ring);
     
     for (uint16_t i = 0; i < len; ++i) {
         uint8_t b = data[i];
@@ -59,7 +67,7 @@ bool axiom_ring_write(axiom_ring_t *ring, const uint8_t *data, uint16_t len) {
     uint32_t cap  = ring->capacity;
     uint32_t mask = ring->mask;
     uint32_t used = head - tail;
-    uint8_t *buf  = RING_BUF(ring);
+    uint8_t *buf  = ring_buf(ring);
 
     if (used + len > cap) {
 #if AXIOM_RING_BUFFER_POLICY == AXIOM_RING_BUFFER_POLICY_DROP
@@ -93,7 +101,7 @@ uint16_t axiom_ring_read(axiom_ring_t *ring, uint8_t *out, uint16_t max_len) {
     uint32_t mask = ring->mask;
     uint32_t avail = head - tail;
     uint16_t n = (avail < max_len) ? (uint16_t)avail : max_len;
-    uint8_t *buf = RING_BUF(ring);
+    uint8_t *buf = ring_buf(ring);
 
     for (uint16_t i = 0; i < n; ++i) {
         out[i] = buf[(tail + i) & mask];
@@ -114,7 +122,7 @@ uint16_t axiom_ring_peek(const axiom_ring_t *ring, uint8_t *out, uint16_t max_le
     uint32_t mask = ring->mask;
     uint32_t avail = head - tail;
     uint16_t n = (avail < max_len) ? (uint16_t)avail : max_len;
-    const uint8_t *buf = (const uint8_t *)ring->reserved;
+    const uint8_t *buf = ring_buf_const(ring);
 
     for (uint16_t i = 0; i < n; ++i) {
         out[i] = buf[(tail + i) & mask];

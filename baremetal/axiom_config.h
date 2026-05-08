@@ -35,6 +35,15 @@
 #endif
 
 /* ---------------------------------------------------------------------------
+ * Debug Switch (NEW)
+ * Enables runtime assertions and diagnostic hooks when set to 1.
+ * Cost: ~50 bytes ROM for assert handlers. Disable in production.
+ * --------------------------------------------------------------------------- */
+#ifndef AXIOM_DEBUG
+#define AXIOM_DEBUG 0
+#endif
+
+/* ---------------------------------------------------------------------------
  * Core Configuration
  * --------------------------------------------------------------------------- */
 
@@ -73,10 +82,64 @@
 #define AXIOM_CFG_USE_LOCATION 0
 #endif
 
-/* If enabled, the core will periodically (or manually) emit sync events 
+/* If enabled, the core will periodically (or manually) emit sync events
  * to map local counters to host-provided Unix time. */
 #ifndef AXIOM_CFG_TIME_SYNC_ENABLED
 #define AXIOM_CFG_TIME_SYNC_ENABLED 1
+#endif
+
+/* ---------------------------------------------------------------------------
+ * Encode Overflow Detection (optimization #10)
+ * When enabled, axiom_enc_xxx() silently skips writes that would exceed
+ * AXIOM_MAX_PAYLOAD_LEN and sets axiom_encode_overflow=true.
+ * Cost: 1 byte RAM + 1 branch per enc call (mostly predicted-not-taken).
+ * --------------------------------------------------------------------------- */
+#ifndef AXIOM_ENCODE_OVERFLOW_DETECTION
+#define AXIOM_ENCODE_OVERFLOW_DETECTION 1
+#endif
+
+/* ---------------------------------------------------------------------------
+ * Short Critical Section (optimization #1)
+ * When enabled (default), axiom_write() pre-encodes the entire frame into
+ * a stack buffer OUTSIDE the critical section, then performs a single
+ * ring_write() INSIDE the critical section. Minimizes interrupt latency.
+ * Cost: +AXIOM_MAX_FRAME_LEN bytes of stack per axiom_write() call.
+ * Set to 0 on extremely RAM-constrained MCUs to save ~255B stack.
+ * --------------------------------------------------------------------------- */
+#ifndef AXIOM_SHORT_CS
+#define AXIOM_SHORT_CS 1
+#endif
+
+/* ---------------------------------------------------------------------------
+ * Runtime Self-Test (NEW)
+ * When enabled, axiom_selftest() validates CRC, ring buffer, and encoder
+ * at boot time. Returns true if all checks pass.
+ * Cost: ~200B stack + ~2KB ROM for test vectors. Call axiom_selftest()
+ * once in main() before first axiom_write().
+ * --------------------------------------------------------------------------- */
+#ifndef AXIOM_SELFTEST
+#define AXIOM_SELFTEST 0
+#endif
+
+/* ---------------------------------------------------------------------------
+ * Backend Degradation & Recovery (NEW)
+ * When enabled, a backend that fails AXIOM_BACKEND_FAIL_THRESHOLD
+ * consecutive writes is soft-disabled for AXIOM_BACKEND_RECOVERY_US
+ * microseconds, then auto-recovered. Prevents a broken transport
+ * (e.g., unplugged UART) from stalling all backends.
+ * Panic path always bypasses degradation.
+ * --------------------------------------------------------------------------- */
+#ifndef AXIOM_BACKEND_DEGRADATION
+#define AXIOM_BACKEND_DEGRADATION 1
+#endif
+
+#if AXIOM_BACKEND_DEGRADATION
+    #ifndef AXIOM_BACKEND_FAIL_THRESHOLD
+    #define AXIOM_BACKEND_FAIL_THRESHOLD 5
+    #endif
+    #ifndef AXIOM_BACKEND_RECOVERY_US
+    #define AXIOM_BACKEND_RECOVERY_US 1000000u  /* 1 second */
+    #endif
 #endif
 
 #endif /* AXIOM_CONFIG_H */

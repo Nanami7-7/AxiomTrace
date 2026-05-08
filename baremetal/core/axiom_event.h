@@ -22,10 +22,15 @@ typedef enum {
 } axiom_level_t;
 
 /* ---------------------------------------------------------------------------
+ * Sync byte (frame delimiter)
+ * --------------------------------------------------------------------------- */
+#define AXIOM_SYNC_BYTE 0xA5u
+
+/* ---------------------------------------------------------------------------
  * Event header: exactly 8 bytes, packed, little-endian on wire
  * --------------------------------------------------------------------------- */
 typedef struct __attribute__((packed)) {
-    uint8_t  sync;       /* 0xA5 */
+    uint8_t  sync;       /* AXIOM_SYNC_BYTE = 0xA5 */
     uint8_t  version;    /* major << 4 | minor */
     uint8_t  level;      /* lower nibble: level, upper nibble: reserved (0) */
     uint8_t  module_id;
@@ -39,6 +44,22 @@ AXIOM_CHECK_ALIGN(axiom_event_header_t, 1);
 /* ---------------------------------------------------------------------------
  * Payload type tags (self-describing)
  * --------------------------------------------------------------------------- */
+typedef enum {
+    AXIOM_TYPE_BOOL      = 0x00,
+    AXIOM_TYPE_U8        = 0x01,
+    AXIOM_TYPE_I8        = 0x02,
+    AXIOM_TYPE_U16       = 0x03,
+    AXIOM_TYPE_I16       = 0x04,
+    AXIOM_TYPE_U32       = 0x05,
+    AXIOM_TYPE_I32       = 0x06,
+    AXIOM_TYPE_F32       = 0x07,
+    AXIOM_TYPE_TIMESTAMP = 0x08,
+    AXIOM_TYPE_BYTES     = 0x09
+    /* Reserved: 0x0A - 0x7F, User-defined: 0x80 - 0xFF */
+} axiom_type_t;
+
+/* Backward-compatible macros: allow existing code (including _Generic,
+ * sizeof checks, and preprocessor usage) to keep working. */
 #define AXIOM_TYPE_BOOL      0x00u
 #define AXIOM_TYPE_U8        0x01u
 #define AXIOM_TYPE_I8        0x02u
@@ -50,9 +71,6 @@ AXIOM_CHECK_ALIGN(axiom_event_header_t, 1);
 #define AXIOM_TYPE_TIMESTAMP 0x08u
 #define AXIOM_TYPE_BYTES     0x09u
 
-/* Reserved for future standard types: 0x0A - 0x7F */
-/* User-defined types: 0x80 - 0xFF */
-
 /* ---------------------------------------------------------------------------
  * Wire format version v1.0
  * --------------------------------------------------------------------------- */
@@ -61,11 +79,15 @@ AXIOM_CHECK_ALIGN(axiom_event_header_t, 1);
 #define AXIOM_WIRE_VERSION ((uint8_t)((AXIOM_WIRE_VERSION_MAJOR << 4u) | AXIOM_WIRE_VERSION_MINOR))
 
 /* ---------------------------------------------------------------------------
- * Frame limits (AXIOM_MAX_PAYLOAD_LEN defined in axiom_config.h)
+ * Frame layout constants
  * --------------------------------------------------------------------------- */
+#define AXIOM_HEADER_LEN          8u  /* 8-byte fixed header */
+#define AXIOM_MAX_TIMESTAMP_LEN   5u  /* 0xFE + 4-byte full delta */
+#define AXIOM_CRC_LEN             2u  /* CRC-16 trailer */
 
-/* Max timestamp length is 5 bytes (0xFE + 4-byte full delta) */
-#define AXIOM_MAX_FRAME_LEN (8u + 5u + 1u + AXIOM_MAX_PAYLOAD_LEN + 2u)
+/* Total max frame: header + timestamp + type-tag + payload + CRC */
+#define AXIOM_MAX_FRAME_LEN \
+    (AXIOM_HEADER_LEN + AXIOM_MAX_TIMESTAMP_LEN + 1u + AXIOM_MAX_PAYLOAD_LEN + AXIOM_CRC_LEN)
 
 #ifdef __cplusplus
 }

@@ -241,3 +241,76 @@ Override before including `axiomtrace.h`:
 #include "axiomtrace.h"
 ```
 
+---
+
+## 11. Type System Constants
+
+### 11.1 Sync Byte
+
+```c
+#define AXIOM_SYNC_BYTE 0xA5u
+```
+
+Fixed synchronization byte at the start of every binary frame. Used by decoders to locate frame boundaries in a byte stream.
+
+### 11.2 Header Length
+
+```c
+#define AXIOM_HEADER_LEN  8u  /* sync + version + level + module_id + event_id(2) + seq(2) */
+```
+
+### 11.3 CRC Length
+
+```c
+#define AXIOM_CRC_LEN 2u  /* CRC-16/CCITT-FALSE trailing bytes */
+```
+
+### 11.4 Maximum Timestamp Length
+
+```c
+#define AXIOM_MAX_TIMESTAMP_LEN 5u  /* Variable-length: 1–5 bytes */
+```
+
+### 11.5 Payload Type Tags (`axiom_type_t`)
+
+```c
+typedef enum {
+    AXIOM_TYPE_BOOL      = 0x00,
+    AXIOM_TYPE_U8        = 0x01,
+    AXIOM_TYPE_I8        = 0x02,
+    AXIOM_TYPE_U16       = 0x03,
+    AXIOM_TYPE_I16       = 0x04,
+    AXIOM_TYPE_U32       = 0x05,
+    AXIOM_TYPE_I32       = 0x06,
+    AXIOM_TYPE_F32       = 0x07,
+    AXIOM_TYPE_TIMESTAMP = 0x08,
+    AXIOM_TYPE_BYTES     = 0x09
+    /* 0x0A–0x7F: Reserved  |  0x80–0xFF: User-defined */
+} axiom_type_t;
+```
+
+Each tag is a 1-byte type marker prefixed before the value in the binary payload. The original `#define` constants (e.g., `AXIOM_TYPE_U16`) remain available for backward compatibility.
+
+### 11.6 Encoder Tag Size
+
+```c
+#define AXIOM_TAG_SIZE 1u  /* All type tags are exactly 1 byte */
+```
+
+Used by the encoder to account for the fixed size of type tag bytes in overflow checks.
+
+---
+
+## 12. Backend Error Codes (`axiom_backend_err_t`)
+
+```c
+typedef enum {
+    AXIOM_BACKEND_OK       =  0,
+    AXIOM_BACKEND_ERR_NULL = -1,  /* NULL pointer parameter */
+    AXIOM_BACKEND_ERR_FULL = -2,  /* Registration table full */
+    AXIOM_BACKEND_ERR_STRUCT = -3  /* Corrupt struct (invalid .version) */
+} axiom_backend_err_t;
+```
+
+The original integer return values (`0`, `-1`, `-2`, `-3`) are preserved for source-level backward compatibility.
+

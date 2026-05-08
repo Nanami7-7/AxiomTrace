@@ -4,7 +4,7 @@ import os
 import struct
 from pathlib import Path
 
-FRAME_SYNC = 0xA5
+FRAME_SYNC = 0xA5  # AXIOM_SYNC_BYTE
 WIRE_VERSION_MAJOR = 1
 
 # Common directories to search for dictionary.json

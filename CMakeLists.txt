@@ -114,6 +114,7 @@ set(AXIOM_CORE_HEADERS
     ${CMAKE_SOURCE_DIR}/baremetal/core/axiom_ring.h
     ${CMAKE_SOURCE_DIR}/baremetal/core/axiom_timestamp.h
     ${CMAKE_SOURCE_DIR}/baremetal/core/axiom_filter.h
+    ${CMAKE_SOURCE_DIR}/baremetal/core/axiom_selftest.h
     ${CMAKE_SOURCE_DIR}/baremetal/frontend/axiom_frontend.h
     ${CMAKE_SOURCE_DIR}/baremetal/backend/axiom_backend.h
 )
@@ -124,6 +125,7 @@ set(AXIOM_CORE_SOURCES
     ${CMAKE_SOURCE_DIR}/baremetal/core/axiom_ring.c
     ${CMAKE_SOURCE_DIR}/baremetal/core/axiom_timestamp.c
     ${CMAKE_SOURCE_DIR}/baremetal/core/axiom_filter.c
+    ${CMAKE_SOURCE_DIR}/baremetal/core/axiom_selftest.c
     ${CMAKE_SOURCE_DIR}/baremetal/backend/axiom_backend.c
 )
 
@@ -144,6 +146,20 @@ target_sources(axiomtrace PRIVATE ${AXIOM_PORT_SOURCES})
 
 # Legacy port path for backward compatibility with existing includes
 target_include_directories(axiomtrace PRIVATE ${CMAKE_SOURCE_DIR}/baremetal/ports)
+
+# ---------------------------------------------------------------------------
+# Optional feature toggles (forwarded as -D preprocessor macros)
+# Must come after add_library(axiomtrace ...)
+# ---------------------------------------------------------------------------
+option(AXIOM_SELFTEST "Enable runtime self-test at boot" OFF)
+option(AXIOM_DEBUG "Enable debug assertions and diagnostics" OFF)
+
+if(AXIOM_SELFTEST)
+    target_compile_definitions(axiomtrace PUBLIC AXIOM_SELFTEST=1)
+endif()
+if(AXIOM_DEBUG)
+    target_compile_definitions(axiomtrace PUBLIC AXIOM_DEBUG=1)
+endif()
 
 # ---------------------------------------------------------------------------
 # Tests

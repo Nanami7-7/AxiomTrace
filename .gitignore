@@ -5,6 +5,7 @@
 # --- Build output ---
 build/
 build_*/
+Testing/
 bin/
 obj/
 
@@ -92,3 +93,24 @@ node_modules/
 
 # --- Project specific generated files ---
 axiomtrace_amalgamated.h
+
+# --- Test reports and benchmark data ---
+test_report/
+test_report*.md
+performance_report*.md
+perf_report*.md
+
+# --- Test binaries (not golden test data) ---
+*.exe
+
+# --- Tool / Python build artifacts ---
+tool/dist/
+tool/*.egg-info/
+tool/src/*.egg-info/
+
+# --- Build baselines ---
+build_baseline/
+
+# --- CTest output ---
+Testing/Temporary/
+Testing/Temporary/***

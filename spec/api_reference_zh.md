@@ -240,3 +240,76 @@ int  axiom_port_flash_write(uint32_t addr, const uint8_t *data, uint32_t len);
 #define AXIOM_PROFILE AXIOM_PROFILE_PROD
 #include "axiomtrace.h"
 ```
+
+---
+
+## 11. 类型系统常量
+
+### 11.1 同步字节 (Sync Byte)
+
+```c
+#define AXIOM_SYNC_BYTE 0xA5u
+```
+
+每个二进制帧起始处的固定同步字节。解码器使用此字节在字节流中定位帧边界。
+
+### 11.2 报头长度 (Header Length)
+
+```c
+#define AXIOM_HEADER_LEN  8u  /* sync + version + level + module_id + event_id(2) + seq(2) */
+```
+
+### 11.3 CRC 长度
+
+```c
+#define AXIOM_CRC_LEN 2u  /* CRC-16/CCITT-FALSE 尾部字节 */
+```
+
+### 11.4 最大时间戳长度
+
+```c
+#define AXIOM_MAX_TIMESTAMP_LEN 5u  /* 变长编码：1–5 字节 */
+```
+
+### 11.5 有效载荷类型标签 (`axiom_type_t`)
+
+```c
+typedef enum {
+    AXIOM_TYPE_BOOL      = 0x00,
+    AXIOM_TYPE_U8        = 0x01,
+    AXIOM_TYPE_I8        = 0x02,
+    AXIOM_TYPE_U16       = 0x03,
+    AXIOM_TYPE_I16       = 0x04,
+    AXIOM_TYPE_U32       = 0x05,
+    AXIOM_TYPE_I32       = 0x06,
+    AXIOM_TYPE_F32       = 0x07,
+    AXIOM_TYPE_TIMESTAMP = 0x08,
+    AXIOM_TYPE_BYTES     = 0x09
+    /* 0x0A–0x7F: 保留  |  0x80–0xFF: 用户自定义 */
+} axiom_type_t;
+```
+
+每个标签是 1 字节的类型标记，前缀在二进制有效载荷中的值之前。原始 `#define` 常量（例如 `AXIOM_TYPE_U16`）仍然可用，以保持向后兼容。
+
+### 11.6 编码器标签大小
+
+```c
+#define AXIOM_TAG_SIZE 1u  /* 所有类型标签恰好为 1 字节 */
+```
+
+编码器在溢出检查中使用此常量来计算类型标签字节的固定大小。
+
+---
+
+## 12. 后端错误码 (`axiom_backend_err_t`)
+
+```c
+typedef enum {
+    AXIOM_BACKEND_OK       =  0,
+    AXIOM_BACKEND_ERR_NULL = -1,  /* 空指针参数 */
+    AXIOM_BACKEND_ERR_FULL = -2,  /* 注册表已满 */
+    AXIOM_BACKEND_ERR_STRUCT = -3  /* 结构体损坏（无效的 .version） */
+} axiom_backend_err_t;
+```
+
+原始整数返回值（`0`、`-1`、`-2`、`-3`）被保留，以保持源代码级向后兼容。

@@ -25,5 +25,6 @@
 #include "axiom_filter.h"
 #include "axiom_frontend.h"
 #include "axiom_backend.h"
+#include "axiom_selftest.h"
 
 #endif /* AXIOMTRACE_H */

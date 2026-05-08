@@ -141,3 +141,18 @@ The `version` byte in the header encodes `major << 4 | minor`.
 - **Minor** version additions are safe to ignore (new type tags, new reserved fields).
 
 Current version: **0x10** (v1.0).
+
+---
+
+## 8. Frame Constants (Named Definitions)
+
+The following named constants are defined in `baremetal/core/axiom_event.h` to replace hard-coded magic numbers:
+
+| Constant | Value | Description |
+|----------|-------|-------------|
+| `AXIOM_SYNC_BYTE` | `0xA5u` | Sync byte at frame start |
+| `AXIOM_HEADER_LEN` | `8u` | Header: sync(1) + version(1) + level(1) + module_id(1) + event_id(2) + seq(2) |
+| `AXIOM_CRC_LEN` | `2u` | Trailing CRC-16/CCITT-FALSE bytes |
+| `AXIOM_MAX_TIMESTAMP_LEN` | `5u` | Maximum variable-length timestamp encoding |
+| `AXIOM_MAX_PAYLOAD_LEN` | `128u` | Maximum payload bytes per event |
+| `AXIOM_TAG_SIZE` | `1u` | Fixed size of each payload type tag byte |

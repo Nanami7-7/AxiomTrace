@@ -49,26 +49,65 @@ typedef struct {
 #define AXIOM_BACKEND_INIT(...)  { .size = sizeof(axiom_backend_t), __VA_ARGS__ }
 
 /* ---------------------------------------------------------------------------
- * Backend Registry
+ * Backend Registry — Error Codes
  * --------------------------------------------------------------------------- */
+typedef enum {
+    AXIOM_BACKEND_OK         =  0,
+    AXIOM_BACKEND_ERR_NULL   = -1,  /* backend or write callback is NULL */
+    AXIOM_BACKEND_ERR_FULL   = -2,  /* registry full (>= AXIOM_BACKEND_MAX) */
+    AXIOM_BACKEND_ERR_STRUCT = -3,  /* struct size mismatch — recompile backend */
+} axiom_backend_err_t;
 
 #ifndef AXIOM_BACKEND_MAX
 #define AXIOM_BACKEND_MAX 4
 #endif
 
-/* Register a backend. Returns 0 on success, negative on error.
+/* ---------------------------------------------------------------------------
+ * Backend Degradation & Recovery
+ *
+ * After N consecutive write failures, a backend is temporarily disabled
+ * (soft-disabled) for AXIOM_BACKEND_RECOVERY_US microseconds. This
+ * prevents a broken UART/USB from blocking other backends indefinitely.
+ * Auto-recovery is attempted during axiom_backend_dispatch().
+ *
+ * Enable via AXIOM_BACKEND_DEGRADATION=1 (default).
+ * --------------------------------------------------------------------------- */
+#ifndef AXIOM_BACKEND_DEGRADATION
+#define AXIOM_BACKEND_DEGRADATION 1
+#endif
+
+#if AXIOM_BACKEND_DEGRADATION
+    #ifndef AXIOM_BACKEND_FAIL_THRESHOLD
+    #define AXIOM_BACKEND_FAIL_THRESHOLD 5
+    #endif
+    #ifndef AXIOM_BACKEND_RECOVERY_US
+    #define AXIOM_BACKEND_RECOVERY_US 1000000u /* 1 second */
+    #endif
+#endif
+
+/* Register a backend. Returns AXIOM_BACKEND_OK on success, negative on error.
  * MUST be called before any axiom_write() — not thread-safe. */
 int axiom_backend_register(const axiom_backend_t *backend);
 
 /* Dispatch a frame to all registered backends.
- * Called internally by axiom_write() after ring buffer insertion. */
+ * Called internally by axiom_flush() after ring buffer peek+consume.
+ * Includes auto-recovery of soft-disabled backends. */
 void axiom_backend_dispatch(const uint8_t *frame, uint16_t len);
 
 /* Flush all backends that provide a flush callback. */
 void axiom_backend_flush_all(void);
 
-/* Panic write to all backends that provide panic_write. */
+/* Panic write to all backends that provide panic_write.
+ * Bypasses degradation — panic always attempts all backends. */
 void axiom_backend_panic_write(const uint8_t *frame, uint16_t len);
+
+/* Query per-backend health status (for diagnostics / self-report).
+ * Returns number of currently active (non-disabled) backends. */
+uint8_t axiom_backend_active_count(void);
+
+/* Query total number of registered backends.
+ * Returns count regardless of degradation state. */
+uint8_t axiom_backend_count(void);
 
 #ifdef __cplusplus
 }
