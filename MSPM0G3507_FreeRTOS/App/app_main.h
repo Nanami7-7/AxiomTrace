@@ -26,6 +26,8 @@ extern "C" {
 
 /** 控制任务优先级(最高,保证实时性) */
 #define APP_TASK_PRIORITY_CONTROL   (5U)
+/** IMU任务优先级(中) */
+#define APP_TASK_PRIORITY_IMU       (4U)
 /** 菜单任务优先级(低) */
 #define APP_TASK_PRIORITY_MENU      (2U)
 
@@ -33,6 +35,8 @@ extern "C" {
 
 /** 控制任务栈大小(字, 含浮点运算) */
 #define APP_TASK_STACK_CONTROL      (256U)
+/** IMU任务栈大小(字, 含DMP读取+浮点运算) */
+#define APP_TASK_STACK_IMU          (256U)
 /** 菜单任务栈大小(字, 行缓冲+printf+sscanf+VOFA+12通道) */
 #define APP_TASK_STACK_MENU         (512U)
 
@@ -67,11 +71,21 @@ typedef struct {
     int32_t output[BSP_MOTOR_COUNT];
 } app_control_status_t;
 
+/** IMU姿态数据(由IMU任务写入, 控制/菜单任务读取) */
+typedef struct {
+    float roll;              /**< 横滚角(度) */
+    float pitch;             /**< 俯仰角(度) */
+    float yaw;               /**< 偏航角(度) */
+    float gyro_z_dps;        /**< Z轴角速度(°/s) */
+    uint32_t timestamp_ms;   /**< 时间戳(ms) */
+} app_imu_data_t;
+
 /** 应用层共享上下文(控制任务和菜单任务之间共享) */
 typedef struct {
     app_pid_t            pid[BSP_MOTOR_COUNT];       /**< PID控制器实例 */
     bool                 motor_enabled[BSP_MOTOR_COUNT]; /**< 电机使能标志 */
     app_control_status_t status;                     /**< 控制任务状态 */
+    app_imu_data_t       imu;                        /**< IMU姿态数据 */
 } app_shared_ctx_t;
 
 /* ======================== 函数接口 ======================== */

@@ -10,12 +10,16 @@
 #include "app_main.h"
 #include "Task/task_control.h"
 #include "Task/task_menu.h"
+#include "Task/task_imu.h"
 #include "osal_api.h"
 #include <stdio.h>
 #include "bsp_led.h"
 #include "bsp_motor.h"
 #include "bsp_encoder.h"
+#include "bsp_mpu6050.h"
+#include "bsp_mpu6050_dmp.h"
 #include "bsp_uart.h"
+#include "app_complementary_filter.h"
 #include "hal_gpio.h"
 #include "project_config.h"
 #include "axiomtrace.h"
@@ -40,6 +44,9 @@ static osal_task_handle_t s_control_task_handle;
 /** 菜单任务句柄 */
 static osal_task_handle_t s_menu_task_handle;
 
+/** IMU任务句柄 */
+static osal_task_handle_t s_imu_task_handle;
+
 /* ======================== 私有函数: BSP初始化 ======================== */
 
 /**
@@ -49,6 +56,7 @@ static osal_task_handle_t s_menu_task_handle;
 static int32_t bsp_modules_init(void)
 {
     bsp_status_t ret;
+    bsp_mpu6050_config_t mpu_cfg = PRJ_MPU6050_CONFIG;
 
     ret = bsp_led_init();
     if (ret != BSP_OK) { return -1; }
@@ -63,6 +71,14 @@ static int32_t bsp_modules_init(void)
     ret = bsp_encoder_init(s_encoder_cfg, BSP_ENCODER_COUNT,
         PRJ_ENCODER_PULSES_PER_REV);
     if (ret != BSP_OK) { return -4; }
+
+    /* 初始化MPU6050 */
+    ret = bsp_mpu6050_init(&mpu_cfg);
+    if (ret != BSP_OK) { return -5; }
+
+    /* 初始化DMP(加载固件+使能DMP解算) */
+    ret = bsp_mpu6050_dmp_init();
+    if (ret != BSP_OK) { return -6; }
 
     return 0;
 }
@@ -132,6 +148,9 @@ int32_t app_main_init(void)
     /* 初始化PID控制器 */
     pid_controllers_init();
 
+    /* 初始化互补滤波器 */
+    app_cf_init(NULL);  /* 使用project_config.h中的默认参数 */
+
     /* 清零共享上下文 */
     for (uint32_t i = 0; i < BSP_MOTOR_COUNT; i++) {
         s_shared_ctx.motor_enabled[i] = false;
@@ -157,6 +176,9 @@ int32_t app_main_init(void)
     (void)printf("  VOFA+   : FireWater @ %lu ms\r\n",
         (unsigned long)APP_RPM_OUTPUT_PERIOD_MS);
     (void)printf("  Debug   : AxiomTrace AX_LOG (DEV profile)\r\n");
+    (void)printf("  IMU     : MPU6050 DMP 6-axis @ 100Hz\r\n");
+    (void)printf("  Fusion  : Complementary filter (alpha=%.2f)\r\n",
+        (double)PRJ_CF_ALPHA);
     (void)printf("============================================================\r\n");
     (void)printf("\r\n");
 
@@ -182,6 +204,18 @@ int32_t app_main_init(void)
 
     if (s_menu_task_handle == NULL) {
         return -11;
+    }
+
+    /* 创建IMU任务 */
+    s_imu_task_handle = osal_task_create(
+        app_imu_task,
+        "imu",
+        APP_TASK_STACK_IMU,
+        &s_shared_ctx,
+        APP_TASK_PRIORITY_IMU);
+
+    if (s_imu_task_handle == NULL) {
+        return -12;
     }
 
     return 0;
