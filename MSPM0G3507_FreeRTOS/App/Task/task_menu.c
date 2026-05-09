@@ -12,6 +12,7 @@
 #include "app_main.h"
 #include "app_pid.h"
 #include "app_vofa.h"
+#include "app_complementary_filter.h"
 #include "osal_api.h"
 #include "bsp_led.h"
 #include "bsp_motor.h"
@@ -138,6 +139,21 @@ static void menu_print_main(const menu_ctx_t *ctx)
         (void)printf("%c: KP=%.2f KI=%.2f KD=%.2f\r\n",
             'A' + (int)i,
             (double)kp, (double)ki, (double)kd);
+    }
+
+    /* IMU姿态 + 融合数据 */
+    {
+        float roll, pitch, yaw, heading, vx;
+        OSAL_CRITICAL_SECTION {
+            roll  = ctx->shared->imu.roll;
+            pitch = ctx->shared->imu.pitch;
+            yaw   = ctx->shared->imu.yaw;
+        }
+        heading = app_cf_get_heading();
+        vx      = app_cf_get_velocity_x();
+        (void)printf("IMU: R=%.1f P=%.1f Y=%.1f H=%.1f V=%.3f\r\n",
+            (double)roll, (double)pitch, (double)yaw,
+            (double)heading, (double)vx);
     }
 
     (void)printf(
@@ -328,7 +344,8 @@ static void menu_state_tuning_pid(menu_ctx_t *ctx)
  * @brief  运行状态处理(VOFA+ 协议输出 + 远程调参)
  * @note   30ms间隔输出12通道VOFA+数据, 支持下行命令
  *         通道分配(0~11):
- *         0~3: 4电机实际RPM, 4~7: 4电机目标RPM, 8~11: 4电机PID输出
+ *         0~3: 4电机实际RPM, 4~7: 4电机目标RPM
+ *         8: roll, 9: pitch, 10: heading, 11: 融合速度
  *         下行命令: Kp=x, Ki=x, Kd=x, Target=x, Run, Stop, StopAll
  */
 static void menu_state_running(menu_ctx_t *ctx)
@@ -372,11 +389,14 @@ static void menu_state_running(menu_ctx_t *ctx)
             /* ch4~7: 目标RPM */
             channels[4 + i] =
                 ctx->shared->pid[i].setpoint;
-            /* ch8~11: PID输出 */
-            channels[8 + i] =
-                (float)ctx->shared->status.output[i];
         }
+        /* ch8: roll, ch9: pitch */
+        channels[8]  = ctx->shared->imu.roll;
+        channels[9]  = ctx->shared->imu.pitch;
     }
+    /* ch10: 融合航向角, ch11: 融合线速度 */
+    channels[10] = app_cf_get_heading();
+    channels[11] = app_cf_get_velocity_x();
 
     /* ---- 发送 VOFA+ FireWater 格式 ---- */
     app_vofa_send_firewater(channels, 12U);

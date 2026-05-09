@@ -340,7 +340,7 @@
               <MiscControls></MiscControls>
               <Define>__MSPM0G3507__</Define>
               <Undefine></Undefine>
-              <IncludePath>..\..\source\third_party\CMSIS\Core\Include;..\..\source;..\;..\App;..\App\Task;..\BSP;..\HAL;..\OSAL;..\Config;..\lib\axiomtrace;.\FreeRTOS\include;.\FreeRTOS\portable\MemMang;.\FreeRTOS\portable\GCC\ARM_CM0;.\FreeRTOS\src</IncludePath>
+              <IncludePath>..\..\source\third_party\CMSIS\Core\Include;..\..\source;..\;..\App;..\App\Task;..\BSP;..\HAL;..\OSAL;..\Config;..\lib;..\lib\axiomtrace;.\FreeRTOS\include;.\FreeRTOS\portable\MemMang;.\FreeRTOS\portable\GCC\ARM_CM0;.\FreeRTOS\src</IncludePath>
             </VariousControls>
           </Cads>
           <Aads>
@@ -483,6 +483,26 @@
               <FileName>task_menu.h</FileName>
               <FileType>5</FileType>
               <FilePath>..\App\Task\task_menu.h</FilePath>
+            </File>
+            <File>
+              <FileName>task_imu.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\App\Task\task_imu.c</FilePath>
+            </File>
+            <File>
+              <FileName>task_imu.h</FileName>
+              <FileType>5</FileType>
+              <FilePath>..\App\Task\task_imu.h</FilePath>
+            </File>
+            <File>
+              <FileName>app_complementary_filter.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\App\app_complementary_filter.c</FilePath>
+            </File>
+            <File>
+              <FileName>app_complementary_filter.h</FileName>
+              <FileType>5</FileType>
+              <FilePath>..\App\app_complementary_filter.h</FilePath>
             </File>
           </Files>
         </Group>
@@ -713,6 +733,31 @@
               <FileName>bsp_uart.h</FileName>
               <FileType>5</FileType>
               <FilePath>..\BSP\bsp_uart.h</FilePath>
+            </File>
+            <File>
+              <FileName>bsp_mpu6050.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\BSP\bsp_mpu6050.c</FilePath>
+            </File>
+            <File>
+              <FileName>bsp_mpu6050.h</FileName>
+              <FileType>5</FileType>
+              <FilePath>..\BSP\bsp_mpu6050.h</FilePath>
+            </File>
+            <File>
+              <FileName>bsp_mpu6050_dmp.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\BSP\bsp_mpu6050_dmp.c</FilePath>
+            </File>
+            <File>
+              <FileName>bsp_mpu6050_dmp.h</FileName>
+              <FileType>5</FileType>
+              <FilePath>..\BSP\bsp_mpu6050_dmp.h</FilePath>
+            </File>
+            <File>
+              <FileName>dmp_firmware.h</FileName>
+              <FileType>5</FileType>
+              <FilePath>..\lib\dmp_firmware.h</FilePath>
             </File>
           </Files>
         </Group>

@@ -39,6 +39,7 @@ void app_imu_task(void *param)
                     ctx->imu.roll       = dmp_data.roll;
                     ctx->imu.pitch      = dmp_data.pitch;
                     ctx->imu.yaw        = dmp_data.yaw;
+                    ctx->imu.accel_x_g  = dmp_data.accel_x_g;
                     ctx->imu.gyro_z_dps = dmp_data.gyro_z_dps;
                     ctx->imu.timestamp_ms = dmp_data.timestamp_ms;
                 }

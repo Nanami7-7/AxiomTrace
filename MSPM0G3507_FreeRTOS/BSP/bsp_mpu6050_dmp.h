@@ -113,6 +113,15 @@ bool bsp_mpu6050_dmp_is_inited(void);
  */
 bsp_status_t bsp_mpu6050_dmp_reset_fifo(void);
 
+/**
+ * @brief  更新DMP模块的量程设置
+ * @note   当运行时修改MPU6050量程后，需调用此函数同步DMP模块
+ *         否则DMP读取的物理单位转换将不正确
+ * @param  accel_fs  加速度量程(0=±2g, 1=±4g, 2=±8g, 3=±16g)
+ * @param  gyro_fs   陀螺仪量程(0=±250, 1=±500, 2=±1000, 3=±2000°/s)
+ */
+void bsp_mpu6050_dmp_update_fs(uint8_t accel_fs, uint8_t gyro_fs);
+
 #ifdef __cplusplus
 }
 #endif

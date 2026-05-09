@@ -119,6 +119,19 @@ bool app_vofa_parse_cmd(const char *line, vofa_cmd_t *cmd)
     /* 清零命令结构 */
     memset(cmd, 0, sizeof(vofa_cmd_t));
 
+    /* ---- 辅助: 安全解析电机ID ---- */
+    #define PARSE_MOTOR_ID(str, out_id) do {            \
+        char *_endptr;                                   \
+        long _val = strtol((str), &_endptr, 10);         \
+        if (*_endptr != '\0' || _endptr == (str)) {      \
+            return false; /* 非数字输入 */                \
+        }                                                \
+        if (_val < 0 || _val >= (long)BSP_MOTOR_COUNT) { \
+            return false; /* 超出范围 */                  \
+        }                                                \
+        *(out_id) = (uint32_t)_val;                      \
+    } while(0)
+
     /* ---- 逐关键字匹配 ---- */
 
     /* "StopAll" (必须在 "Stop" 之前匹配) */
@@ -132,7 +145,7 @@ bool app_vofa_parse_cmd(const char *line, vofa_cmd_t *cmd)
         cmd->type = VOFA_CMD_STOP;
         const char *eq = strchr(line, '=');
         if (eq != NULL) {
-            cmd->motor_id = (uint32_t)atoi(eq + 1);
+            PARSE_MOTOR_ID(eq + 1, &cmd->motor_id);
             cmd->has_motor = true;
         }
         return true;
@@ -143,7 +156,7 @@ bool app_vofa_parse_cmd(const char *line, vofa_cmd_t *cmd)
         cmd->type = VOFA_CMD_RUN;
         const char *eq = strchr(line, '=');
         if (eq != NULL) {
-            cmd->motor_id = (uint32_t)atoi(eq + 1);
+            PARSE_MOTOR_ID(eq + 1, &cmd->motor_id);
             cmd->has_motor = true;
         }
         return true;
@@ -152,7 +165,7 @@ bool app_vofa_parse_cmd(const char *line, vofa_cmd_t *cmd)
     /* "Motor=x" */
     if (strnicmp_prefix(line, "motor=")) {
         cmd->type = VOFA_CMD_SET_MOTOR;
-        cmd->motor_id = (uint32_t)atoi(line + 6);
+        PARSE_MOTOR_ID(line + 6, &cmd->motor_id);
         cmd->has_motor = true;
         return true;
     }
@@ -221,7 +234,8 @@ void app_vofa_apply_cmd(const vofa_cmd_t *cmd,
                 float old_val;
                 OSAL_CRITICAL_SECTION {
                     old_val = ctx->pid[mid].kp;
-                    ctx->pid[mid].kp = val;
+                    app_pid_set_params(&ctx->pid[mid],
+                        val, ctx->pid[mid].ki, ctx->pid[mid].kd);
                 }
                 (void)printf("[%lu] Kp %.2f -> %.2f\r\n",
                     (unsigned long)mid,
@@ -242,7 +256,8 @@ void app_vofa_apply_cmd(const vofa_cmd_t *cmd,
                 float old_val;
                 OSAL_CRITICAL_SECTION {
                     old_val = ctx->pid[mid].ki;
-                    ctx->pid[mid].ki = val;
+                    app_pid_set_params(&ctx->pid[mid],
+                        ctx->pid[mid].kp, val, ctx->pid[mid].kd);
                 }
                 (void)printf("[%lu] Ki %.2f -> %.2f\r\n",
                     (unsigned long)mid,
@@ -263,7 +278,8 @@ void app_vofa_apply_cmd(const vofa_cmd_t *cmd,
                 float old_val;
                 OSAL_CRITICAL_SECTION {
                     old_val = ctx->pid[mid].kd;
-                    ctx->pid[mid].kd = val;
+                    app_pid_set_params(&ctx->pid[mid],
+                        ctx->pid[mid].kp, ctx->pid[mid].ki, val);
                 }
                 (void)printf("[%lu] Kd %.2f -> %.2f\r\n",
                     (unsigned long)mid,
@@ -300,8 +316,6 @@ void app_vofa_apply_cmd(const vofa_cmd_t *cmd,
 
     case VOFA_CMD_RUN:
         OSAL_CRITICAL_SECTION {
-            app_pid_set_setpoint(&ctx->pid[mid],
-                ctx->pid[mid].setpoint);
             ctx->motor_enabled[mid] = true;
         }
         (void)printf("[%lu] Run (target=%.0f RPM)\r\n",

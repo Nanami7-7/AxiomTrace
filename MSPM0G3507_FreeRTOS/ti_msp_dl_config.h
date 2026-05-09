@@ -256,6 +256,15 @@ extern "C" {
 #define MOTOR_DIN2_PORT                                                  (GPIOA)
 #define MOTOR_DIN2_PIN                                           (DL_GPIO_PIN_9)
 #define MOTOR_DIN2_IOMUX                                         (IOMUX_PINCM20)
+/* Port definition for Pin Group Gyro */
+#define Gyro_PORT                                                        (GPIOB)
+
+/* Defines for SCL: GPIOB.18 with pinCMx 44 on package pin 37 */
+#define Gyro_SCL_PIN                                            (DL_GPIO_PIN_18)
+#define Gyro_SCL_IOMUX                                           (IOMUX_PINCM44)
+/* Defines for SDA: GPIOB.19 with pinCMx 45 on package pin 38 */
+#define Gyro_SDA_PIN                                            (DL_GPIO_PIN_19)
+#define Gyro_SDA_IOMUX                                           (IOMUX_PINCM45)
 
 /* clang-format on */
 

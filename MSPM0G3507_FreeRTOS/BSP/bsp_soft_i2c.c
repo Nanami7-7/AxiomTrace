@@ -31,6 +31,12 @@
  */
 #define I2C_START_STOP_US  5U
 
+/**
+ * I2C总线超时(微秒)
+ * 防止从机时钟拉伸或总线锁死导致死循环
+ */
+#define I2C_TIMEOUT_US     1000U
+
 /* ---- SCL/SDA引脚操作宏 ---- */
 
 /** SCL输出高电平 */
@@ -55,20 +61,6 @@
 
 /* ======================== 私有变量 ======================== */
 
-/** SCL引脚配置(用于init) */
-static const hal_gpio_pin_config_t s_scl_cfg = {
-    .port  = PRJ_SOFT_I2C_SCL_PORT,
-    .pin   = PRJ_SOFT_I2C_SCL_PIN,
-    .iomux = PRJ_SOFT_I2C_SCL_IOMUX,
-};
-
-/** SDA引脚配置(用于init和方向切换) */
-static const hal_gpio_pin_config_t s_sda_cfg = {
-    .port  = PRJ_SOFT_I2C_SDA_PORT,
-    .pin   = PRJ_SOFT_I2C_SDA_PIN,
-    .iomux = PRJ_SOFT_I2C_SDA_IOMUX,
-};
-
 /** 初始化标志 */
 static bool s_is_inited = false;
 
@@ -76,20 +68,21 @@ static bool s_is_inited = false;
 
 /**
  * @brief  SDA方向切换为输入(读取ACK或数据)
+ * @note   参考立创代码，使用DL_GPIO_initDigitalInput重新初始化引脚
  */
 static void sda_set_input(void)
 {
-    hal_gpio_set_direction(&s_sda_cfg, HAL_GPIO_DIR_INPUT);
-    /* 释放SDA输出，让外部上拉或从机驱动 */
-    SDA_HIGH();
+    DL_GPIO_initDigitalInput(PRJ_SOFT_I2C_SDA_IOMUX);
 }
 
 /**
  * @brief  SDA方向切换为输出(发送地址/数据)
+ * @note   参考立创代码，使用DL_GPIO_initDigitalOutput重新初始化引脚
  */
 static void sda_set_output(void)
 {
-    hal_gpio_set_direction(&s_sda_cfg, HAL_GPIO_DIR_OUTPUT);
+    DL_GPIO_initDigitalOutput(PRJ_SOFT_I2C_SDA_IOMUX);
+    DL_GPIO_enableOutput(GPIOB, PRJ_SOFT_I2C_SDA_PIN);
 }
 
 /**
@@ -110,13 +103,15 @@ bsp_status_t bsp_soft_i2c_init(void)
         return BSP_OK;
     }
 
-    /* 初始化SCL为输出高电平(空闲) */
-    hal_gpio_init_output(&s_scl_cfg);
-    SCL_HIGH();
+    /* 初始化SCL为推挽输出高电平(参考立创代码) */
+    DL_GPIO_initDigitalOutput(PRJ_SOFT_I2C_SCL_IOMUX);
+    DL_GPIO_setPins(GPIOB, PRJ_SOFT_I2C_SCL_PIN);
+    DL_GPIO_enableOutput(GPIOB, PRJ_SOFT_I2C_SCL_PIN);
 
-    /* 初始化SDA为输出高电平(空闲) */
-    hal_gpio_init_output(&s_sda_cfg);
-    SDA_HIGH();
+    /* 初始化SDA为推挽输出高电平(参考立创代码) */
+    DL_GPIO_initDigitalOutput(PRJ_SOFT_I2C_SDA_IOMUX);
+    DL_GPIO_setPins(GPIOB, PRJ_SOFT_I2C_SDA_PIN);
+    DL_GPIO_enableOutput(GPIOB, PRJ_SOFT_I2C_SDA_PIN);
 
     s_is_inited = true;
     return BSP_OK;
@@ -375,4 +370,25 @@ bsp_status_t bsp_soft_i2c_read_reg_buf(uint8_t dev_addr,
 
     bsp_soft_i2c_stop();
     return BSP_OK;
+}
+
+bsp_status_t bsp_soft_i2c_recovery(void)
+{
+    uint8_t i;
+
+    /* 发送9个时钟脉冲，尝试释放被从机拉低的SDA */
+    sda_set_input();
+    for (i = 0U; i < 9U; i++) {
+        SCL_LOW();
+        osal_delay_us(I2C_DELAY_US);
+        SCL_HIGH();
+        osal_delay_us(I2C_DELAY_US);
+        if (SDA_READ()) {
+            /* SDA已释放，恢复成功 */
+            break;
+        }
+    }
+
+    /* 发送STOP条件释放总线 */
+    return bsp_soft_i2c_stop();
 }

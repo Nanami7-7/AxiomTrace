@@ -122,7 +122,7 @@ bsp_status_t bsp_mpu6050_init(const bsp_mpu6050_config_t *cfg)
 
     /* 重复初始化保护: 若已初始化则先睡眠再重新配置 */
     if (s_is_inited) {
-        bsp_mpu6050_set_sleep(true);
+        (void)bsp_mpu6050_set_sleep(true);
         s_is_inited = false;
     }
 
@@ -142,6 +142,15 @@ bsp_status_t bsp_mpu6050_init(const bsp_mpu6050_config_t *cfg)
     s_accel_sensitivity = (float)get_accel_sensitivity(cfg->accel_full_scale);
     s_gyro_sensitivity  = (float)get_gyro_sensitivity(cfg->gyro_full_scale);
 
+    /* 复位MPU6050(处理异常初始状态) */
+    ret = write_reg(BSP_MPU6050_REG_PWR_MGMT_1,
+                    BSP_MPU6050_PWR_MGMT_1_RESET);
+    if (ret != BSP_OK) {
+        s_is_inited = false;
+        return BSP_ERR_NAK;
+    }
+    osal_delay_ms(MPU6050_INIT_DELAY_MS);
+
     /* 唤醒MPU6050: 清除睡眠位, 选择内部时钟源 */
     ret = write_reg(BSP_MPU6050_REG_PWR_MGMT_1,
                     BSP_MPU6050_PWR_MGMT_1_CLKSEL_INT);
@@ -152,6 +161,17 @@ bsp_status_t bsp_mpu6050_init(const bsp_mpu6050_config_t *cfg)
 
     /* 等待唤醒稳定 */
     osal_delay_ms(MPU6050_INIT_DELAY_MS);
+
+    /* 验证WHO_AM_I寄存器(提前到配置之前，避免无效配置) */
+    ret = read_reg(BSP_MPU6050_REG_WHO_AM_I, &id);
+    if (ret != BSP_OK) {
+        s_is_inited = false;
+        return BSP_ERR_NAK;
+    }
+    if (id != BSP_MPU6050_WHO_AM_I_VAL) {
+        s_is_inited = false;
+        return BSP_ERR_HW_FAULT;
+    }
 
     /* 配置加速度计量程 */
     reg_val = (cfg->accel_full_scale & 0x03U) << 3;
@@ -182,18 +202,6 @@ bsp_status_t bsp_mpu6050_init(const bsp_mpu6050_config_t *cfg)
     if (ret != BSP_OK) {
         s_is_inited = false;
         return ret;
-    }
-
-    /* 验证WHO_AM_I寄存器 */
-    ret = read_reg(BSP_MPU6050_REG_WHO_AM_I, &id);
-    if (ret != BSP_OK) {
-        s_is_inited = false;
-        return BSP_ERR_NAK;
-    }
-
-    if (id != BSP_MPU6050_WHO_AM_I_VAL) {
-        s_is_inited = false;
-        return BSP_ERR_HW_FAULT;
     }
 
     s_is_inited = true;

@@ -107,7 +107,11 @@ void _sys_exit(int x)
 
 int fputc(int ch, FILE *stream)
 {
-	while( DL_UART_isBusy(UART_0_DEBUG_INST) == true );
+	/* 超时保护: 约1ms@80MHz, 防止UART故障时永久阻塞 */
+	uint32_t timeout = 80000U;
+	while( DL_UART_isBusy(UART_0_DEBUG_INST) == true ) {
+		if (--timeout == 0U) { return -1; }
+	}
 	
 	DL_UART_Main_transmitData(UART_0_DEBUG_INST, ch);
 	

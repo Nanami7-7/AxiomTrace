@@ -114,6 +114,15 @@ bsp_status_t bsp_soft_i2c_write_reg_buf(uint8_t dev_addr,
 bsp_status_t bsp_soft_i2c_read_reg_buf(uint8_t dev_addr,
     uint8_t reg, uint8_t *buf, uint16_t len);
 
+/**
+ * @brief  I2C总线恢复
+ * @note   发送9个时钟脉冲尝试释放被从机拉低的SDA线
+ *         用于从机在传输中途被复位导致SDA锁死的情况
+ * @retval BSP_OK      恢复成功
+ * @retval BSP_ERR_NAK 恢复失败(总线仍被锁死)
+ */
+bsp_status_t bsp_soft_i2c_recovery(void);
+
 #ifdef __cplusplus
 }
 #endif

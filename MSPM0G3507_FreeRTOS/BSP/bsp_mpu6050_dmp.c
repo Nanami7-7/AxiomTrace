@@ -33,6 +33,7 @@
 #define REG_PRGM_START_H        (0x70U)
 #define REG_PRGM_START_L        (0x71U)
 #define REG_INT_ENABLE          (0x38U)
+#define REG_INT_STATUS          (0x3AU)
 #define REG_FIFO_COUNT_H        (0x72U)
 #define REG_FIFO_COUNT_L        (0x73U)
 #define REG_FIFO_R_W            (0x74U)
@@ -59,6 +60,12 @@ static bool s_dmp_is_inited = false;
 
 /** 当前时间戳(ms) */
 static uint32_t s_timestamp_ms = 0;
+
+/** 当前加速度量程(运行时可变) */
+static uint8_t s_accel_fs = PRJ_MPU6050_ACCEL_FS;
+
+/** 当前陀螺仪量程(运行时可变) */
+static uint8_t s_gyro_fs = PRJ_MPU6050_GYRO_FS;
 
 /* ======================== 私有函数 ======================== */
 
@@ -309,6 +316,9 @@ bsp_status_t bsp_mpu6050_dmp_init(void)
         return BSP_ERR_NOT_INIT;
     }
 
+    /* 清除初始化标志(防止重初始化中途失败后状态不一致) */
+    s_dmp_is_inited = false;
+
     /* 重置DMP和FIFO */
     reg_val = USER_CTRL_DMP_RESET | USER_CTRL_FIFO_RESET;
     ret = bsp_soft_i2c_write_reg(PRJ_MPU6050_I2C_ADDR,
@@ -348,6 +358,8 @@ bsp_status_t bsp_mpu6050_dmp_init(void)
 
     s_dmp_is_inited = true;
     s_timestamp_ms = 0;
+    s_accel_fs = PRJ_MPU6050_ACCEL_FS;
+    s_gyro_fs  = PRJ_MPU6050_GYRO_FS;
 
     return BSP_OK;
 }
@@ -370,13 +382,9 @@ bsp_status_t bsp_mpu6050_dmp_read(bsp_mpu6050_dmp_data_t *data)
         return BSP_ERR_NOT_INIT;
     }
 
-    /* 读取FIFO计数 */
-    ret = bsp_soft_i2c_read_reg(PRJ_MPU6050_I2C_ADDR,
-                                 REG_FIFO_COUNT_H, &fifo_count_buf[0]);
-    if (ret != BSP_OK) { return BSP_ERR_NAK; }
-
-    ret = bsp_soft_i2c_read_reg(PRJ_MPU6050_I2C_ADDR,
-                                 REG_FIFO_COUNT_L, &fifo_count_buf[1]);
+    /* 读取FIFO计数(burst读取2字节,避免非原子操作) */
+    ret = bsp_soft_i2c_read_reg_buf(PRJ_MPU6050_I2C_ADDR,
+                                     REG_FIFO_COUNT_H, fifo_count_buf, 2);
     if (ret != BSP_OK) { return BSP_ERR_NAK; }
 
     fifo_count = (uint16_t)((uint16_t)fifo_count_buf[0] << 8 |
@@ -405,14 +413,15 @@ bsp_status_t bsp_mpu6050_dmp_read(bsp_mpu6050_dmp_data_t *data)
     if (ret != BSP_OK) { return BSP_ERR_NAK; }
 
     /* 解析四元数(DMP输出为Q30定点格式, 需除以2^30转换为浮点) */
-    quat[0] = ((int32_t)buf[0] << 24) | ((int32_t)buf[1] << 16) |
-              ((int32_t)buf[2] << 8)  | buf[3];
-    quat[1] = ((int32_t)buf[4] << 24) | ((int32_t)buf[5] << 16) |
-              ((int32_t)buf[6] << 8)  | buf[7];
-    quat[2] = ((int32_t)buf[8] << 24) | ((int32_t)buf[9] << 16) |
-              ((int32_t)buf[10] << 8) | buf[11];
-    quat[3] = ((int32_t)buf[12] << 24) | ((int32_t)buf[13] << 16) |
-              ((int32_t)buf[14] << 8) | buf[15];
+    /* 先用uint32_t组合避免有符号左移UB，最后转int32_t */
+    quat[0] = (int32_t)(((uint32_t)buf[0] << 24) | ((uint32_t)buf[1] << 16) |
+                         ((uint32_t)buf[2] << 8)  | (uint32_t)buf[3]);
+    quat[1] = (int32_t)(((uint32_t)buf[4] << 24) | ((uint32_t)buf[5] << 16) |
+                         ((uint32_t)buf[6] << 8)  | (uint32_t)buf[7]);
+    quat[2] = (int32_t)(((uint32_t)buf[8] << 24) | ((uint32_t)buf[9] << 16) |
+                         ((uint32_t)buf[10] << 8) | (uint32_t)buf[11]);
+    quat[3] = (int32_t)(((uint32_t)buf[12] << 24) | ((uint32_t)buf[13] << 16) |
+                         ((uint32_t)buf[14] << 8) | (uint32_t)buf[15]);
 
     /* Q30定点转浮点 */
     q[0] = (float)quat[0] / 1073741824.0f;  /* 2^30 */
@@ -439,28 +448,26 @@ bsp_status_t bsp_mpu6050_dmp_read(bsp_mpu6050_dmp_data_t *data)
     int16_t accel_raw_y = dmp_bytes_to_int16(buf[24], buf[25]);
     int16_t accel_raw_z = dmp_bytes_to_int16(buf[26], buf[27]);
 
-    /* 根据当前量程转换为物理单位(使用project_config.h配置) */
-    /* 加速度灵敏度: ±2g=16384, ±4g=8192, ±8g=4096, ±16g=2048 */
+    /* 根据当前量程转换为物理单位(使用运行时变量+bsp_mpu6050.h宏) */
     float accel_sens;
-    switch (PRJ_MPU6050_ACCEL_FS) {
-        case 0: accel_sens = 16384.0f; break;
-        case 1: accel_sens = 8192.0f;  break;
-        case 2: accel_sens = 4096.0f;  break;
-        case 3: accel_sens = 2048.0f;  break;
-        default: accel_sens = 16384.0f; break;
+    switch (s_accel_fs) {
+        case BSP_MPU6050_ACCEL_FS_2G:  accel_sens = (float)BSP_MPU6050_ACCEL_SENS_2G;  break;
+        case BSP_MPU6050_ACCEL_FS_4G:  accel_sens = (float)BSP_MPU6050_ACCEL_SENS_4G;  break;
+        case BSP_MPU6050_ACCEL_FS_8G:  accel_sens = (float)BSP_MPU6050_ACCEL_SENS_8G;  break;
+        case BSP_MPU6050_ACCEL_FS_16G: accel_sens = (float)BSP_MPU6050_ACCEL_SENS_16G; break;
+        default: accel_sens = (float)BSP_MPU6050_ACCEL_SENS_2G; break;
     }
     data->accel_x_g = (float)accel_raw_x / accel_sens;
     data->accel_y_g = (float)accel_raw_y / accel_sens;
     data->accel_z_g = (float)accel_raw_z / accel_sens;
 
-    /* 陀螺仪灵敏度: ±250=131, ±500=65, ±1000=33, ±2000=17 */
     float gyro_sens;
-    switch (PRJ_MPU6050_GYRO_FS) {
-        case 0: gyro_sens = 131.0f; break;
-        case 1: gyro_sens = 65.0f;  break;
-        case 2: gyro_sens = 33.0f;  break;
-        case 3: gyro_sens = 17.0f;  break;
-        default: gyro_sens = 131.0f; break;
+    switch (s_gyro_fs) {
+        case BSP_MPU6050_GYRO_FS_250:  gyro_sens = (float)BSP_MPU6050_GYRO_SENS_250;  break;
+        case BSP_MPU6050_GYRO_FS_500:  gyro_sens = (float)BSP_MPU6050_GYRO_SENS_500;  break;
+        case BSP_MPU6050_GYRO_FS_1000: gyro_sens = (float)BSP_MPU6050_GYRO_SENS_1000; break;
+        case BSP_MPU6050_GYRO_FS_2000: gyro_sens = (float)BSP_MPU6050_GYRO_SENS_2000; break;
+        default: gyro_sens = (float)BSP_MPU6050_GYRO_SENS_250; break;
     }
     data->gyro_x_dps = (float)gyro_raw_x / gyro_sens;
     data->gyro_y_dps = (float)gyro_raw_y / gyro_sens;
@@ -475,7 +482,8 @@ bsp_status_t bsp_mpu6050_dmp_read(bsp_mpu6050_dmp_data_t *data)
                                  BSP_MPU6050_REG_TEMP_OUT_L, &temp_buf[1]);
     if (ret != BSP_OK) { return BSP_ERR_NAK; }
     int16_t temp_raw = dmp_bytes_to_int16(temp_buf[0], temp_buf[1]);
-    data->temperature_c = (float)temp_raw / 340.0f + 36.53f;
+    data->temperature_c = (float)temp_raw / BSP_MPU6050_TEMP_SENS
+                          + BSP_MPU6050_TEMP_OFFSET;
 
     /* 时间戳递增(基于调用周期) */
     s_timestamp_ms += 10;  /* 100Hz = 10ms */
@@ -495,7 +503,7 @@ bool bsp_mpu6050_dmp_data_ready(void)
 
     /* 读取INT_STATUS寄存器检查DMP_INT */
     ret = bsp_soft_i2c_read_reg(PRJ_MPU6050_I2C_ADDR,
-                                 0x3A, &int_status);
+                                 REG_INT_STATUS, &int_status);
     if (ret != BSP_OK) {
         return false;
     }
@@ -530,4 +538,14 @@ bsp_status_t bsp_mpu6050_dmp_reset_fifo(void)
     osal_delay_ms(5);
 
     return BSP_OK;
+}
+
+void bsp_mpu6050_dmp_update_fs(uint8_t accel_fs, uint8_t gyro_fs)
+{
+    if (accel_fs <= 3U) {
+        s_accel_fs = accel_fs;
+    }
+    if (gyro_fs <= 3U) {
+        s_gyro_fs = gyro_fs;
+    }
 }

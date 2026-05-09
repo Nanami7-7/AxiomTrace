@@ -20,6 +20,7 @@ const GPIO     = scripting.addModule("/ti/driverlib/GPIO", {}, false);
 const GPIO1    = GPIO.addInstance();
 const GPIO2    = GPIO.addInstance();
 const GPIO3    = GPIO.addInstance();
+const GPIO4    = GPIO.addInstance();
 const PWM      = scripting.addModule("/ti/driverlib/PWM", {}, false);
 const PWM1     = PWM.addInstance();
 const SYSCTL   = scripting.addModule("/ti/driverlib/SYSCTL");
@@ -168,6 +169,15 @@ GPIO3.associatedPins[4].$name       = "CIN1";
 GPIO3.associatedPins[5].$name       = "CIN2";
 GPIO3.associatedPins[6].$name       = "DIN1";
 GPIO3.associatedPins[7].$name       = "DIN2";
+
+GPIO4.$name                              = "Gyro";
+GPIO4.associatedPins.create(2);
+GPIO4.associatedPins[0].$name            = "SCL";
+GPIO4.associatedPins[0].internalResistor = "PULL_UP";
+GPIO4.associatedPins[0].pin.$assign      = "PB18";
+GPIO4.associatedPins[1].$name            = "SDA";
+GPIO4.associatedPins[1].internalResistor = "PULL_UP";
+GPIO4.associatedPins[1].pin.$assign      = "PB19";
 
 PWM1.$name                              = "PWM_MOTOR";
 PWM1.timerStartTimer                    = true;

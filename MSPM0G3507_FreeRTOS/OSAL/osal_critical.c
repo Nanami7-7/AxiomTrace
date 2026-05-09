@@ -65,17 +65,27 @@ void osal_critical_exit(void)
 
 #else /* !USE_FREERTOS */
 
-/** 保存裸机临界区进入前的PRIMASK */
+/** 裸机临界区嵌套计数器 */
+static uint32_t s_nest_count = 0U;
+/** 保存裸机临界区进入前的PRIMASK(仅最外层保存) */
 static uint32_t s_primask = 0U;
 
 void osal_critical_enter(void)
 {
-    s_primask = osal_critical_enter_raw();
+    if (s_nest_count == 0U) {
+        s_primask = osal_critical_enter_raw();
+    }
+    s_nest_count++;
 }
 
 void osal_critical_exit(void)
 {
-    osal_critical_exit_raw(s_primask);
+    if (s_nest_count > 0U) {
+        s_nest_count--;
+        if (s_nest_count == 0U) {
+            osal_critical_exit_raw(s_primask);
+        }
+    }
 }
 
 #endif /* USE_FREERTOS */

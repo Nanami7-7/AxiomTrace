@@ -2,7 +2,7 @@
  * @file    dmp_firmware.h
  * @brief   InvenSense DMP v6.12 固件数据
  * @note    来源: InvenSense eMPL (开源)
- *          固件大小: 3062字节, 分12个bank(每bank 256字节, 最后一个166字节)
+ *          固件大小: 3062字节, 分12个bank(每bank 256字节, 最后一个246字节)
  *          特性: 6轴低功耗四元数, 陀螺仪自动校准
  *          以const数组存储在Flash中, 不占用SRAM
  */

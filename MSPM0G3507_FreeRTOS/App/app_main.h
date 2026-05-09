@@ -76,6 +76,7 @@ typedef struct {
     float roll;              /**< 横滚角(度) */
     float pitch;             /**< 俯仰角(度) */
     float yaw;               /**< 偏航角(度) */
+    float accel_x_g;         /**< X轴加速度(g) */
     float gyro_z_dps;        /**< Z轴角速度(°/s) */
     uint32_t timestamp_ms;   /**< 时间戳(ms) */
 } app_imu_data_t;

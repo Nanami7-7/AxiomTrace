@@ -80,24 +80,25 @@ val0,val1,val2,val3,val4,val5,val6,val7,val8,val9,val10,val11\n
 | CH5 | `pid[1].setpoint` | 电机 B 目标 RPM | ±800 |
 | CH6 | `pid[2].setpoint` | 电机 C 目标 RPM | ±800 |
 | CH7 | `pid[3].setpoint` | 电机 D 目标 RPM | ±800 |
-| CH8 | `status.output[0]` | 电机 A PID 输出 (duty) | ±duty_max |
-| CH9 | `status.output[1]` | 电机 B PID 输出 (duty) | ±duty_max |
-| CH10 | `status.output[2]` | 电机 C PID 输出 (duty) | ±duty_max |
-| CH11 | `status.output[3]` | 电机 D PID 输出 (duty) | ±duty_max |
+| CH8 | `imu.roll` | 横滚角 (度) | ±180 |
+| CH9 | `imu.pitch` | 俯仰角 (度) | ±90 |
+| CH10 | `app_cf_get_heading()` | 融合航向角 (度) | ±180 |
+| CH11 | `app_cf_get_velocity_x()` | 融合线速度 (m/s) | ±1.0 |
 
 ### 分组说明 / Grouping
 
 ```
 CH0 ──── CH3    实际 RPM (Actual RPM)        [反馈信号]
 CH4 ──── CH7    目标 RPM (Target RPM)         [设定值]
-CH8 ──── CH11   PID 输出 (PID Output/Duty)    [控制信号]
+CH8 ──── CH9    IMU 姿态 (Roll/Pitch)         [姿态信号]
+CH10 ─── CH11   融合数据 (Heading/Velocity)   [融合信号]
 ```
 
 ### VOFA+ 图表建议 / VOFA+ Chart Recommendations
 
 - **波形图 1**：CH0-3（实际 RPM）+ CH4-7（目标 RPM）— 观察跟踪性能
-- **波形图 2**：CH8-11（PID 输出）— 观察控制量变化
-- **数字表**：所有通道 — 快速查看数值
+- **波形图 2**：CH8-9（Roll/Pitch）+ CH10（航向角）— 观察姿态变化
+- **波形图 3**：CH11（融合速度）— 观察速度估计
 
 ---
 

@@ -15,10 +15,11 @@
  *            配置后SysTick以1ms周期倒计数，不使能中断
  */
 #include "osal_api.h"
+#include "project_config.h"
 #include <ti/devices/msp/msp.h>
 
-/* CPU时钟频率(80MHz) */
-#define CPUCLK_HZ    80000000UL
+/* CPU时钟频率(使用project_config.h中的定义) */
+#define CPUCLK_HZ    PRJ_CPUCLK_HZ
 /* 每微秒的CPU周期数 */
 #define CYCLES_PER_US  (CPUCLK_HZ / 1000000UL)
 /* 1ms对应的周期数(用于裸机SysTick LOAD值) */
