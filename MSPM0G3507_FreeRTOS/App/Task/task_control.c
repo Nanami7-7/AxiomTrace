@@ -53,14 +53,14 @@ void app_control_task(void *param)
                 * PRJ_CF_WHEEL_RADIUS_M / 60.0f;
 
             /* 读取IMU数据(临界区保护) */
-            float imu_accel_x, imu_gyro_z;
+            float imu_accel_x, imu_yaw;
             OSAL_CRITICAL_SECTION {
                 imu_accel_x = ctx->imu.accel_x_g;
-                imu_gyro_z  = ctx->imu.gyro_z_dps;
+                imu_yaw     = ctx->imu.yaw;
             }
 
             /* 更新互补滤波器 */
-            app_cf_update(encoder_vx, imu_accel_x, imu_gyro_z, dt_s);
+            app_cf_update(encoder_vx, imu_accel_x, imu_yaw, dt_s);
         }
 
         /* PID计算 + 电机输出(仅使能电机) */

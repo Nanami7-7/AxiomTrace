@@ -54,12 +54,12 @@ void app_cf_init(const app_cf_config_t *cfg);
  * @param  encoder_vx_mps  编码器计算的X轴线速度(m/s)
  *                         正值=前进
  * @param  imu_accel_x_g  IMU X轴加速度(g)
- * @param  imu_gyro_z_dps IMU Z轴角速度(°/s)
+ * @param  imu_yaw_deg    IMU DMP偏航角(°)，直接来自四元数融合
  * @param  dt_s           采样周期(秒)
  * @note   每个控制周期调用一次，融合编码器和IMU数据
  */
 void app_cf_update(float encoder_vx_mps, float imu_accel_x_g,
-                   float imu_gyro_z_dps, float dt_s);
+                   float imu_yaw_deg, float dt_s);
 
 /**
  * @brief  获取融合后X轴线速度

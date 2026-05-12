@@ -17,7 +17,7 @@
 #include "bsp_motor.h"
 #include "bsp_encoder.h"
 #include "bsp_mpu6050.h"
-#include "bsp_mpu6050_dmp.h"
+#include "inv_mpu.h"
 #include "bsp_uart.h"
 #include "app_complementary_filter.h"
 #include "hal_gpio.h"
@@ -56,7 +56,6 @@ static osal_task_handle_t s_imu_task_handle;
 static int32_t bsp_modules_init(void)
 {
     bsp_status_t ret;
-    bsp_mpu6050_config_t mpu_cfg = PRJ_MPU6050_CONFIG;
 
     ret = bsp_led_init();
     if (ret != BSP_OK) { return -1; }
@@ -72,13 +71,10 @@ static int32_t bsp_modules_init(void)
         PRJ_ENCODER_PULSES_PER_REV);
     if (ret != BSP_OK) { return -4; }
 
-    /* 初始化MPU6050 */
-    ret = bsp_mpu6050_init(&mpu_cfg);
-    if (ret != BSP_OK) { return -5; }
-
     /* 初始化DMP(加载固件+使能DMP解算) */
-    ret = bsp_mpu6050_dmp_init();
-    if (ret != BSP_OK) { return -6; }
+    /* mpu_dmp_init()内部会调用mpu_init()完成基础传感器初始化 */
+    ret = mpu_dmp_init();
+    if (ret != 0) { return -6; }
 
     return 0;
 }
@@ -208,7 +204,7 @@ int32_t app_main_init(void)
 
     /* 创建IMU任务 */
     s_imu_task_handle = osal_task_create(
-        app_imu_ta                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  sk,
+        app_imu_task,
         "imu",
         APP_TASK_STACK_IMU,
         &s_shared_ctx,

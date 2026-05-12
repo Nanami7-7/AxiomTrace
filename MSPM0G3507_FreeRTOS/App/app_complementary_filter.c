@@ -79,7 +79,7 @@ void app_cf_init(const app_cf_config_t *cfg)
 }
 
 void app_cf_update(float encoder_vx_mps, float imu_accel_x_g,
-                   float imu_gyro_z_dps, float dt_s)
+                   float imu_yaw_deg, float dt_s)
 {
     if (!s_cf_inited) {
         return;
@@ -97,8 +97,8 @@ void app_cf_update(float encoder_vx_mps, float imu_accel_x_g,
     /* 互补滤波: v_fused = α × v_encoder + (1-α) × v_imu */
     s_vx = s_cfg.alpha * encoder_vx_mps + (1.0f - s_cfg.alpha) * v_imu;
 
-    /* ---- 航向角估计(陀螺仪积分) ---- */
-    s_heading_rad += imu_gyro_z_dps * DEG2RAD * dt_s;
+    /* ---- 航向角估计(DMP偏航角) ---- */
+    s_heading_rad = imu_yaw_deg * DEG2RAD;
 
     /* 角度归一化到[-π, π] */
     while (s_heading_rad > M_PI) {

@@ -165,28 +165,28 @@ extern "C" {
 
 /* ================================================================
  *  软件I2C配置
- *  SysConfig已配置GPIO(PB18=SCL/PINCM44, PB19=SDA/PINCM45)
+ *  实际引脚由SysConfig配置(ti_msp_dl_config.h): PA0=SCL, PA1=SDA
  *  BSP层通过HAL GPIO初始化开漏输出模式
  * ================================================================ */
 
 /** 软件I2C SCL端口 */
-#define PRJ_SOFT_I2C_SCL_PORT   HAL_GPIO_PORT_B
+#define PRJ_SOFT_I2C_SCL_PORT   HAL_GPIO_PORT_A
 /** 软件I2C SCL引脚 */
-#define PRJ_SOFT_I2C_SCL_PIN    DL_GPIO_PIN_18
-/** 软件I2C SCL引脚复用(PB18=PINCM44) */
-#define PRJ_SOFT_I2C_SCL_IOMUX  (IOMUX_PINCM44)
+#define PRJ_SOFT_I2C_SCL_PIN    DL_GPIO_PIN_0
+/** 软件I2C SCL引脚复用(PA0=PINCM1) */
+#define PRJ_SOFT_I2C_SCL_IOMUX  (IOMUX_PINCM1)
 /** 软件I2C SDA端口 */
-#define PRJ_SOFT_I2C_SDA_PORT   HAL_GPIO_PORT_B
+#define PRJ_SOFT_I2C_SDA_PORT   HAL_GPIO_PORT_A
 /** 软件I2C SDA引脚 */
-#define PRJ_SOFT_I2C_SDA_PIN    DL_GPIO_PIN_19
-/** 软件I2C SDA引脚复用(PB19=PINCM45) */
-#define PRJ_SOFT_I2C_SDA_IOMUX  (IOMUX_PINCM45)
+#define PRJ_SOFT_I2C_SDA_PIN    DL_GPIO_PIN_1
+/** 软件I2C SDA引脚复用(PA1=PINCM2) */
+#define PRJ_SOFT_I2C_SDA_IOMUX  (IOMUX_PINCM2)
 /** 软件I2C时钟频率(Hz), 标准模式100kHz */
 #define PRJ_SOFT_I2C_CLK_HZ     (100000UL)
 
 /* ================================================================
  *  MPU6050六轴传感器配置
- *  通过软件I2C接口通信(PB18=SCL, PB19=SDA)
+ *  通过软件I2C接口通信(PA0=SCL, PA1=SDA)
  *  默认I2C地址0x68(AD0接地)
  * ================================================================ */
 

@@ -89,15 +89,15 @@ extern "C" {
 #define PWM_MOTOR_INST_CLK_FREQ                                         20000000
 /* GPIO defines for channel 0 */
 #define GPIO_PWM_MOTOR_C0_PORT                                             GPIOA
-#define GPIO_PWM_MOTOR_C0_PIN                                      DL_GPIO_PIN_0
-#define GPIO_PWM_MOTOR_C0_IOMUX                                   (IOMUX_PINCM1)
-#define GPIO_PWM_MOTOR_C0_IOMUX_FUNC                  IOMUX_PINCM1_PF_TIMA0_CCP0
+#define GPIO_PWM_MOTOR_C0_PIN                                     DL_GPIO_PIN_21
+#define GPIO_PWM_MOTOR_C0_IOMUX                                  (IOMUX_PINCM46)
+#define GPIO_PWM_MOTOR_C0_IOMUX_FUNC                 IOMUX_PINCM46_PF_TIMA0_CCP0
 #define GPIO_PWM_MOTOR_C0_IDX                                DL_TIMER_CC_0_INDEX
 /* GPIO defines for channel 1 */
 #define GPIO_PWM_MOTOR_C1_PORT                                             GPIOA
-#define GPIO_PWM_MOTOR_C1_PIN                                      DL_GPIO_PIN_1
-#define GPIO_PWM_MOTOR_C1_IOMUX                                   (IOMUX_PINCM2)
-#define GPIO_PWM_MOTOR_C1_IOMUX_FUNC                  IOMUX_PINCM2_PF_TIMA0_CCP1
+#define GPIO_PWM_MOTOR_C1_PIN                                     DL_GPIO_PIN_22
+#define GPIO_PWM_MOTOR_C1_IOMUX                                  (IOMUX_PINCM47)
+#define GPIO_PWM_MOTOR_C1_IOMUX_FUNC                 IOMUX_PINCM47_PF_TIMA0_CCP1
 #define GPIO_PWM_MOTOR_C1_IDX                                DL_TIMER_CC_1_INDEX
 /* GPIO defines for channel 2 */
 #define GPIO_PWM_MOTOR_C2_PORT                                             GPIOA
@@ -142,10 +142,10 @@ extern "C" {
 #define CAPTURE_RIGHT_FRONT_INST_INT_IRQN                        (TIMG6_INT_IRQn)
 #define CAPTURE_RIGHT_FRONT_INST_LOAD_VALUE                                (65535U)
 /* GPIO defines for channel 0 */
-#define GPIO_CAPTURE_RIGHT_FRONT_C0_PORT                                   GPIOA
-#define GPIO_CAPTURE_RIGHT_FRONT_C0_PIN                           DL_GPIO_PIN_21
-#define GPIO_CAPTURE_RIGHT_FRONT_C0_IOMUX                         (IOMUX_PINCM46)
-#define GPIO_CAPTURE_RIGHT_FRONT_C0_IOMUX_FUNC             IOMUX_PINCM46_PF_TIMG6_CCP0
+#define GPIO_CAPTURE_RIGHT_FRONT_C0_PORT                                   GPIOB
+#define GPIO_CAPTURE_RIGHT_FRONT_C0_PIN                            DL_GPIO_PIN_2
+#define GPIO_CAPTURE_RIGHT_FRONT_C0_IOMUX                         (IOMUX_PINCM15)
+#define GPIO_CAPTURE_RIGHT_FRONT_C0_IOMUX_FUNC             IOMUX_PINCM15_PF_TIMG6_CCP0
 
 /* Defines for CAPTURE_RIGHT_BACK */
 #define CAPTURE_RIGHT_BACK_INST                                          (TIMG0)
@@ -240,31 +240,31 @@ extern "C" {
 #define MOTOR_BIN2_PORT                                                  (GPIOA)
 #define MOTOR_BIN2_PIN                                           (DL_GPIO_PIN_7)
 #define MOTOR_BIN2_IOMUX                                         (IOMUX_PINCM14)
-/* Defines for CIN1: GPIOB.2 with pinCMx 15 on package pin 14 */
+/* Defines for CIN1: GPIOB.3 with pinCMx 16 on package pin 15 */
 #define MOTOR_CIN1_PORT                                                  (GPIOB)
-#define MOTOR_CIN1_PIN                                           (DL_GPIO_PIN_2)
-#define MOTOR_CIN1_IOMUX                                         (IOMUX_PINCM15)
-/* Defines for CIN2: GPIOB.3 with pinCMx 16 on package pin 15 */
-#define MOTOR_CIN2_PORT                                                  (GPIOB)
-#define MOTOR_CIN2_PIN                                           (DL_GPIO_PIN_3)
-#define MOTOR_CIN2_IOMUX                                         (IOMUX_PINCM16)
-/* Defines for DIN1: GPIOA.8 with pinCMx 19 on package pin 16 */
+#define MOTOR_CIN1_PIN                                           (DL_GPIO_PIN_3)
+#define MOTOR_CIN1_IOMUX                                         (IOMUX_PINCM16)
+/* Defines for CIN2: GPIOA.8 with pinCMx 19 on package pin 16 */
+#define MOTOR_CIN2_PORT                                                  (GPIOA)
+#define MOTOR_CIN2_PIN                                           (DL_GPIO_PIN_8)
+#define MOTOR_CIN2_IOMUX                                         (IOMUX_PINCM19)
+/* Defines for DIN1: GPIOA.9 with pinCMx 20 on package pin 17 */
 #define MOTOR_DIN1_PORT                                                  (GPIOA)
-#define MOTOR_DIN1_PIN                                           (DL_GPIO_PIN_8)
-#define MOTOR_DIN1_IOMUX                                         (IOMUX_PINCM19)
-/* Defines for DIN2: GPIOA.9 with pinCMx 20 on package pin 17 */
-#define MOTOR_DIN2_PORT                                                  (GPIOA)
-#define MOTOR_DIN2_PIN                                           (DL_GPIO_PIN_9)
-#define MOTOR_DIN2_IOMUX                                         (IOMUX_PINCM20)
-/* Port definition for Pin Group Gyro */
-#define Gyro_PORT                                                        (GPIOB)
+#define MOTOR_DIN1_PIN                                           (DL_GPIO_PIN_9)
+#define MOTOR_DIN1_IOMUX                                         (IOMUX_PINCM20)
+/* Defines for DIN2: GPIOB.6 with pinCMx 23 on package pin 20 */
+#define MOTOR_DIN2_PORT                                                  (GPIOB)
+#define MOTOR_DIN2_PIN                                           (DL_GPIO_PIN_6)
+#define MOTOR_DIN2_IOMUX                                         (IOMUX_PINCM23)
+/* Port definition for Pin Group IIC */
+#define IIC_PORT                                                         (GPIOA)
 
-/* Defines for SCL: GPIOB.18 with pinCMx 44 on package pin 37 */
-#define Gyro_SCL_PIN                                            (DL_GPIO_PIN_18)
-#define Gyro_SCL_IOMUX                                           (IOMUX_PINCM44)
-/* Defines for SDA: GPIOB.19 with pinCMx 45 on package pin 38 */
-#define Gyro_SDA_PIN                                            (DL_GPIO_PIN_19)
-#define Gyro_SDA_IOMUX                                           (IOMUX_PINCM45)
+/* Defines for SCL: GPIOA.0 with pinCMx 1 on package pin 1 */
+#define IIC_SCL_PIN                                              (DL_GPIO_PIN_0)
+#define IIC_SCL_IOMUX                                             (IOMUX_PINCM1)
+/* Defines for SDA: GPIOA.1 with pinCMx 2 on package pin 2 */
+#define IIC_SDA_PIN                                              (DL_GPIO_PIN_1)
+#define IIC_SDA_IOMUX                                             (IOMUX_PINCM2)
 
 /* clang-format on */
 

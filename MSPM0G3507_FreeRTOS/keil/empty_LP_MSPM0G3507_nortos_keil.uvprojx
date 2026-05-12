@@ -340,7 +340,7 @@
               <MiscControls></MiscControls>
               <Define>__MSPM0G3507__</Define>
               <Undefine></Undefine>
-              <IncludePath>..\..\source\third_party\CMSIS\Core\Include;..\..\source;..\;..\App;..\App\Task;..\BSP;..\HAL;..\OSAL;..\Config;..\lib;..\lib\axiomtrace;.\FreeRTOS\include;.\FreeRTOS\portable\MemMang;.\FreeRTOS\portable\GCC\ARM_CM0;.\FreeRTOS\src</IncludePath>
+              <IncludePath>..\..\source\third_party\CMSIS\Core\Include;..\..\source;..\;..\App;..\App\Task;..\BSP;..\BSP\eMPL;..\HAL;..\OSAL;..\Config;..\lib;..\lib\axiomtrace;.\FreeRTOS\include;.\FreeRTOS\portable\MemMang;.\FreeRTOS\portable\GCC\ARM_CM0;.\FreeRTOS\src</IncludePath>
             </VariousControls>
           </Cads>
           <Aads>
@@ -715,16 +715,6 @@
               <FilePath>..\BSP\bsp_motor.h</FilePath>
             </File>
             <File>
-              <FileName>bsp_soft_i2c.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\BSP\bsp_soft_i2c.c</FilePath>
-            </File>
-            <File>
-              <FileName>bsp_soft_i2c.h</FileName>
-              <FileType>5</FileType>
-              <FilePath>..\BSP\bsp_soft_i2c.h</FilePath>
-            </File>
-            <File>
               <FileName>bsp_uart.c</FileName>
               <FileType>1</FileType>
               <FilePath>..\BSP\bsp_uart.c</FilePath>
@@ -744,20 +734,40 @@
               <FileType>5</FileType>
               <FilePath>..\BSP\bsp_mpu6050.h</FilePath>
             </File>
+          </Files>
+        </Group>
+        <Group>
+          <GroupName>BSP/eMPL</GroupName>
+          <Files>
             <File>
-              <FileName>bsp_mpu6050_dmp.c</FileName>
+              <FileName>inv_mpu.c</FileName>
               <FileType>1</FileType>
-              <FilePath>..\BSP\bsp_mpu6050_dmp.c</FilePath>
+              <FilePath>..\BSP\eMPL\inv_mpu.c</FilePath>
             </File>
             <File>
-              <FileName>bsp_mpu6050_dmp.h</FileName>
+              <FileName>inv_mpu.h</FileName>
               <FileType>5</FileType>
-              <FilePath>..\BSP\bsp_mpu6050_dmp.h</FilePath>
+              <FilePath>..\BSP\eMPL\inv_mpu.h</FilePath>
             </File>
             <File>
-              <FileName>dmp_firmware.h</FileName>
+              <FileName>inv_mpu_dmp_motion_driver.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\BSP\eMPL\inv_mpu_dmp_motion_driver.c</FilePath>
+            </File>
+            <File>
+              <FileName>inv_mpu_dmp_motion_driver.h</FileName>
               <FileType>5</FileType>
-              <FilePath>..\lib\dmp_firmware.h</FilePath>
+              <FilePath>..\BSP\eMPL\inv_mpu_dmp_motion_driver.h</FilePath>
+            </File>
+            <File>
+              <FileName>dmpmap.h</FileName>
+              <FileType>5</FileType>
+              <FilePath>..\BSP\eMPL\dmpmap.h</FilePath>
+            </File>
+            <File>
+              <FileName>dmpKey.h</FileName>
+              <FileType>5</FileType>
+              <FilePath>..\BSP\eMPL\dmpKey.h</FilePath>
             </File>
           </Files>
         </Group>

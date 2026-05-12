@@ -1,380 +1,277 @@
-/**
- * @file    bsp_mpu6050.c
- * @brief   MPU6050六轴传感器驱动实现
- * @note    基于bsp_soft_i2c实现I2C通信
- *          数据读取流程:
- *          1. 发送起始条件
- *          2. 发送设备地址+写标志
- *          3. 发送寄存器起始地址(ACCEL_XOUT_H)
- *          4. 发送重复起始条件
- *          5. 发送设备地址+读标志
- *          6. 连续读取14字节数据
- *          7. 发送停止条件
- *
- *          数据格式为大端序(MSB在前),需转换为小端序
+/*
+ * 立创开发板软硬件资料与相关扩展板软硬件资料官网全部开源
+ * 开发板官网：www.lckfb.com
+ * 技术支持常驻论坛，任何技术问题欢迎随时交流学习
+ * 立创论坛：https://oshwhub.com/forum
+ * 关注bilibili账号：【立创开发板】，掌握我们的最新动态！
+ * 不靠卖板赚钱，以培养中国工程师为己任
  */
 #include "bsp_mpu6050.h"
-#include "bsp_soft_i2c.h"
-#include "osal_api.h"
-#include "project_config.h"
+#include "board.h"
+#include <stdio.h>
 
-/* ======================== 私有宏 ======================== */
+#define CPU_FREQ_MHZ   80
+#define delay_us(us)   delay_cycles((us) * CPU_FREQ_MHZ)
+#define delay_ms(ms)   delay_cycles((ms) * 1000 * CPU_FREQ_MHZ)
 
-/** 初始化延时(ms) */
-#define MPU6050_INIT_DELAY_MS      (100U)
-
-/** 读取数据寄存器起始地址 */
-#define MPU6050_DATA_REG_START     (BSP_MPU6050_REG_ACCEL_XOUT_H)
-/** 数据寄存器数量(加速度6+温度2+陀螺仪6 = 14字节) */
-#define MPU6050_DATA_REG_COUNT     (14U)
-
-/* ======================== 私有变量 ======================== */
-
-/** 初始化标志 */
-static bool s_is_inited = false;
-
-/** 当前灵敏度系数(用于物理单位转换) */
-static float s_accel_sensitivity = (float)BSP_MPU6050_ACCEL_SENS_2G;
-static float s_gyro_sensitivity  = (float)BSP_MPU6050_GYRO_SENS_250;
-
-/** 当前配置(使用project_config.h中的默认值) */
-static bsp_mpu6050_config_t s_current_config = PRJ_MPU6050_CONFIG;
-
-/* ======================== 私有函数 ======================== */
-
-/**
- * @brief  将大端序字节转换为小端序16位整数
- * @param  high 高字节
- * @param  low  低字节
- * @retval 转换后的16位整数
- */
-static inline int16_t bytes_to_int16(uint8_t high, uint8_t low)
+void IIC_Start(void)
 {
-    return (int16_t)((uint16_t)high << 8 | (uint16_t)low);
+    SDA_OUT();
+    SCL(1);
+    SDA(0);
+
+    SDA(1);
+    delay_us(5);
+    SDA(0);
+    delay_us(5);
+
+    SCL(0);
 }
 
-/**
- * @brief  获取加速度灵敏度
- * @param  fs  量程选择(0-3)
- * @retval 灵敏度值(LSB/g)
- */
-static uint16_t get_accel_sensitivity(uint8_t fs)
+void IIC_Stop(void)
 {
-    switch (fs) {
-        case BSP_MPU6050_ACCEL_FS_2G:  return BSP_MPU6050_ACCEL_SENS_2G;
-        case BSP_MPU6050_ACCEL_FS_4G:  return BSP_MPU6050_ACCEL_SENS_4G;
-        case BSP_MPU6050_ACCEL_FS_8G:  return BSP_MPU6050_ACCEL_SENS_8G;
-        case BSP_MPU6050_ACCEL_FS_16G: return BSP_MPU6050_ACCEL_SENS_16G;
-        default:                       return BSP_MPU6050_ACCEL_SENS_2G;
+    SDA_OUT();
+    SCL(0);
+    SDA(0);
+
+    SCL(1);
+    delay_us(5);
+    SDA(1);
+    delay_us(5);
+}
+
+void IIC_Send_Ack(unsigned char ack)
+{
+    SDA_OUT();
+    SCL(0);
+    SDA(0);
+    delay_us(5);
+    if(!ack) SDA(0);
+    else         SDA(1);
+    SCL(1);
+    delay_us(5);
+    SCL(0);
+    SDA(1);
+}
+
+unsigned char I2C_WaitAck(void)
+{
+    char ack = 0;
+    unsigned char ack_flag = 10;
+    SCL(0);
+    SDA(1);
+    SDA_IN();
+
+    SCL(1);
+    while( (SDA_GET()==1) && ( ack_flag ) )
+    {
+        ack_flag--;
+        delay_us(5);
+    }
+
+    if( ack_flag <= 0 )
+    {
+        IIC_Stop();
+        return 1;
+    }
+    else
+    {
+        SCL(0);
+        SDA_OUT();
+    }
+    return ack;
+}
+
+void Send_Byte(uint8_t dat)
+{
+    int i = 0;
+    SDA_OUT();
+    SCL(0);
+
+    for( i = 0; i < 8; i++ )
+    {
+        SDA( (dat & 0x80) >> 7 );
+        delay_us(1);
+        SCL(1);
+        delay_us(5);
+        SCL(0);
+        delay_us(5);
+        dat<<=1;
     }
 }
 
-/**
- * @brief  获取陀螺仪灵敏度
- * @param  fs  量程选择(0-3)
- * @retval 灵敏度值(LSB/(°/s))
- */
-static uint16_t get_gyro_sensitivity(uint8_t fs)
+unsigned char Read_Byte(void)
 {
-    switch (fs) {
-        case BSP_MPU6050_GYRO_FS_250:  return BSP_MPU6050_GYRO_SENS_250;
-        case BSP_MPU6050_GYRO_FS_500:  return BSP_MPU6050_GYRO_SENS_500;
-        case BSP_MPU6050_GYRO_FS_1000: return BSP_MPU6050_GYRO_SENS_1000;
-        case BSP_MPU6050_GYRO_FS_2000: return BSP_MPU6050_GYRO_SENS_2000;
-        default:                        return BSP_MPU6050_GYRO_SENS_250;
+    unsigned char i,receive=0;
+    SDA_IN();
+    for(i=0;i<8;i++ )
+    {
+        SCL(0);
+        delay_us(5);
+        SCL(1);
+        delay_us(5);
+        receive<<=1;
+        if( SDA_GET() )
+        {
+            receive|=1;
+        }
+        delay_us(5);
+    }
+    SCL(0);
+    return receive;
+}
+
+char MPU6050_WriteReg(uint8_t addr,uint8_t regaddr,uint8_t num,uint8_t *regdata)
+{
+    uint16_t i = 0;
+    IIC_Start();
+    Send_Byte((addr<<1)|0);
+    if( I2C_WaitAck() == 1 ) {IIC_Stop();return 1;}
+    Send_Byte(regaddr);
+    if( I2C_WaitAck() == 1 ) {IIC_Stop();return 2;}
+
+    for(i=0;i<num;i++)
+    {
+        Send_Byte(regdata[i]);
+        if( I2C_WaitAck() == 1 ) {IIC_Stop();return (3+i);}
+    }
+    IIC_Stop();
+    return 0;
+}
+
+char MPU6050_ReadData(uint8_t addr, uint8_t regaddr,uint8_t num,uint8_t* Read)
+{
+    uint8_t i;
+    IIC_Start();
+    Send_Byte((addr<<1)|0);
+    if( I2C_WaitAck() == 1 ) {IIC_Stop();return 1;}
+    Send_Byte(regaddr);
+    if( I2C_WaitAck() == 1 ) {IIC_Stop();return 2;}
+
+    IIC_Start();
+    Send_Byte((addr<<1)|1);
+    if( I2C_WaitAck() == 1 ) {IIC_Stop();return 3;}
+
+    for(i=0;i<(num-1);i++){
+        Read[i]=Read_Byte();
+        IIC_Send_Ack(0);
+    }
+    Read[i]=Read_Byte();
+    IIC_Send_Ack(1);
+    IIC_Stop();
+    return 0;
+}
+
+uint8_t MPU_Set_Gyro_Fsr(uint8_t fsr)
+{
+    return MPU6050_WriteReg(0x68,MPU_GYRO_CFG_REG,1,(uint8_t*)(fsr<<3));
+}
+
+uint8_t MPU_Set_Accel_Fsr(uint8_t fsr)
+{
+    return MPU6050_WriteReg(0x68,MPU_ACCEL_CFG_REG,1,(uint8_t*)(fsr<<3));
+}
+
+uint8_t MPU_Set_LPF(uint16_t lpf)
+{
+    uint8_t data=0;
+
+    if(lpf>=188)data=1;
+    else if(lpf>=98)data=2;
+    else if(lpf>=42)data=3;
+    else if(lpf>=20)data=4;
+    else if(lpf>=10)data=5;
+    else data=6;
+    return data=MPU6050_WriteReg(0x68,MPU_CFG_REG,1,&data);
+}
+
+uint8_t MPU_Set_Rate(uint16_t rate)
+{
+    uint8_t data;
+    if(rate>1000)rate=1000;
+    if(rate<4)rate=4;
+    data=1000/rate-1;
+    data=MPU6050_WriteReg(0x68,MPU_SAMPLE_RATE_REG,1,&data);
+     return MPU_Set_LPF(rate/2);
+}
+
+void MPU6050ReadGyro(short *gyroData)
+{
+    uint8_t buf[6];
+    uint8_t reg = 0;
+    reg = MPU6050_ReadData(0x68,MPU6050_GYRO_OUT,6,buf);
+    if( reg == 0 )
+    {
+        gyroData[0] = (buf[0] << 8) | buf[1];
+        gyroData[1] = (buf[2] << 8) | buf[3];
+        gyroData[2] = (buf[4] << 8) | buf[5];
     }
 }
 
-/**
- * @brief  写入单个寄存器
- * @param  reg   寄存器地址
- * @param  value 写入值
- * @retval BSP_OK       成功
- * @retval BSP_ERR_NAK  从机无应答
- */
-static bsp_status_t write_reg(uint8_t reg, uint8_t value)
+void MPU6050ReadAcc(short *accData)
 {
-    return bsp_soft_i2c_write_reg(PRJ_MPU6050_I2C_ADDR, reg, value);
+    uint8_t buf[6];
+    uint8_t reg = 0;
+    reg = MPU6050_ReadData(0x68, MPU6050_ACC_OUT, 6, buf);
+    if( reg == 0)
+    {
+        accData[0] = (buf[0] << 8) | buf[1];
+        accData[1] = (buf[2] << 8) | buf[3];
+        accData[2] = (buf[4] << 8) | buf[5];
+    }
 }
 
-/**
- * @brief  读取单个寄存器
- * @param  reg   寄存器地址
- * @param  value 读取值存放地址
- * @retval BSP_OK       成功
- * @retval BSP_ERR_NAK  从机无应答
- */
-static bsp_status_t read_reg(uint8_t reg, uint8_t *value)
+float MPU6050_GetTemp(void)
 {
-    return bsp_soft_i2c_read_reg(PRJ_MPU6050_I2C_ADDR, reg, value);
+    short temp3;
+    uint8_t buf[2];
+    float Temperature = 0;
+    MPU6050_ReadData(0x68,MPU6050_RA_TEMP_OUT_H,2,buf);
+    temp3= (buf[0] << 8) | buf[1];
+    Temperature=((double) temp3/340.0)+36.53;
+    return Temperature;
 }
 
-/* ======================== 公共函数实现 ======================== */
-
-bsp_status_t bsp_mpu6050_init(const bsp_mpu6050_config_t *cfg)
+uint8_t MPU6050ReadID(void)
 {
-    bsp_status_t ret;
-    uint8_t id;
-    uint8_t reg_val;
+    unsigned char Re[2] = {0};
+    printf("mpu=%d\r\n",MPU6050_ReadData(0x68,0X75,1,Re));
 
-    /* 参数校验 */
-    BSP_ASSERT(cfg != NULL);
-
-    /* 重复初始化保护: 若已初始化则先睡眠再重新配置 */
-    if (s_is_inited) {
-        (void)bsp_mpu6050_set_sleep(true);
-        s_is_inited = false;
+    if (Re[0] != 0x68)
+    {
+        printf("Not found MPU6050 module");
+        return 1;
+     }
+    else
+    {
+        printf("MPU6050 ID = %x\r\n",Re[0]);
+        return 0;
     }
-
-    /* 初始化软件I2C */
-    ret = bsp_soft_i2c_init();
-    if (ret != BSP_OK) {
-        return ret;
-    }
-
-    /* 保存配置 */
-    s_current_config.accel_full_scale = cfg->accel_full_scale;
-    s_current_config.gyro_full_scale  = cfg->gyro_full_scale;
-    s_current_config.dlpf_cfg         = cfg->dlpf_cfg;
-    s_current_config.sample_rate_div  = cfg->sample_rate_div;
-
-    /* 更新灵敏度 */
-    s_accel_sensitivity = (float)get_accel_sensitivity(cfg->accel_full_scale);
-    s_gyro_sensitivity  = (float)get_gyro_sensitivity(cfg->gyro_full_scale);
-
-    /* 复位MPU6050(处理异常初始状态) */
-    ret = write_reg(BSP_MPU6050_REG_PWR_MGMT_1,
-                    BSP_MPU6050_PWR_MGMT_1_RESET);
-    if (ret != BSP_OK) {
-        s_is_inited = false;
-        return BSP_ERR_NAK;
-    }
-    osal_delay_ms(MPU6050_INIT_DELAY_MS);
-
-    /* 唤醒MPU6050: 清除睡眠位, 选择内部时钟源 */
-    ret = write_reg(BSP_MPU6050_REG_PWR_MGMT_1,
-                    BSP_MPU6050_PWR_MGMT_1_CLKSEL_INT);
-    if (ret != BSP_OK) {
-        s_is_inited = false;
-        return BSP_ERR_NAK;
-    }
-
-    /* 等待唤醒稳定 */
-    osal_delay_ms(MPU6050_INIT_DELAY_MS);
-
-    /* 验证WHO_AM_I寄存器(提前到配置之前，避免无效配置) */
-    ret = read_reg(BSP_MPU6050_REG_WHO_AM_I, &id);
-    if (ret != BSP_OK) {
-        s_is_inited = false;
-        return BSP_ERR_NAK;
-    }
-    if (id != BSP_MPU6050_WHO_AM_I_VAL) {
-        s_is_inited = false;
-        return BSP_ERR_HW_FAULT;
-    }
-
-    /* 配置加速度计量程 */
-    reg_val = (cfg->accel_full_scale & 0x03U) << 3;
-    ret = write_reg(BSP_MPU6050_REG_ACCEL_CONFIG, reg_val);
-    if (ret != BSP_OK) {
-        s_is_inited = false;
-        return BSP_ERR_NAK;
-    }
-
-    /* 配置陀螺仪量程 */
-    reg_val = (cfg->gyro_full_scale & 0x03U) << 3;
-    ret = write_reg(BSP_MPU6050_REG_GYRO_CONFIG, reg_val);
-    if (ret != BSP_OK) {
-        s_is_inited = false;
-        return BSP_ERR_NAK;
-    }
-
-    /* 配置数字低通滤波器 */
-    reg_val = cfg->dlpf_cfg & 0x07U;
-    ret = write_reg(BSP_MPU6050_REG_CONFIG, reg_val);
-    if (ret != BSP_OK) {
-        s_is_inited = false;
-        return BSP_ERR_NAK;
-    }
-
-    /* 配置采样率分频(使用配置参数) */
-    ret = bsp_mpu6050_set_sample_rate(cfg->sample_rate_div);
-    if (ret != BSP_OK) {
-        s_is_inited = false;
-        return ret;
-    }
-
-    s_is_inited = true;
-    return BSP_OK;
 }
 
-bsp_status_t bsp_mpu6050_read_raw(bsp_mpu6050_raw_data_t *data)
+char MPU6050_Init(void)
 {
-    bsp_status_t ret;
-    uint8_t buf[MPU6050_DATA_REG_COUNT];
+    SDA_OUT();
+    delay_ms(10);
+    MPU6050_WriteReg(0x68,MPU6050_RA_PWR_MGMT_1, 1,(uint8_t*)(0x80));
+    delay_ms(100);
+    MPU6050_WriteReg(0x68,MPU6050_RA_PWR_MGMT_1,1, (uint8_t*)(0x00));
 
-    /* 参数校验 */
-    if (data == NULL) {
-        return BSP_ERR_NULL_PTR;
+    MPU_Set_Gyro_Fsr(3);
+    MPU_Set_Accel_Fsr(0);
+    MPU_Set_Rate(50);
+
+    MPU6050_WriteReg(0x68,MPU_INT_EN_REG , 1,(uint8_t*)0x00);
+    MPU6050_WriteReg(0x68,MPU_USER_CTRL_REG,1,(uint8_t*)0x00);
+    MPU6050_WriteReg(0x68,MPU_FIFO_EN_REG,1,(uint8_t*)0x00);
+    MPU6050_WriteReg(0x68,MPU_INTBP_CFG_REG,1,(uint8_t*)0X80);
+
+    if( MPU6050ReadID() == 0 )
+    {
+        MPU6050_WriteReg(0x68,MPU6050_RA_PWR_MGMT_1, 1,(uint8_t*)0x01);
+        MPU6050_WriteReg(0x68,MPU_PWR_MGMT2_REG, 1,(uint8_t*)0x00);
+        MPU_Set_Rate(50);
+        return 1;
     }
-
-    if (!s_is_inited) {
-        return BSP_ERR_NOT_INIT;
-    }
-
-    /* 连续读取14字节数据 */
-    ret = bsp_soft_i2c_read_reg_buf(PRJ_MPU6050_I2C_ADDR,
-                                    MPU6050_DATA_REG_START,
-                                    buf,
-                                    MPU6050_DATA_REG_COUNT);
-    if (ret != BSP_OK) {
-        return BSP_ERR_NAK;
-    }
-
-    /* 解析数据(大端序转小端序) */
-    data->accel_x     = bytes_to_int16(buf[0],  buf[1]);
-    data->accel_y     = bytes_to_int16(buf[2],  buf[3]);
-    data->accel_z     = bytes_to_int16(buf[4],  buf[5]);
-    data->temperature = bytes_to_int16(buf[6],  buf[7]);
-    data->gyro_x      = bytes_to_int16(buf[8],  buf[9]);
-    data->gyro_y      = bytes_to_int16(buf[10], buf[11]);
-    data->gyro_z      = bytes_to_int16(buf[12], buf[13]);
-
-    return BSP_OK;
-}
-
-bsp_status_t bsp_mpu6050_read_phys(bsp_mpu6050_phys_data_t *data)
-{
-    bsp_status_t ret;
-    bsp_mpu6050_raw_data_t raw;
-
-    /* 参数校验 */
-    if (data == NULL) {
-        return BSP_ERR_NULL_PTR;
-    }
-
-    /* 读取原始数据 */
-    ret = bsp_mpu6050_read_raw(&raw);
-    if (ret != BSP_OK) {
-        return ret;
-    }
-
-    /* 转换为物理单位 */
-    data->accel_x_g      = (float)raw.accel_x / s_accel_sensitivity;
-    data->accel_y_g      = (float)raw.accel_y / s_accel_sensitivity;
-    data->accel_z_g      = (float)raw.accel_z / s_accel_sensitivity;
-    data->gyro_x_dps     = (float)raw.gyro_x  / s_gyro_sensitivity;
-    data->gyro_y_dps     = (float)raw.gyro_y  / s_gyro_sensitivity;
-    data->gyro_z_dps     = (float)raw.gyro_z  / s_gyro_sensitivity;
-    data->temperature_c  = (float)raw.temperature / BSP_MPU6050_TEMP_SENS
-                            + BSP_MPU6050_TEMP_OFFSET;
-
-    return BSP_OK;
-}
-
-bsp_status_t bsp_mpu6050_read_id(uint8_t *id)
-{
-    /* 参数校验 */
-    if (id == NULL) {
-        return BSP_ERR_NULL_PTR;
-    }
-
-    return read_reg(BSP_MPU6050_REG_WHO_AM_I, id);
-}
-
-bsp_status_t bsp_mpu6050_set_sleep(bool enable)
-{
-    bsp_status_t ret;
-    uint8_t reg_val;
-
-    ret = read_reg(BSP_MPU6050_REG_PWR_MGMT_1, &reg_val);
-    if (ret != BSP_OK) {
-        return BSP_ERR_NAK;
-    }
-
-    if (enable) {
-        reg_val |= BSP_MPU6050_PWR_MGMT_1_SLEEP;
-    } else {
-        reg_val &= ~BSP_MPU6050_PWR_MGMT_1_SLEEP;
-    }
-
-    return write_reg(BSP_MPU6050_REG_PWR_MGMT_1, reg_val);
-}
-
-bsp_status_t bsp_mpu6050_set_sample_rate(uint8_t divider)
-{
-    return write_reg(BSP_MPU6050_REG_SMPLRT_DIV, divider);
-}
-
-bsp_status_t bsp_mpu6050_set_accel_full_scale(uint8_t fs)
-{
-    bsp_status_t ret;
-    uint8_t reg_val;
-
-    /* 参数校验 */
-    if (fs > BSP_MPU6050_ACCEL_FS_16G) {
-        return BSP_ERR_INVALID_PARAM;
-    }
-
-    reg_val = (fs & 0x03U) << 3;
-    ret = write_reg(BSP_MPU6050_REG_ACCEL_CONFIG, reg_val);
-    if (ret != BSP_OK) {
-        return BSP_ERR_NAK;
-    }
-
-    /* 更新灵敏度 */
-    s_accel_sensitivity = (float)get_accel_sensitivity(fs);
-    s_current_config.accel_full_scale = fs;
-
-    return BSP_OK;
-}
-
-bsp_status_t bsp_mpu6050_set_gyro_full_scale(uint8_t fs)
-{
-    bsp_status_t ret;
-    uint8_t reg_val;
-
-    /* 参数校验 */
-    if (fs > BSP_MPU6050_GYRO_FS_2000) {
-        return BSP_ERR_INVALID_PARAM;
-    }
-
-    reg_val = (fs & 0x03U) << 3;
-    ret = write_reg(BSP_MPU6050_REG_GYRO_CONFIG, reg_val);
-    if (ret != BSP_OK) {
-        return BSP_ERR_NAK;
-    }
-
-    /* 更新灵敏度 */
-    s_gyro_sensitivity = (float)get_gyro_sensitivity(fs);
-    s_current_config.gyro_full_scale = fs;
-
-    return BSP_OK;
-}
-
-bsp_status_t bsp_mpu6050_set_dlpf(uint8_t cfg)
-{
-    bsp_status_t ret;
-    uint8_t reg_val;
-
-    /* 参数校验 */
-    if (cfg > BSP_MPU6050_DLPF_3600HZ) {
-        return BSP_ERR_INVALID_PARAM;
-    }
-
-    reg_val = cfg & 0x07U;
-    ret = write_reg(BSP_MPU6050_REG_CONFIG, reg_val);
-    if (ret != BSP_OK) {
-        return BSP_ERR_NAK;
-    }
-
-    /* 更新当前配置 */
-    s_current_config.dlpf_cfg = cfg;
-
-    return BSP_OK;
-}
-
-bool bsp_mpu6050_is_inited(void)
-{
-    return s_is_inited;
+    return 0;
 }
