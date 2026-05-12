@@ -18,6 +18,7 @@
 *.wrn
 *.brf
 *.uvoptx
+*.uvprojx.bak
 # Keil Listings 和 Objects 目录
 **/listings/
 **/Listings/
@@ -45,6 +46,14 @@ ehthumbs.db
 *.log
 uninstall.dat
 uninstall.exe
+
+# ========================
+# 压缩包 (备份/临时)
+# ========================
+*.rar
+*.zip
+*.7z
+*.tar.gz
 
 # ========================
 # 发布说明 HTML (SDK 自带, 无需跟踪)
