@@ -145,16 +145,23 @@
 - [ ] Decoder refinement: supports all type tags, capsule formats, `DROP_SUMMARY`.
 - [ ] Text render: dictionary template filling (`"motor current over limit: phase={u8}"`).
 - [ ] JSON export: full event stream exported as JSON array.
+- [x] Standard metadata bundle: `manifest.json`, `dictionary.json`, `source_map.json`, `build_info.json`, optional `firmware.elf`/`.map`.
+- [x] `axiom-bundle generate`: creates the standard bundle from event definitions, ELF, and compile database.
+- [x] CMake integration: `axiomtrace_add_bundle(TARGET ... EVENTS ... OUTPUT_DIR ...)`.
+- [x] Decoder bundle mode: `--bundle`, `--bundle-store`, metadata-id matching, and raw fallback.
 - [ ] Capsule report: HTML/Markdown fault analysis report.
-- [ ] Dictionary validator: verify payload types match dictionary templates.
+- [x] Dictionary validator: verify payload types match dictionary templates.
 - [ ] `../../tool/scripts/amalgamate.py`: merges core+frontend+port into single-file `axiomtrace.h`.
 - [ ] `../../tool/scripts/extract_dict.py`: extracts `dictionary.json` from C source/X-Macros.
 - [ ] Benchmark tool: `../../tool/benchmark/host_benchmark.c` measures encode/CRC/ring write cycles.
 - [ ] Golden regression: CI auto-runs `update_golden.py` + `test_decoder.py`.
+- [ ] Documentation governance: README indexes only; detailed contracts live in canonical specs; no unlinked ad-hoc Markdown.
 
 **Acceptance Criteria**:
 - `binary -> text` passes all golden frames.
 - `binary -> json` has correct structure and complete fields.
+- `trace -> bundle -> text/jsonl` restores dictionary semantics and source location when enabled.
+- `trace -> bundle-store` refuses mismatched firmware identities unless raw mode is requested.
 - `capsule -> report` contains registers, event sequences, and firmware hash.
 - Amalgamated output passes all host tests.
 

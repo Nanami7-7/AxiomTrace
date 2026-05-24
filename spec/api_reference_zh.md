@@ -226,9 +226,13 @@ int  axiom_port_flash_write(uint32_t addr, const uint8_t *data, uint32_t len);
 | `AXIOM_MODULE_MAX` | 32 | 过滤器位掩码支持的最大模块 ID 数（0 .. MAX-1） |
 | `AXIOM_BACKEND_MAX` | 4 | 最大注册后端数量 |
 | `AXIOMTRACE_VERSION_MAJOR` | 0 | 库主版本号 |
-| `AXIOMTRACE_VERSION_MINOR` | 1 | 库次版本号 |
+| `AXIOMTRACE_VERSION_MINOR` | 7 | 库次版本号 |
 | `AXIOMTRACE_VERSION_PATCH` | 0 | 库补丁版本号 |
 | `AXIOM_PROFILE` | `DEV` | `DEV`, `FIELD` 或 `PROD` |
+| `AXIOM_CFG_LOCATION_MODE` | `NONE` | `NONE`、`HASH` 或 `FILE_ID` payload 定位元数据 |
+| `AXIOM_CFG_LOCATION_FUNCTION` | 0 | 在 `HASH` 模式中包含 `__func__` hash |
+| `AXIOM_SOURCE_FILE_ID` | 0 | `FILE_ID` 模式下按翻译单元注入的 ID |
+| `AXIOM_CFG_USE_LOCATION` | 0 | 兼容开关；旧集成启用后映射到 `HASH` 模式 |
 | `AXIOM_CAPSULE_ENABLED` | 1 | 启用故障舱 |
 | `AXIOM_CAPSULE_PRE_EVENTS` | 32 | 故障前窗口大小 |
 | `AXIOM_CAPSULE_POST_EVENTS` | 16 | 故障后窗口大小 |
@@ -284,8 +288,10 @@ typedef enum {
     AXIOM_TYPE_I32       = 0x06,
     AXIOM_TYPE_F32       = 0x07,
     AXIOM_TYPE_TIMESTAMP = 0x08,
-    AXIOM_TYPE_BYTES     = 0x09
-    /* 0x0A–0x7F: 保留  |  0x80–0xFF: 用户自定义 */
+    AXIOM_TYPE_BYTES     = 0x09,
+    AXIOM_TYPE_META_LOCATION = 0x0A,
+    AXIOM_TYPE_META_IDENTITY = 0x0B
+    /* 0x0C–0x7F: 保留  |  0x80–0xFF: 用户自定义 */
 } axiom_type_t;
 ```
 
@@ -298,6 +304,15 @@ typedef enum {
 ```
 
 编码器在溢出检查中使用此常量来计算类型标签字节的固定大小。
+
+### 11.7 元数据身份事件
+
+```c
+#define AXIOM_METADATA_ID_LEN 8u
+void axiom_emit_metadata_id(const uint8_t metadata_id[AXIOM_METADATA_ID_LEN]);
+```
+
+生成的 `axiom_metadata_id_generated.h` 提供 `AXIOM_EMIT_METADATA_ID()`。使用 `--bundle` 或 `--bundle-store` 进行语义解码时，应在捕获流的语义事件之前发出一次该事件。
 
 ---
 

@@ -3,7 +3,7 @@
     "sync": 165,
     "version": [
       1,
-      0
+      1
     ],
     "level": "INFO",
     "module_id": 3,
@@ -16,6 +16,9 @@
         "value": 1000
       }
     ],
-    "crc": 12514
+    "crc": 38175,
+    "timestamp_delta": 0,
+    "timestamp_len": 1,
+    "timestamp": 0
   }
 ]

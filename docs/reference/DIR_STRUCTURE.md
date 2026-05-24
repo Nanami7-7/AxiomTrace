@@ -6,8 +6,10 @@
 AxiomTrace/
 │
 ├── README.md                          # Project overview and quick start
-├── LICENSE                            # MIT license
+├── LICENSE                            # GPL-3.0 license
 ├── CMakeLists.txt                     # Top-level build configuration
+├── cmake/                             # CMake helper modules
+│   └── AxiomTraceTools.cmake          # axiomtrace_add_bundle() integration
 │
 ├── docs/                              # All documentation
 │   ├── project/                       # Project management docs
@@ -20,18 +22,19 @@ AxiomTrace/
 │   │   ├── DIR_STRUCTURE.md           # This file — directory index
 │   │   ├── platform_reference.md      # Platform-specific reference
 │   │   └── porting_guide.md           # Porting guide for new platforms
-│   └── spec/                          # Formal specifications (bilingual, 22 files)
-│       ├── event_model.md             # Event record semantics, header layout, D2R
-│       ├── wire_format.md             # Binary serialization: framing, COBS, CRC
-│       ├── backend_contract.md        # Backend interface contract
-│       ├── api_reference.md           # Frontend macros, core API, config macros
-│       ├── fault_capsule.md           # Fault capsule freeze and commit semantics
-│       ├── event_dictionary.md        # YAML schema, enum mapping, dictionary validation
-│       ├── decoder_protocol.md        # Decoder I/O protocol, dictionary format, CLI
-│       ├── versioning.md              # Wire format versioning rules
-│       ├── static_analysis.md         # Code quality and static analysis results
-│       ├── toolchain_ecosystem_design.md  # Toolchain architecture
-│       └── minimalist_architecture_analysis.md  # Architecture evolution analysis
+│
+├── spec/                              # Formal specifications (bilingual where public)
+│   ├── event_model.md                 # Event record semantics, header layout, D2R
+│   ├── wire_format.md                 # Binary serialization: framing, COBS, CRC
+│   ├── backend_contract.md            # Backend interface contract
+│   ├── api_reference.md               # Frontend macros, core API, config macros
+│   ├── fault_capsule.md               # Fault capsule freeze and commit semantics
+│   ├── event_dictionary.md            # YAML schema, enum mapping, dictionary validation
+│   ├── decoder_protocol.md            # Decoder I/O protocol, dictionary format, CLI
+│   ├── toolchain_ecosystem_design.md  # Toolchain, metadata bundle, codegen, validation
+│   ├── versioning.md                  # Wire format versioning rules
+│   ├── static_analysis.md             # Code quality and static analysis policy
+│   └── minimalist_architecture_analysis.md  # Architecture evolution analysis
 │
 ├── baremetal/                         # Firmware source (Five-Plane Architecture)
 │   ├── axiom_config.h                 # Build-time configuration defaults
@@ -75,8 +78,8 @@ AxiomTrace/
 │   ├── scripts/                       # Utility scripts
 │   │   ├── amalgamate.py              # Single-file library generator
 │   │   └── (extract_dict.py)          # Dictionary extraction from X-Macro
-│   ├── decoder/                       # Binary frame decoder
-│   │   └── axiom_decoder.py           # Frame header, payload, CRC validation
+│   ├── decoder/                       # Deprecated compatibility entrypoint
+│   │   └── axiom_decoder.py           # Structural CLI wrapper around package decoder
 │   ├── golden/                        # Golden frame regression tests
 │   │   ├── frames/                    # Binary golden frame files (*.bin)
 │   │   ├── expected/                  # Expected decoder output (JSON)
@@ -84,7 +87,16 @@ AxiomTrace/
 │   ├── benchmark/                     # Host benchmark
 │   │   └── host_benchmark.c           # Encoding, CRC, ring write cycle counts
 │   └── src/                           # pip-installable Python package
-│       └── axiomtrace_tools/          # CLI tool: decode, render, export
+│       └── axiomtrace_tools/          # CLI tools: decode, codegen, bundle, validate
+│           ├── decoder.py             # Raw binary frame parser
+│           ├── dictionary.py          # dictionary.json loading and lookup
+│           ├── render.py              # text/json/jsonl/raw renderers
+│           ├── codegen.py             # events.yaml/json → C headers + dictionary
+│           ├── bundle.py              # axiomtrace-bundle generation/loading
+│           ├── source_map.py          # compile_commands.json → source_map.json
+│           ├── metadata_id.py         # Decode-metadata identity hashing helpers
+│           ├── validator.py           # Bundle/trace contract validation
+│           └── capsule.py             # Fault-capsule decode/report support
 │
 ├── tests/                             # Firmware test suite
 │   ├── host/                          # Host-side C tests (CTest)

@@ -25,6 +25,9 @@ obj/
 *.map
 *.uf2
 
+# Versioned binary protocol fixtures used by golden-vector validation
+!tool/golden/frames/*.bin
+
 # --- CMake ---
 CMakeCache.txt
 CMakeFiles/

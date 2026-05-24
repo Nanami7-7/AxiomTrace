@@ -226,9 +226,13 @@ int  axiom_port_flash_write(uint32_t addr, const uint8_t *data, uint32_t len);
 | `AXIOM_MODULE_MAX` | 32 | Maximum module IDs for filter bitmask (0 .. MAX-1) |
 | `AXIOM_BACKEND_MAX` | 4 | Maximum registered backends |
 | `AXIOMTRACE_VERSION_MAJOR` | 0 | Library major version |
-| `AXIOMTRACE_VERSION_MINOR` | 1 | Library minor version |
+| `AXIOMTRACE_VERSION_MINOR` | 7 | Library minor version |
 | `AXIOMTRACE_VERSION_PATCH` | 0 | Library patch version |
 | `AXIOM_PROFILE` | `DEV` | `DEV`, `FIELD`, or `PROD` |
+| `AXIOM_CFG_LOCATION_MODE` | `NONE` | `NONE`, `HASH`, or `FILE_ID` payload location metadata |
+| `AXIOM_CFG_LOCATION_FUNCTION` | 0 | Include `__func__` hash in `HASH` mode |
+| `AXIOM_SOURCE_FILE_ID` | 0 | Per-translation-unit ID injected for `FILE_ID` mode |
+| `AXIOM_CFG_USE_LOCATION` | 0 | Compatibility switch mapping enabled legacy builds to `HASH` mode |
 | `AXIOM_CAPSULE_ENABLED` | 1 | Enable fault capsule |
 | `AXIOM_CAPSULE_PRE_EVENTS` | 32 | Pre-fault window size |
 | `AXIOM_CAPSULE_POST_EVENTS` | 16 | Post-fault window size |
@@ -284,8 +288,10 @@ typedef enum {
     AXIOM_TYPE_I32       = 0x06,
     AXIOM_TYPE_F32       = 0x07,
     AXIOM_TYPE_TIMESTAMP = 0x08,
-    AXIOM_TYPE_BYTES     = 0x09
-    /* 0x0A–0x7F: Reserved  |  0x80–0xFF: User-defined */
+    AXIOM_TYPE_BYTES     = 0x09,
+    AXIOM_TYPE_META_LOCATION = 0x0A,
+    AXIOM_TYPE_META_IDENTITY = 0x0B
+    /* 0x0C–0x7F: Reserved  |  0x80–0xFF: User-defined */
 } axiom_type_t;
 ```
 
@@ -298,6 +304,15 @@ Each tag is a 1-byte type marker prefixed before the value in the binary payload
 ```
 
 Used by the encoder to account for the fixed size of type tag bytes in overflow checks.
+
+### 11.7 Metadata Identity Event
+
+```c
+#define AXIOM_METADATA_ID_LEN 8u
+void axiom_emit_metadata_id(const uint8_t metadata_id[AXIOM_METADATA_ID_LEN]);
+```
+
+The generated `axiom_metadata_id_generated.h` header exposes `AXIOM_EMIT_METADATA_ID()`. Emit it once in a captured trace before semantic events when decoding with `--bundle` or `--bundle-store`.
 
 ---
 

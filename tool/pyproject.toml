@@ -6,29 +6,28 @@ build-backend = "setuptools.build_meta"
 name = "axiomtrace-tools"
 version = "1.0.0"
 description = "AxiomTrace binary frame decoder and tools"
-readme = "README.md"
-license = {text = "MIT"}
-requires-python = ">=3.8"
+readme = {text = "AxiomTrace host-side decoder and metadata bundle tools. See the project toolchain ecosystem specification for stable workflow and contracts.", content-type = "text/markdown"}
+license = {text = "GPL-3.0-only"}
+requires-python = ">=3.12"
 authors = [
     {name = "AxiomTrace Team"}
 ]
 classifiers = [
     "Programming Language :: Python :: 3",
-    "Programming Language :: Python :: 3.8",
-    "Programming Language :: Python :: 3.9",
-    "Programming Language :: Python :: 3.10",
-    "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
-    "License :: OSI Approved :: MIT License",
+    "License :: OSI Approved :: GNU General Public License v3 (GPLv3)",
     "Operating System :: OS Independent",
     "Development Status :: 4 - Beta",
     "Environment :: Console",
 ]
 
-dependencies = ["click>=7.0"]
+dependencies = ["click>=7.0", "PyYAML>=6.0"]
 
 [project.scripts]
-axiom-decoder = "axiomtrace_tools.cli:main"
+axiom-decoder = "axiomtrace_tools.cli:decoder_main"
+axiom-codegen = "axiomtrace_tools.cli:codegen_main"
+axiom-bundle = "axiomtrace_tools.cli:bundle_main"
+axiom-validate = "axiomtrace_tools.cli:validate_main"
 
 [tool.setuptools.packages.find]
 where = ["src"]

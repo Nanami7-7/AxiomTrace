@@ -1,8 +1,11 @@
 """AxiomTrace Python tools tests - CLI, decoder, auto-search."""
 
+import binascii
 import json
 import os
+import shutil
 import struct
+import subprocess
 import sys
 from pathlib import Path
 
@@ -12,37 +15,84 @@ import pytest
 sys.path.insert(0, str(Path(__file__).parent.parent / "tool" / "src"))
 
 from axiomtrace_tools.cli import main as cli_main
+from axiomtrace_tools.bundle import generate_bundle, load_bundle
+from axiomtrace_tools.capsule import decode_capsule, render_capsule_report
+from axiomtrace_tools.codegen import generate_assets, validate_event_source
+from axiomtrace_tools.dictionary import load_dictionary
 from axiomtrace_tools.decoder import (
     FRAME_SYNC,
     WIRE_VERSION_MAJOR,
     crc16_ccitt_false,
     decode_frame,
     decode_stream,
+    extract_metadata_id,
     find_dictionary,
 )
+from axiomtrace_tools.render import render_json, render_text
+from axiomtrace_tools.validator import validate_bundle, validate_golden, validate_trace_bundle
 
 
 # =============================================================================
 # Fixtures
 # =============================================================================
 
+def make_frame(
+    payload=b"",
+    *,
+    major=1,
+    minor=1,
+    level=0x01,
+    module_id=0x10,
+    event_id=0x0001,
+    seq=1,
+    timestamp_delta=0,
+):
+    """Create a raw frame with the current v1.1 timestamp layout or legacy v1.0."""
+    frame = bytearray()
+    frame.append(FRAME_SYNC)
+    frame.append((major << 4) | minor)
+    frame.append(level)
+    frame.append(module_id)
+    frame.extend(struct.pack("<H", event_id))
+    frame.extend(struct.pack("<H", seq))
+    if minor >= 1:
+        assert 0 <= timestamp_delta <= 0x7F
+        frame.append(timestamp_delta)
+    frame.append(len(payload))
+    frame.extend(payload)
+    crc = crc16_ccitt_false(bytes(frame))
+    frame.extend(struct.pack("<H", crc))
+    return bytes(frame)
+
+
 @pytest.fixture
 def valid_frame():
-    """Create a minimal valid frame for testing."""
-    # Build a minimal valid frame: sync(1) + version(1) + level(1) + module(1)
-    # + event_id(2) + seq(2) + payload_len(1) + payload(0) + crc(2) = 11 bytes
-    frame = bytearray()
-    frame.append(FRAME_SYNC)  # sync
-    frame.append((WIRE_VERSION_MAJOR << 4) | 0x01)  # version: major=1, minor=1
-    frame.append(0x01)  # level=1 (INFO), reserved=0
-    frame.append(0x10)  # module_id=0x10
-    frame.extend(struct.pack('<H', 0x0001))  # event_id=0x0001
-    frame.extend(struct.pack('<H', 1))  # seq=1
-    frame.append(0)  # payload_len=0
-    # CRC covers header + payload (sync through payload_len + payload)
-    crc = crc16_ccitt_false(bytes(frame))
-    frame.extend(struct.pack('<H', crc))
-    return bytes(frame)
+    """Create a minimal valid v1.1 frame."""
+    return make_frame()
+
+
+def identity_frame(metadata_id: str) -> bytes:
+    return make_frame(
+        bytes([0x0B]) + bytes.fromhex(metadata_id),
+        module_id=0,
+        event_id=2,
+        seq=0,
+    )
+
+
+def make_capsule(frames: bytes, firmware_hash: bytes = b"\x01\x23\x45\x67") -> bytes:
+    capsule = bytearray(b"AXCP")
+    capsule.append(1)
+    capsule.extend(b"\0\0")
+    capsule.extend(bytes([1, 2]))
+    capsule.extend(firmware_hash)
+    capsule.extend(struct.pack("<I", 0))
+    capsule.extend(bytes([0, 0, 1, 0]))
+    capsule.extend(frames)
+    capsule_len = len(capsule) + 4
+    struct.pack_into("<H", capsule, 5, capsule_len)
+    capsule.extend(struct.pack("<I", binascii.crc32(capsule) & 0xFFFFFFFF))
+    return bytes(capsule)
 
 
 @pytest.fixture
@@ -64,6 +114,31 @@ def sample_dictionary():
         "events": {
             "0x10:0x0001": {"name": "TEST_EVENT", "description": "Test event"}
         }
+    }
+
+
+@pytest.fixture
+def sample_events_source():
+    """Sample event source compatible with axiom-codegen."""
+    return {
+        "version": "1.0",
+        "dictionary": {
+            "modules": [
+                {
+                    "id": 0x10,
+                    "name": "TEST",
+                    "events": [
+                        {
+                            "id": 0x0001,
+                            "name": "VALUE",
+                            "level": "INFO",
+                            "text": "value={value:u8}",
+                            "args": [{"name": "value", "type": "u8"}],
+                        }
+                    ],
+                }
+            ]
+        },
     }
 
 
@@ -89,19 +164,7 @@ class TestDecoder:
 
     def test_decode_frame_invalid_version(self):
         """Test decoding frame with wrong version."""
-        # Create frame with version 2.x
-        frame = bytearray()
-        frame.append(FRAME_SYNC)
-        frame.append((2 << 4) | 0x01)  # major=2
-        frame.append(0x01)  # level=INFO
-        frame.append(0x10)  # module_id
-        frame.extend(struct.pack('<H', 0x0001))  # event_id
-        frame.extend(struct.pack('<H', 1))  # seq
-        frame.append(0)  # payload_len
-        crc = crc16_ccitt_false(bytes(frame))
-        frame.extend(struct.pack('<H', crc))
-
-        result, _ = decode_frame(bytes(frame))
+        result, _ = decode_frame(make_frame(major=2))
         assert 'error' in result
         assert result['error'] == 'VERSION_MISMATCH'
 
@@ -125,6 +188,17 @@ class TestDecoder:
         result = decode_stream(stream)
         assert len(result) == 2
         assert all('error' not in r for r in result)
+
+    def test_decode_legacy_v1_0_without_timestamp(self):
+        result, _ = decode_frame(make_frame(minor=0))
+        assert "error" not in result
+        assert result["version"] == (1, 0)
+        assert "timestamp_delta" not in result
+
+    def test_extract_metadata_identity(self):
+        metadata_id = "0123456789abcdef"
+        frames = decode_stream(identity_frame(metadata_id))
+        assert extract_metadata_id(frames) == metadata_id
 
     def test_crc16_ccitt_false(self):
         """Test CRC calculation."""
@@ -249,6 +323,240 @@ class TestCLI:
         assert 'output=json' in result.output
 
 
+class TestToolchain:
+    """Tests for dictionary rendering, codegen, and bundle generation."""
+
+    def test_dictionary_render_text(self, tmp_path, sample_events_source):
+        dict_dir = tmp_path / "generated"
+        source = tmp_path / "events.json"
+        source.write_text(json.dumps(sample_events_source), encoding="utf-8")
+        generate_assets(source, dict_dir)
+
+        dictionary = load_dictionary(dict_dir / "dictionary.json")
+        frame = {
+            "level": "INFO",
+            "module_id": 0x10,
+            "event_id": 0x0001,
+            "seq": 7,
+            "payload": [{"type": "u8", "value": 42}],
+            "crc": 0,
+        }
+
+        text = render_text([frame], dictionary)
+        assert "[TEST] VALUE" in text
+        assert "value=42" in text
+
+    def test_codegen_generates_assets(self, tmp_path, sample_events_source):
+        source = tmp_path / "events.json"
+        out_dir = tmp_path / "generated"
+        source.write_text(json.dumps(sample_events_source), encoding="utf-8")
+
+        generated = generate_assets(source, out_dir)
+
+        assert generated["dictionary"].is_file()
+        assert generated["events_header"].is_file()
+        assert generated["modules_header"].is_file()
+        assert "AXIOM_EVENT_TEST_VALUE" in generated["events_header"].read_text(encoding="utf-8")
+
+    def test_bundle_generate_dictionary_only(self, tmp_path, sample_events_source):
+        source = tmp_path / "events.json"
+        bundle_dir = tmp_path / "axiomtrace-bundle"
+        source.write_text(json.dumps(sample_events_source), encoding="utf-8")
+
+        generated = generate_bundle(source, bundle_dir)
+        bundle = load_bundle(generated["manifest"])
+
+        assert generated["manifest"].is_file()
+        assert generated["dictionary"].is_file()
+        assert bundle.metadata_id
+        validate_bundle(generated["manifest"])
+        assert bundle.load_dictionary().find_event(0x10, 0x0001).event_name == "VALUE"
+
+    def test_decoder_cli_bundle_json(self, tmp_path, sample_events_source):
+        from click.testing import CliRunner
+
+        source = tmp_path / "events.json"
+        bundle_dir = tmp_path / "axiomtrace-bundle"
+        input_file = tmp_path / "input.bin"
+        source.write_text(json.dumps(sample_events_source), encoding="utf-8")
+        generate_bundle(source, bundle_dir)
+        bundle = load_bundle(bundle_dir)
+        input_file.write_bytes(
+            identity_frame(bundle.metadata_id)
+            + make_frame(bytes([0x01, 42]), seq=1)
+        )
+
+        runner = CliRunner()
+        result = runner.invoke(cli_main, [str(input_file), "--bundle", str(bundle_dir), "--format", "json"])
+
+        assert result.exit_code == 0
+        decoded = json.loads(result.output[result.output.find("["):])
+        assert decoded[1]["module"] == "TEST"
+        assert decoded[1]["event"] == "VALUE"
+        assert decoded[1]["args"] == {"value": 42}
+
+    def test_bundle_store_selects_metadata_and_resolves_location(self, tmp_path, sample_events_source):
+        from click.testing import CliRunner
+
+        source = tmp_path / "events.json"
+        source_id_map = tmp_path / "source_ids.json"
+        store = tmp_path / "store"
+        bundle_dir = store / "candidate"
+        input_file = tmp_path / "input.bin"
+        source.write_text(json.dumps(sample_events_source), encoding="utf-8")
+        source_id_map.write_text(
+            json.dumps({"files": [{"id": 1, "path": "src/control.c"}]}),
+            encoding="utf-8",
+        )
+        generate_bundle(
+            source,
+            bundle_dir,
+            source_id_map=source_id_map,
+            location_mode="file_id",
+        )
+        bundle = load_bundle(bundle_dir)
+        payload = bytes([0x01, 42, 0x0A, 0x02, 0x01, 0x00, 0x2A, 0x00])
+        input_file.write_bytes(identity_frame(bundle.metadata_id) + make_frame(payload, seq=1))
+
+        runner = CliRunner()
+        result = runner.invoke(cli_main, [str(input_file), "--bundle-store", str(store), "--format", "json"])
+
+        assert result.exit_code == 0, result.output
+        decoded = json.loads(result.output[result.output.find("["):])
+        assert decoded[1]["location"]["file"] == "src/control.c"
+        assert decoded[1]["location"]["line"] == 42
+
+    def test_bundle_semantics_reject_identity_mismatch_but_raw_survives(self, tmp_path, sample_events_source):
+        from click.testing import CliRunner
+
+        source = tmp_path / "events.json"
+        bundle_dir = tmp_path / "axiomtrace-bundle"
+        input_file = tmp_path / "input.bin"
+        source.write_text(json.dumps(sample_events_source), encoding="utf-8")
+        generate_bundle(source, bundle_dir)
+        input_file.write_bytes(identity_frame("0000000000000000") + make_frame(bytes([0x01, 42])))
+
+        runner = CliRunner()
+        semantic = runner.invoke(cli_main, [str(input_file), "--bundle", str(bundle_dir), "--format", "json"])
+        raw = runner.invoke(cli_main, [str(input_file), "--bundle", str(bundle_dir), "--format", "raw"])
+
+        assert semantic.exit_code != 0
+        assert "does not match bundle" in semantic.output
+        assert raw.exit_code == 0
+
+    def test_bundle_semantics_require_identity_event(self, tmp_path, sample_events_source):
+        from click.testing import CliRunner
+
+        source = tmp_path / "events.json"
+        bundle_dir = tmp_path / "axiomtrace-bundle"
+        input_file = tmp_path / "input.bin"
+        source.write_text(json.dumps(sample_events_source), encoding="utf-8")
+        generate_bundle(source, bundle_dir)
+        input_file.write_bytes(make_frame(bytes([0x01, 42])))
+
+        result = CliRunner().invoke(
+            cli_main,
+            [str(input_file), "--bundle", str(bundle_dir), "--format", "json"],
+        )
+        assert result.exit_code != 0
+        assert "metadata identity event" in result.output
+
+    def test_bundle_validator_rejects_payload_type_mismatch(self, tmp_path, sample_events_source):
+        source = tmp_path / "events.json"
+        bundle_dir = tmp_path / "axiomtrace-bundle"
+        source.write_text(json.dumps(sample_events_source), encoding="utf-8")
+        generate_bundle(source, bundle_dir)
+        bundle = load_bundle(bundle_dir)
+        frames = decode_stream(identity_frame(bundle.metadata_id) + make_frame(bytes([0x03, 42, 0])))
+
+        with pytest.raises(ValueError, match="payload type mismatch"):
+            validate_trace_bundle(frames, bundle)
+
+    def test_capsule_report_matches_embedded_metadata_identity(self, tmp_path, sample_events_source):
+        source = tmp_path / "events.json"
+        bundle_dir = tmp_path / "axiomtrace-bundle"
+        source.write_text(json.dumps(sample_events_source), encoding="utf-8")
+        generate_bundle(source, bundle_dir)
+        bundle = load_bundle(bundle_dir)
+        report = decode_capsule(make_capsule(identity_frame(bundle.metadata_id)))
+
+        rendered = json.loads(
+            render_capsule_report(report, "json", bundle_metadata_id=bundle.metadata_id)
+        )
+        assert rendered["trace_metadata_id"] == bundle.metadata_id
+        assert rendered["metadata_identity_matches_bundle"] is True
+        assert rendered["firmware_hash"] == "01234567"
+
+        with pytest.raises(ValueError, match="does not match bundle"):
+            render_capsule_report(report, "json", bundle_metadata_id="0000000000000000")
+
+    def test_codegen_accounts_for_location_metadata_overhead(self):
+        args = [{"name": f"a{idx}", "type": "u32"} for idx in range(25)]
+        source = {
+            "dictionary": {
+                "modules": [{
+                    "id": 1,
+                    "name": "TEST",
+                    "events": [{
+                        "id": 1,
+                        "name": "LARGE",
+                        "text": " ".join(f"{{a{idx}:u32}}" for idx in range(25)),
+                        "args": args,
+                    }],
+                }]
+            }
+        }
+        validate_event_source(source, location_mode="none")
+        with pytest.raises(ValueError, match="payload exceeds"):
+            validate_event_source(source, location_mode="file_id")
+
+    @pytest.mark.skipif(
+        shutil.which("cmake") is None or shutil.which("ninja") is None,
+        reason="CMake/Ninja toolchain is required",
+    )
+    @pytest.mark.parametrize("location_mode", ["file_id", "hash"])
+    def test_cmake_fixture_restores_locations_from_two_sources(self, tmp_path, location_mode):
+        from click.testing import CliRunner
+
+        repository = Path(__file__).parent.parent.resolve()
+        fixture = repository / "tests" / "cmake" / "bundle_fixture"
+        build = tmp_path / f"fixture-build-{location_mode}"
+        trace = tmp_path / "fixture.bin"
+        subprocess.run(
+            [
+                "cmake", "-S", str(fixture), "-B", str(build), "-G", "Ninja",
+                f"-DAXIOMTRACE_ROOT={repository.as_posix()}",
+                "-DCMAKE_EXPORT_COMPILE_COMMANDS=ON",
+                f"-DAXIOM_FIXTURE_LOCATION_MODE={location_mode}",
+            ],
+            check=True,
+            capture_output=True,
+            text=True,
+        )
+        subprocess.run(
+            ["cmake", "--build", str(build), "--target", "fixture_axiom_bundle"],
+            check=True,
+            capture_output=True,
+            text=True,
+        )
+        executable = build / ("fixture.exe" if os.name == "nt" else "fixture")
+        subprocess.run([str(executable), str(trace)], check=True)
+
+        result = CliRunner().invoke(
+            cli_main,
+            [str(trace), "--bundle-store", str(build), "--format", "json"],
+        )
+        assert result.exit_code == 0, result.output
+        decoded = json.loads(result.output[result.output.find("["):])
+        locations = {
+            event["event"]: event["location"]["file"]
+            for event in decoded
+            if event.get("event") in {"FROM_A", "FROM_B"}
+        }
+        assert locations["FROM_A"].endswith("emitter_a.c")
+        assert locations["FROM_B"].endswith("emitter_b.c")
+
+
 # =============================================================================
 # Integration-style Tests (no network)
 # =============================================================================
@@ -256,21 +564,34 @@ class TestCLI:
 class TestIntegration:
     """Integration tests that don't require network or external files."""
 
+    def test_legacy_decoder_wrapper_uses_current_wire_parser(self, tmp_path):
+        repository = Path(__file__).parent.parent.resolve()
+        input_file = tmp_path / "legacy-v11.bin"
+        input_file.write_bytes(make_frame())
+        result = subprocess.run(
+            [
+                sys.executable,
+                str(repository / "tool" / "decoder" / "axiom_decoder.py"),
+                str(input_file),
+                "--output",
+                "json",
+            ],
+            check=True,
+            capture_output=True,
+            text=True,
+        )
+        decoded = json.loads(result.stdout)
+        assert decoded[0]["version"] == [1, 1]
+        assert decoded[0]["timestamp_delta"] == 0
+
+    def test_tracked_golden_vectors_decode(self):
+        repository = Path(__file__).parent.parent.resolve()
+        checked = validate_golden(repository / "tool" / "golden")
+        assert len(checked) >= 4
+
     def test_frame_encoding_decoding_roundtrip(self):
         """Test that frames can be encoded and decoded correctly."""
-        # Manually construct a known frame
-        frame = bytearray()
-        frame.append(FRAME_SYNC)
-        frame.append((1 << 4) | 0x01)  # v1.1
-        frame.append(0x02)  # WARN level
-        frame.append(0xAB)  # module_id
-        frame.extend(struct.pack('<H', 0x1234))  # event_id
-        frame.extend(struct.pack('<H', 99))  # seq
-        frame.append(0)  # payload_len=0
-        crc = crc16_ccitt_false(bytes(frame))
-        frame.extend(struct.pack('<H', crc))
-
-        result, _ = decode_frame(bytes(frame))
+        result, _ = decode_frame(make_frame(level=0x02, module_id=0xAB, event_id=0x1234, seq=99))
         assert result['level'] == 'WARN'
         assert result['module_id'] == 0xAB
         assert result['event_id'] == 0x1234
@@ -278,21 +599,7 @@ class TestIntegration:
 
     def test_decode_with_payload(self):
         """Test decoding frame with payload."""
-        # Build frame with u8 payload: tag=0x01, value=42
-        frame = bytearray()
-        frame.append(FRAME_SYNC)
-        frame.append((1 << 4) | 0x01)  # v1.1
-        frame.append(0x01)  # INFO level
-        frame.append(0x01)  # module_id
-        frame.extend(struct.pack('<H', 0x0001))  # event_id
-        frame.extend(struct.pack('<H', 1))  # seq
-        frame.append(2)  # payload_len=2 (tag + value)
-        frame.append(0x01)  # tag: u8
-        frame.append(42)  # value: 42
-        crc = crc16_ccitt_false(bytes(frame))
-        frame.extend(struct.pack('<H', crc))
-
-        result, _ = decode_frame(bytes(frame))
+        result, _ = decode_frame(make_frame(bytes([0x01, 42]), module_id=0x01))
         assert 'error' not in result
         assert len(result['payload']) == 1
         assert result['payload'][0]['type'] == 'u8'

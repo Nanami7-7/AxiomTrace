@@ -31,7 +31,7 @@ Unlike traditional loggers that assemble frames on the stack, AxiomTrace writes 
 Supports high-resolution relative counters for precise timing analysis, while allowing periodic Unix timestamp injection for real-world wall-clock alignment on the host side.
 
 ### 🎨 Rich Host-side Semantics
-Keep your firmware binary lean by storing only raw IDs and integers. Use the **Host Dictionary** to map IDs back to human-readable text, enums, physical units, and rich metadata.
+Keep your firmware binary lean by storing only raw IDs and integers. Use the **Host Dictionary** and standard **Metadata Bundle** to map IDs back to human-readable text, source locations, enums, physical units, and rich metadata.
 
 ---
 
@@ -54,7 +54,7 @@ AxiomTrace/
   Frontend Plane   AX_LOG / AX_EVT / AX_PROBE / AX_FAULT / AX_KV
   Core Plane       Direct-to-Ring (D2R) → Incremental CRC → Filter → Bit-Mask Ring
   Backend Plane    UART / RTT / USB / SWO / Flash Capsule / CAN-FD
-  Tool Plane       Python Decoder / Text Render / JSON Export / Golden Test
+  Tool Plane       Metadata Bundle / Python Decoder / Text Render / JSON Export / Golden Test
 ```
 
 ---
@@ -73,11 +73,20 @@ ctest --test-dir build --output-on-failure
 
 ```bash
 # Install the decoder
-pip install ./tool
+python -m pip install -e ./tool
 
-# Decode a binary stream
-axiom-decoder trace.bin -d events.yaml -o text
+# Build and test with the local CMake/Ninja toolchain
+cmake -B build -S . -G Ninja -DAXIOM_BUILD_TESTS=ON -DCMAKE_EXPORT_COMPILE_COMMANDS=ON
+cmake --build build
+ctest --test-dir build --output-on-failure
+
+# Decode with the standard metadata bundle
+axiom-codegen --events events.yaml --out build/generated
+axiom-bundle generate --events events.yaml --compile-db build/compile_commands.json --out build/axiomtrace-bundle
+axiom-decoder trace.bin --bundle build/axiomtrace-bundle --format text
 ```
+
+Bundle-backed semantic decode requires the trace to emit the generated metadata identity once, using `AXIOM_EMIT_METADATA_ID()` from `axiom_metadata_id_generated.h`. The CMake helper described in the toolchain specification generates and wires this header.
 
 ---
 
@@ -90,6 +99,7 @@ axiom-decoder trace.bin -d events.yaml -o text
 | [Wire Format](spec/wire_format.md) | Binary serialization and framing (COBS) |
 | [Event Model](spec/event_model.md) | Header layout, timestamp, and D2R mechanics |
 | [Dictionary Spec](spec/event_dictionary.md) | YAML schema and Enum mapping |
+| [Toolchain Ecosystem](spec/toolchain_ecosystem_design.md) | Decoder, bundle, codegen, validation, and host-side workflow standards |
 | [Rules & Policy](docs/project/RULES.md) | Engineering standards and hot-path mandates |
 | [Fault Capsule](spec/fault_capsule.md) | Fault freeze, commit, and non-volatile storage |
 | [Porting Guide](docs/reference/porting_guide.md) | How to port AxiomTrace to new MCU platforms |

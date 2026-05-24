@@ -184,6 +184,60 @@ static inline void axiom_enc_bytes(uint8_t *buf, uint8_t *pos, const uint8_t *da
     }
 }
 
+/* Metadata: [tag][mode=FILE_ID][file_id:u16][line:u16]. */
+static inline void axiom_enc_meta_location_file_id(uint8_t *buf, uint8_t *pos,
+                                                    uint16_t file_id, uint16_t line) {
+    if (*pos + 6u > AXIOM_MAX_PAYLOAD_LEN) {
+#if AXIOM_ENCODE_OVERFLOW_DETECTION
+        axiom_encode_overflow = true;
+#endif
+        return;
+    }
+    buf[(*pos)++] = AXIOM_TYPE_META_LOCATION;
+    buf[(*pos)++] = AXIOM_CFG_LOCATION_MODE_FILE_ID;
+    buf[(*pos)++] = (uint8_t)(file_id & 0xFFu);
+    buf[(*pos)++] = (uint8_t)(file_id >> 8);
+    buf[(*pos)++] = (uint8_t)(line & 0xFFu);
+    buf[(*pos)++] = (uint8_t)(line >> 8);
+}
+
+/* Metadata: [tag][mode=HASH][file_hash:u16][line:u16][func_hash:u16]. */
+static inline void axiom_enc_meta_location_hash(uint8_t *buf, uint8_t *pos,
+                                                uint16_t file_hash, uint16_t line,
+                                                uint16_t func_hash) {
+    if (*pos + 8u > AXIOM_MAX_PAYLOAD_LEN) {
+#if AXIOM_ENCODE_OVERFLOW_DETECTION
+        axiom_encode_overflow = true;
+#endif
+        return;
+    }
+    buf[(*pos)++] = AXIOM_TYPE_META_LOCATION;
+    buf[(*pos)++] = AXIOM_CFG_LOCATION_MODE_HASH;
+    buf[(*pos)++] = (uint8_t)(file_hash & 0xFFu);
+    buf[(*pos)++] = (uint8_t)(file_hash >> 8);
+    buf[(*pos)++] = (uint8_t)(line & 0xFFu);
+    buf[(*pos)++] = (uint8_t)(line >> 8);
+    buf[(*pos)++] = (uint8_t)(func_hash & 0xFFu);
+    buf[(*pos)++] = (uint8_t)(func_hash >> 8);
+}
+
+#define AXIOM_METADATA_ID_LEN 8u
+
+/* Metadata: [tag][metadata_id:8]. This selects host decode metadata, not an ELF image. */
+static inline void axiom_enc_meta_identity(uint8_t *buf, uint8_t *pos,
+                                           const uint8_t metadata_id[AXIOM_METADATA_ID_LEN]) {
+    if (*pos + 9u > AXIOM_MAX_PAYLOAD_LEN) {
+#if AXIOM_ENCODE_OVERFLOW_DETECTION
+        axiom_encode_overflow = true;
+#endif
+        return;
+    }
+    buf[(*pos)++] = AXIOM_TYPE_META_IDENTITY;
+    for (uint8_t i = 0; i < AXIOM_METADATA_ID_LEN; ++i) {
+        buf[(*pos)++] = metadata_id[i];
+    }
+}
+
 /* ---------------------------------------------------------------------------
  * C11 _Generic dispatcher for a single argument
  * Note: double literals (e.g., 3.14) are NOT supported.

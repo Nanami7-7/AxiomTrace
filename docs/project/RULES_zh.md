@@ -97,7 +97,7 @@ AxiomTrace 是一个 **MCU 裸机可观测微内核**。我们的坚定目标：
 | 规则 | 说明 |
 | :--- | :--- |
 | Backend 零侵入扩展 | 新增 backend 只需实现 `axiom_backend_t` 接口并调用 `axiom_backend_register()`；不允许修改 `core/` 或 `frontend/` 任何文件。 |
-| Payload 类型可扩展 | 新增 type tag 使用 `0x0A~0x7F` 区间；必须同步更新：encoder、decoder、spec、golden tests、docs；旧 decoder 遇到未知 type tag 应跳过并标记 `UNKNOWN_TYPE` 而非崩溃。 |
+| Payload 类型可扩展 | `0x0A` 与 `0x0B` 已保留给定位和元数据身份；后续标准 type tag 使用剩余 `0x0C~0x7F` 区间。必须同步更新 encoder、decoder、spec、golden tests、docs；旧 decoder 遇到未知 type tag 应跳过并标记 `UNKNOWN_TYPE` 而非崩溃。 |
 | Profile 可裁剪 | `DEV / FIELD / PROD` Profile 通过宏控制编译期裁剪；新增 Profile 需在 `frontend/` 中增加对应宏分支，不得改变已有 Profile 语义。 |
 | Port 层弱符号 | 所有 port 函数提供 `__attribute__((weak))` 默认实现；新增 port（如新 MCU 系列）只需覆盖所需函数，无需修改库代码。 |
 | 工具链可扩展 | decoder 采用插件化字典加载（支持 JSON/YAML/X-Macro 提取）；新增导出格式（如 CSV、PCAP）通过新增 render 模块实现。 |
@@ -116,6 +116,17 @@ AxiomTrace 是一个 **MCU 裸机可观测微内核**。我们的坚定目标：
 | 示例全覆盖 | 每个 Frontend API、每个 Backend Template、每个 Profile 必须有独立可编译的 example。 |
 | 文档同步 | 任何 API 变更必须同步更新 `../../spec/api_reference.md`；任何协议变更必须同步更新 `../../spec/wire_format.md` 和 decoder。 |
 | 单文件库自动化 | 提供 `../../tool/scripts/amalgamate.py`，一键将多文件库合并为单文件 `axiomtrace.h`；合并产物必须通过全部 host tests。 |
+
+### 文档治理
+
+| 规则 | 说明 |
+| :--- | :--- |
+| 每个主题只有一个主文档 | API 归 `spec/api_reference.md`，wire 数据归 `spec/wire_format.md`，事件语义归 `spec/event_model.md`，工具链和 bundle 归 `spec/toolchain_ecosystem_design.md`，项目流程归 `docs/project/*.md`。 |
+| 禁止临时 Markdown | 除非主题无法并入现有主文档，并且新文件已从 README 和 `docs/reference/DIR_STRUCTURE.md` 建立入口，否则不得新增 `.md` 文件。 |
+| README 只做入口 | README 负责定位、快速开始和文档索引，不重复 schema、长 CLI 契约或实现计划。 |
+| 中英文同步 | 已有中英文版本的公开文档必须在同一次变更中同步更新。 |
+| 工具细节优先放 CLI help | CLI 参数细节优先写在工具 help/docstring 中；Markdown 描述稳定契约和工作流，不重复堆参数。 |
+| 大范围工作先更新路线 | 大型工具链或文档规范化工作，必须先更新 `PLAN.md` / `ROUTE.md`，让范围在实现前可见。 |
 
 ---
 

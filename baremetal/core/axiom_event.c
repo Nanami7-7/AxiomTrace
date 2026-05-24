@@ -203,7 +203,7 @@ void axiom_write(axiom_level_t level, uint8_t module_id, uint16_t event_id,
         summary[sp++] = AXIOM_TYPE_U16;
         summary[sp++] = (uint8_t)(cached_evt & 0xFFu);
         summary[sp++] = (uint8_t)(cached_evt >> 8);
-        axiom_write(AXIOM_LEVEL_WARN, 0x00, 0x0001, summary, sp);
+        axiom_write(AXIOM_LEVEL_WARN, AXIOM_SYSTEM_MODULE_ID, AXIOM_SYSTEM_EVENT_DROP_SUMMARY, summary, sp);
     }
 }
 
@@ -297,7 +297,7 @@ void axiom_write(axiom_level_t level, uint8_t module_id, uint16_t event_id,
         summary[sp++] = AXIOM_TYPE_U16;
         summary[sp++] = (uint8_t)(cached_evt & 0xFFu);
         summary[sp++] = (uint8_t)(cached_evt >> 8);
-        axiom_write(AXIOM_LEVEL_WARN, 0x00, 0x0001, summary, sp);
+        axiom_write(AXIOM_LEVEL_WARN, AXIOM_SYSTEM_MODULE_ID, AXIOM_SYSTEM_EVENT_DROP_SUMMARY, summary, sp);
     }
 }
 

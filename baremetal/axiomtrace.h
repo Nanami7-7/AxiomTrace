@@ -1,5 +1,5 @@
 /* ============================================================================
- * AxiomTrace v0.1 — Single-File Unified Header
+ * AxiomTrace v0.7.0 - Single-File Unified Header
  * ============================================================================
  * Include this file to get all public APIs:
  *   - Core:     axiom_init(), axiom_write()

@@ -3,17 +3,16 @@ Name: axiomtrace-tools
 Version: 1.0.0
 Summary: AxiomTrace binary frame decoder and tools
 Author: AxiomTrace Team
-License: MIT
+License: GPL-3.0-only
 Classifier: Programming Language :: Python :: 3
-Classifier: Programming Language :: Python :: 3.8
-Classifier: Programming Language :: Python :: 3.9
-Classifier: Programming Language :: Python :: 3.10
-Classifier: Programming Language :: Python :: 3.11
 Classifier: Programming Language :: Python :: 3.12
-Classifier: License :: OSI Approved :: MIT License
+Classifier: License :: OSI Approved :: GNU General Public License v3 (GPLv3)
 Classifier: Operating System :: OS Independent
 Classifier: Development Status :: 4 - Beta
 Classifier: Environment :: Console
-Requires-Python: >=3.8
+Requires-Python: >=3.12
 Description-Content-Type: text/markdown
 Requires-Dist: click>=7.0
+Requires-Dist: PyYAML>=6.0
+
+AxiomTrace host-side decoder and metadata bundle tools. See the project toolchain ecosystem specification for stable workflow and contracts.

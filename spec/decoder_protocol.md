@@ -2,7 +2,7 @@
 
 # AxiomTrace Decoder Protocol Specification
 
-> Version: v1.0 | Status: **Building (v0.7-toolchain finalized)**
+> Version: v1.1 | Status: **Building (v0.7-toolchain finalized)**
 
 ---
 
@@ -12,9 +12,10 @@ The AxiomTrace decoder toolchain runs on the host (Linux/macOS/Windows) and conv
 
 **Components**:
 
-- `axiom_decoder.py` — Parses binary frames into structured objects
-- `axiom_render.py` — Renders structured objects to text or JSON
-- `dict_loader.py` — Loads and validates event dictionaries
+- `axiom-decoder` — Parses binary frames and renders text/json/jsonl/raw output
+- `axiom-codegen` — Generates C headers and `dictionary.json` from event definitions
+- `axiom-bundle` — Creates the standard metadata bundle
+- `axiom-validate` — Validates dictionaries, event sources, bundles, and golden inputs
 
 ---
 
@@ -22,10 +23,10 @@ The AxiomTrace decoder toolchain runs on the host (Linux/macOS/Windows) and conv
 
 ### 2.1 Raw Binary Stream
 
-A concatenation of complete v1.0 frames. For UART/USB transports, the stream is COBS-encoded with `0x00` delimiters.
+A concatenation of complete v1.1 frames; legacy v1.0 frames remain structurally decodable. For UART/USB transports, the stream is COBS-encoded with `0x00` delimiters.
 
 ```bash
-python -m axiom_decoder --input trace.bin --format binary --dict dictionary.json
+axiom-decoder trace.bin --bundle build/axiomtrace-bundle --format text
 ```
 
 ### 2.2 Memory Dump
@@ -39,7 +40,7 @@ A raw memory dump containing the ring buffer metadata + raw ring data:
 ```
 
 ```bash
-python -m axiom_decoder --input trace_ram.bin --format memory --dict dictionary.json
+axiom-decoder trace_ram.bin --bundle build/axiomtrace-bundle --format raw
 ```
 
 ### 2.3 Capsule Binary
@@ -47,7 +48,7 @@ python -m axiom_decoder --input trace_ram.bin --format memory --dict dictionary.
 A fault capsule committed to Flash. See `spec/fault_capsule.md` for layout.
 
 ```bash
-python -m axiom_decoder --input capsule.bin --format capsule --dict dictionary.json
+axiom-decoder capsule.bin --bundle build/axiomtrace-bundle --format raw
 ```
 
 ---
@@ -140,19 +141,20 @@ Markdown or HTML report containing:
 
 ```bash
 # Decode binary to text
-python -m axiom_decoder trace.bin --dict dict.json --output text
+axiom-decoder trace.bin --bundle build/axiomtrace-bundle --format text
 
 # Decode binary to JSON
-python -m axiom_decoder trace.bin --dict dict.json --output json > trace.json
+axiom-decoder trace.bin --bundle build/axiomtrace-bundle --format json > trace.json
 
-# Decode capsule to report
-python -m axiom_decoder capsule.bin --dict dict.json --output report --format capsule
+# Compatibility path using only dictionary.json
+axiom-decoder trace.bin --dictionary dictionary.json --format jsonl
 
 # Validate dictionary against golden frames
-python -m axiom_decoder --validate-dict dict.json --golden golden/
+axiom-validate --bundle build/axiomtrace-bundle --golden golden/
 
-# Update golden frames from encoder
-python tool/golden/update_golden.py --output golden/
+# Generate code and bundle
+axiom-codegen --events events.yaml --out build/generated
+axiom-bundle generate --events events.yaml --compile-db build/compile_commands.json --out build/axiomtrace-bundle
 ```
 
 ---

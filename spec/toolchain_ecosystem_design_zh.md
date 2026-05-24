@@ -12,11 +12,12 @@
 
 1. [YAML 字典 Schema](#1-yaml-字典-schema)
 2. [Codegen 工具设计](#2-codegen-工具设计)
-3. [Decoder 工具设计](#3-decoder-工具设计)
-4. [Validator 工具设计](#4-validator-工具设计)
-5. [Benchmark 工具设计](#5-benchmark-工具设计)
-6. [RTOS / Linux 接入文档框架](#6-rtos--linux-接入文档框架)
-7. [一键式工作流体验总结](#7-一键式工作流体验总结)
+3. [元数据包标准](#3-元数据包标准)
+4. [Decoder 工具设计](#4-decoder-工具设计)
+5. [Validator 工具设计](#5-validator-工具设计)
+6. [Benchmark 工具设计](#6-benchmark-工具设计)
+7. [RTOS / Linux 接入文档框架](#7-rtos--linux-接入文档框架)
+8. [一键式工作流体验总结](#8-一键式工作流体验总结)
 
 ---
 
@@ -137,9 +138,9 @@ dictionary:
 ### 2.1 命令行接口
 
 ```bash
-python -m axiom_codegen \
-    --input events.yaml \
-    --output-dir gen/ \
+axiom-codegen \
+    --events events.yaml \
+    --out gen/ \
     [--lang c] \
     [--check] \
     [--watch]
@@ -147,8 +148,8 @@ python -m axiom_codegen \
 
 | 选项 | 说明 |
 |------|------|
-| `--input` / `-i` | 输入 YAML 字典路径（必填） |
-| `--output-dir` / `-o` | 输出目录（默认 `gen/`） |
+| `--events` | 输入 YAML/JSON 字典路径（必填） |
+| `--out` | 输出目录（默认 `gen/`） |
 | `--lang` | 目标语言，目前仅 `c`（默认） |
 | `--check` | 仅执行验证，不生成文件，退出码非 0 表示失败 |
 | `--watch` | 监视 YAML 变更并自动重新生成（开发模式） |
@@ -238,9 +239,9 @@ add_custom_command(
         ${AXIOM_GEN_DIR}/axiom_events_generated.h
         ${AXIOM_GEN_DIR}/axiom_modules_generated.h
         ${AXIOM_GEN_DIR}/dictionary.json
-    COMMAND ${Python3_EXECUTABLE} -m axiom_codegen
-            --input ${AXIOM_DICT_YAML}
-            --output-dir ${AXIOM_GEN_DIR}
+    COMMAND ${Python3_EXECUTABLE} -m axiomtrace_tools.cli codegen
+            --events ${AXIOM_DICT_YAML}
+            --out ${AXIOM_GEN_DIR}
     DEPENDS ${AXIOM_DICT_YAML}
     COMMENT "Generating AxiomTrace event dictionary..."
     VERBATIM
@@ -260,9 +261,131 @@ add_dependencies(axiomtrace axiom_codegen_target)
 
 ---
 
-## 3. Decoder 工具设计
+## 3. 元数据包标准
 
-### 3.1 输入源
+Decoder 应消费标准元数据包，而不是项目私有配置文件。元数据包是主机端恢复事件语义、源码定位和故障地址的唯一包格式。
+
+### 3.1 Bundle 目录结构
+
+```text
+axiomtrace-bundle/
+  manifest.json       # 入口：schema、固件身份、产物路径
+  dictionary.json     # 事件语义：模块、事件、参数名和模板
+  source_map.json     # 解码元数据：文件 ID/hash 与定位显示路径
+  build_info.json     # 目标芯片、编译器、profile、git/build 信息
+  firmware.elf        # 推荐：DWARF/addr2line 解析 PC/LR/函数名
+  firmware.map        # 可选：符号和体积分析兜底
+```
+
+每个 v1 bundle 都包含 `manifest.json`、`dictionary.json`、`source_map.json` 和 `build_info.json`。关闭源码定位时，`source_map.json` 可以不含文件条目。生产诊断推荐保留 `firmware.elf`。
+
+### 3.2 Manifest 契约
+
+`manifest.json` 是 decoder 唯一需要显式接收的入口：
+
+```json
+{
+  "schema": "axiomtrace.bundle.v1",
+  "bundle_version": 1,
+  "metadata": {
+    "id": "7f3a9c2e1b4d6a80",
+    "wire_version": "1.1",
+    "identity_basis": ["wire_version", "location", "dictionary", "source_map"]
+  },
+  "firmware": {
+    "name": "motor-controller",
+    "version": "1.2.3"
+  },
+  "artifacts": {
+    "dictionary": "dictionary.json",
+    "source_map": "source_map.json",
+    "build_info": "build_info.json",
+    "elf": "firmware.elf",
+    "map": "firmware.map"
+  },
+  "location": {
+    "mode": "file_id",
+    "line_width_bits": 16,
+    "function_hash": false
+  },
+  "decoder": {
+    "default_format": "text",
+    "require_metadata_id_match": true
+  }
+}
+```
+
+规则：
+
+- `schema` 在这一代固定为 `axiomtrace.bundle.v1`。
+- `metadata.id` 标识解释 trace 所需的精确 wire 版本、定位契约、dictionary 与 source map；语义解码前必须匹配。
+- `artifacts` 路径相对 `manifest.json` 所在目录。
+- `location.mode` 取值为 `none`、`hash` 或 `file_id`。
+- `location.function_hash` 只在 `hash` 模式生效；生产应优先使用 `file_id`，需要函数信息时由保留的 ELF/DWARF 产物重建。
+
+### 3.3 源码定位 Profile
+
+| 模式 | MCU Payload | MCU 开销 | 主机端要求 | 场景 |
+|------|-------------|----------|------------|------|
+| `none` | 无源码字段 | 最低 | 仅 dictionary | 极简生产固件 |
+| `hash` | `file_hash`、`line`、`func_hash`（关闭时为零） | 运行时字符串 hash 和 ROM 字符串 | source map 或原始 hash 显示 | 构建系统无关开发 |
+| `file_id` | `file_id`、`line` | 固定整数编码，无字符串扫描 | 自动生成 source map | 生产源码行号诊断 |
+
+在 `hash` 模式下，`source_map.json` 的 `hash16` 基于构建系统传给编译器、固件通过 `__FILE__` 看到的精确源码路径拼写生成；用于展示的 `path` 可以独立归一化。
+
+生产默认：
+
+```c
+#define AXIOM_CFG_LOCATION_MODE AXIOM_CFG_LOCATION_MODE_FILE_ID
+#define AXIOM_CFG_LOCATION_FUNCTION 0
+```
+
+函数名通常应由主机端通过 `firmware.elf` 和行号元数据还原。生产 MCU 不应传输函数名字符串。
+
+### 3.4 标准工作流
+
+标准解码流程：
+
+```bash
+axiom-decoder trace.bin --bundle build/axiomtrace-bundle --format text
+```
+
+标准 bundle 生成流程：
+
+```bash
+axiom-bundle generate \
+  --events events.yaml \
+  --elf build/firmware.elf \
+  --compile-db build/compile_commands.json \
+  --out build/axiomtrace-bundle
+```
+
+构建系统集成必须生成这个标准 bundle，而不是项目私有 decoder 配置。CMake 应暴露一个稳定 helper：
+
+```cmake
+axiomtrace_add_bundle(
+    TARGET firmware
+    EVENTS ${CMAKE_SOURCE_DIR}/events.yaml
+    OUTPUT_DIR ${CMAKE_BINARY_DIR}/axiomtrace-bundle
+)
+```
+
+Decoder 查找顺序：
+
+1. 显式提供 `--bundle` 时直接使用。
+2. 提供 `--bundle-store` 时，根据 trace 内的 `metadata_id` 事件选择匹配 bundle。
+3. 自动查找 `build/axiomtrace-bundle`、`axiomtrace-bundle`、`.axiom/bundle`。
+4. 如果没有 bundle，则降级为 raw 结构化解码。
+
+### 3.5 文档归属
+
+本节是 bundle 语义的唯一详细规范。README 可以链接到本节，但不重复完整 schema。实现细节应放在工具模块 docstring 或 CLI help 中，不再新增临时 Markdown 文件。
+
+---
+
+## 4. Decoder 工具设计
+
+### 4.1 输入源
 
 | 输入类型 | 说明 | CLI 示例 |
 |----------|------|----------|
@@ -270,7 +393,7 @@ add_dependencies(axiomtrace axiom_codegen_target)
 | 串口实时流 | 直接读取 UART / USB CDC | `--serial COM3 --baud 115200` |
 | Hex dump | 文本格式的十六进制（如 `xxd` 输出） | `--hex-dump trace.hex` |
 
-### 3.2 处理流水线
+### 4.2 处理流水线
 
 ```
 Input (bin / serial / hex)
@@ -315,7 +438,7 @@ def deserialize_payload(payload: bytes, schema: List[Arg]) -> List[Tuple[str, An
     return results
 ```
 
-### 3.3 输出格式
+### 4.3 输出格式
 
 #### A. 人类可读文本（默认，类似 `dmesg`）
 
@@ -333,7 +456,7 @@ def deserialize_payload(payload: bytes, schema: List[Arg]) -> List[Tuple[str, An
 #### B. JSON Lines（每行一个 JSON 对象）
 
 ```bash
-axiom_decoder --input trace.bin --format jsonl
+axiom-decoder trace.bin --format jsonl
 ```
 
 ```json
@@ -353,11 +476,11 @@ axiom_decoder --input trace.bin --format jsonl
 }
 ```
 
-### 3.4 命令行接口设计
+### 4.4 命令行接口设计
 
 ```bash
-axiom_decoder \
-    --input trace.bin \
+axiom-decoder \
+    trace.bin \
     --dictionary dictionary.json \
     --format text | jsonl | trace \
     [--start-time "2026-04-28T00:00:00Z"] \
@@ -378,9 +501,9 @@ axiom_decoder \
 
 ---
 
-## 4. Validator 工具设计
+## 5. Validator 工具设计
 
-### 4.1 Golden Frame 目录结构
+### 5.1 Golden Frame 目录结构
 
 ```
 tests/golden/
@@ -399,7 +522,7 @@ tests/golden/
     └── v0.3.0/                # 基线输出，用于回归比对
 ```
 
-### 4.2 测试用例格式（metadata.yaml）
+### 5.2 测试用例格式（metadata.yaml）
 
 ```yaml
 name: "MOTOR_START basic encoding"
@@ -410,7 +533,7 @@ dictionary: "../../events.yaml"   # 相对路径或绝对路径
 golden:
   header:
     sync: 0xA5
-    version: 0x10          # v1.0
+    version: 0x11          # v1.1
     level: INFO            # 对应数值 1
     module_id: 0x03
     event_id: 0x01
@@ -430,7 +553,7 @@ expected:
       ts: 1234
 ```
 
-### 4.3 一致性检查规则
+### 5.3 一致性检查规则
 
 Validator 对每个 `frame.bin` 执行以下检查：
 
@@ -444,7 +567,7 @@ Validator 对每个 `frame.bin` 执行以下检查：
 | **长度边界** | `payload_len` 不得超过 255；总帧长不得超过后端缓冲区限制 | ERROR |
 | **同步恢复** | 若帧损坏，Decoder 必须能在下一个 `0x00` 分隔符处恢复同步 | WARN |
 
-### 4.4 CI 集成方式
+### 5.4 CI 集成方式
 
 在 GitHub Actions / GitLab CI 中：
 
@@ -460,10 +583,10 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.11'
-      - run: pip install -e tools/
+      - run: python -m pip install -e ./tool
       - run: |
-          axiom_codegen --input events.yaml --output-dir gen/
-          axiom_validator \
+          axiom-codegen --events events.yaml --out gen/
+          axiom-validate \
               --dictionary gen/dictionary.json \
               --cases tests/golden/cases/ \
               --report junit.xml
@@ -476,18 +599,18 @@ Validator 输出 JUnit XML，便于 CI 系统展示失败用例。
 
 ---
 
-## 5. Benchmark 工具设计
+## 6. Benchmark 工具设计
 
-### 5.1 测量维度
+### 6.1 测量维度
 
 | 维度 | 测量方法 | 工具 / 来源 |
 |------|----------|-------------|
 | **Cycles** | 每条日志的 CPU 周期数 | DWT CYCCNT（Cortex-M）或外部逻辑分析仪采样 |
-| **RAM** | `.bss` + `.data` 中 AxiomTrace 相关符号 | `arm-none-eabi-nm` + 脚本过滤 |
-| **ROM** | `.text` + `.rodata` 中 AxiomTrace 相关符号 | `arm-none-eabi-size` + map 文件解析 |
+| **RAM** | `.bss` + `.data` 中 AxiomTrace 相关符号 | map 文件解析，交叉工具链可选 |
+| **ROM** | `.text` + `.rodata` 中 AxiomTrace 相关符号 | CMake/size 输出或 map 文件解析 |
 | **Throughput** | 后端最大可持续帧率 | 逻辑分析仪统计单位时间内的完整帧数 |
 
-### 5.2 报表格式
+### 6.2 报表格式
 
 #### Markdown（默认，适合嵌入 README / PR）
 
@@ -521,7 +644,7 @@ Validator 输出 JUnit XML，便于 CI 系统展示失败用例。
 
 由 `axiom_bench --format html --trend-db bench.db` 生成，使用嵌入式 Chart.js 折线图展示历史趋势。
 
-### 5.3 回归检测与自动告警
+### 6.3 回归检测与自动告警
 
 ```bash
 axiom_bench \
@@ -557,11 +680,11 @@ def parse_map_ram_rom(map_path: str) -> Dict[str, int]:
 
 ---
 
-## 6. RTOS / Linux 接入文档框架
+## 7. RTOS / Linux 接入文档框架
 
 所有生态接入文档统一放置在 `docs/rtos/` 与 `docs/linux/` 下，每篇文档遵循以下固定章节模板。
 
-### 6.1 固定章节模板
+### 7.1 固定章节模板
 
 ```markdown
 # <Platform> 集成指南
@@ -592,7 +715,7 @@ def parse_map_ram_rom(map_path: str) -> Dict[str, int]:
 - 官方文档 / 社区讨论链接。
 ```
 
-### 6.2 各平台文档概要
+### 7.2 各平台文档概要
 
 #### `docs/rtos/zephyr.md`
 
@@ -601,7 +724,7 @@ def parse_map_ram_rom(map_path: str) -> Dict[str, int]:
   1. 在 `prj.conf` 中启用 `CONFIG_AXIOMTRACE=y`。
   2. 实现 `axiom_backend_flush()` 调用 `log_output_flush()`。
   3. 通过 Zephyr Devicetree 指定 UART DMA 通道。
-- **示例**：展示在 `main.c` 中使用 `AXIOM_INFO(MOTOR, START, rpm)`，并在 `west build` 后通过 `axiom_decoder` 解析串口输出。
+- **示例**：展示在 `main.c` 中使用 `AXIOM_INFO(MOTOR, START, rpm)`，并在 `west build` 后通过 `axiom-decoder` 解析串口输出。
 
 #### `docs/rtos/freertos.md`
 
@@ -616,7 +739,7 @@ def parse_map_ram_rom(map_path: str) -> Dict[str, int]:
 
 - **概述**：systemd journal 字段映射，将 AxiomTrace 解码后的结构化日志写入 `journald`。
 - **关键步骤**：
-  1. 使用 `axiom_decoder --format jsonl` 管道到 `systemd-cat`。
+  1. 使用 `axiom-decoder --format jsonl` 管道到 `systemd-cat`。
   2. 字段映射规则：
      - `module` → `AXIOM_MODULE`
      - `event` → `AXIOM_EVENT`
@@ -627,7 +750,7 @@ def parse_map_ram_rom(map_path: str) -> Dict[str, int]:
 
 - **概述**：OTLP 日志转换，将 AxiomTrace 输出推送到 OpenTelemetry Collector。
 - **关键步骤**：
-  1. 使用 `axiom_decoder --format jsonl` 作为 OTLP Bridge 的输入。
+  1. 使用 `axiom-decoder --format jsonl` 作为 OTLP Bridge 的输入。
   2. 将每条 JSON Line 转换为 `opentelemetry.proto.logs.v1.LogRecord`：
      - `timestamp` → `time_unix_nano`
      - `module` + `event` → `SeverityText`
@@ -637,45 +760,43 @@ def parse_map_ram_rom(map_path: str) -> Dict[str, int]:
 
 ---
 
-## 7. 一键式工作流体验总结
+## 8. 一键式工作流体验总结
 
 AxiomTrace 工具链的终极目标是：**开发者在主机端执行一条命令，即可获得从固件二进制到人类可读日志的完整链路。**
 
-### 7.1 理想工作流
+### 8.1 理想工作流
 
 ```bash
 # 1. 定义事件（一次性或迭代）
 vim events.yaml
 
-# 2. 一键生成固件头文件 + Decoder Collateral
-python -m axiom_codegen --input events.yaml --output-dir gen/
-
-# 3. 编译固件（CMake 自动感知生成的头文件）
+# 2. 编译固件（CMake 自动生成固件头文件和标准元数据包）
 cmake -B build -S . && cmake --build build
 
-# 4. 烧录并运行固件（常规开发流程）
+# 3. 烧录并运行固件（常规开发流程）
 openocd -f board/stm32f4discovery.cfg -c "program build/firmware.bin reset exit"
 
-# 5. 捕获串口输出到文件
+# 4. 捕获串口输出到文件
 python -m axiom_capture --serial COM3 --output trace.bin
 
-# 6. 一键解码
-axiom_decoder --input trace.bin --dictionary gen/dictionary.json --format text
+# 5. 一键解码
+axiom-decoder trace.bin --bundle build/axiomtrace-bundle --format text
 
-# 7. 一键验证（CI 场景）
-axiom_validator --dictionary gen/dictionary.json --cases tests/golden/
+# 6. 一键验证（CI 场景）
+axiom-validate --dictionary gen/dictionary.json --golden tests/golden/
 
-# 8. 一键基准测试
+# 7. 一键基准测试
 axiom_bench --elf build/firmware.elf --map build/firmware.map --baseline baseline.json
 ```
 
-### 7.2 设计原则
+### 8.2 设计原则
 
 1. **单一真相源**：`events.yaml` 是事件定义的唯一来源，固件、解码器、验证器全部从中派生。
 2. **主机端恢复可读性**：固件只传 ID 和原始参数，绝不携带字符串或格式信息，最大限度节省 ROM/RAM。
-3. **Collateral 机制**：`dictionary.json` 作为构建期提取的静态信息，供所有主机端工具共享，避免重复解析 YAML。
-4. **管道友好**：Decoder 的 `jsonl` 输出可直接通过 `| jq`、`| systemd-cat`、`| otel-bridge` 进入下游系统。
-5. **CI 原生**：Validator 和 Benchmark 均支持机器可读报告（JUnit XML / JSON），天然适配现代 DevOps 流水线。
+3. **Bundle 机制**：`axiomtrace-bundle` 统一承载 dictionary、source map、固件身份和 ELF 产物。
+4. **Collateral 机制**：`dictionary.json` 仍作为 bundle 内的事件语义核心，供所有主机端工具共享。
+5. **管道友好**：Decoder 的 `jsonl` 输出可直接通过 `| jq`、`| systemd-cat`、`| otel-bridge` 进入下游系统。
+6. **CI 原生**：Validator 和 Benchmark 均支持机器可读报告（JUnit XML / JSON），天然适配现代 DevOps 流水线。
 
 ---
 

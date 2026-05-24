@@ -54,8 +54,10 @@ typedef enum {
     AXIOM_TYPE_I32       = 0x06,
     AXIOM_TYPE_F32       = 0x07,
     AXIOM_TYPE_TIMESTAMP = 0x08,
-    AXIOM_TYPE_BYTES     = 0x09
-    /* Reserved: 0x0A - 0x7F, User-defined: 0x80 - 0xFF */
+    AXIOM_TYPE_BYTES     = 0x09,
+    AXIOM_TYPE_META_LOCATION = 0x0A,
+    AXIOM_TYPE_META_IDENTITY = 0x0B
+    /* Reserved: 0x0C - 0x7F, User-defined: 0x80 - 0xFF */
 } axiom_type_t;
 
 /* Backward-compatible macros: allow existing code (including _Generic,
@@ -70,12 +72,14 @@ typedef enum {
 #define AXIOM_TYPE_F32       0x07u
 #define AXIOM_TYPE_TIMESTAMP 0x08u
 #define AXIOM_TYPE_BYTES     0x09u
+#define AXIOM_TYPE_META_LOCATION 0x0Au
+#define AXIOM_TYPE_META_IDENTITY 0x0Bu
 
 /* ---------------------------------------------------------------------------
- * Wire format version v1.0
+ * Wire format version v1.1
  * --------------------------------------------------------------------------- */
 #define AXIOM_WIRE_VERSION_MAJOR 1u
-#define AXIOM_WIRE_VERSION_MINOR 0u
+#define AXIOM_WIRE_VERSION_MINOR 1u
 #define AXIOM_WIRE_VERSION ((uint8_t)((AXIOM_WIRE_VERSION_MAJOR << 4u) | AXIOM_WIRE_VERSION_MINOR))
 
 /* ---------------------------------------------------------------------------

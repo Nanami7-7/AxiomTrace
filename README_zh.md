@@ -58,7 +58,7 @@
 ┌──────────────────────────────────────────────────────────────────┐
 │                      主机侧（PC）                                 │
 │  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐              │
-│  │  Python 解码器 │  │ JSON 导出   │  │  文本渲染器  │              │
+│  │   元数据包   │  │ Python 解码器 │  │ JSON/Text 输出 │             │
 │  └─────────────┘  └─────────────┘  └─────────────┘              │
 └──────────────────────────────────────────────────────────────────┘
 ```
@@ -103,13 +103,17 @@ ctest --test-dir build --output-on-failure
 
 ```bash
 # 安装解码器
-pip install ./tool
+python -m pip install -e ./tool
 
-# 解码二进制流
-axiom-decoder trace.bin -d events.yaml -o text
+# 使用本机 CMake/Ninja 工具链构建和测试
+cmake -B build -S . -G Ninja -DAXIOM_BUILD_TESTS=ON -DCMAKE_EXPORT_COMPILE_COMMANDS=ON
+cmake --build build
+ctest --test-dir build --output-on-failure
 
-# 导出 JSON
-axiom-decoder trace.bin -d events.yaml -o json
+# 使用标准元数据包解码
+axiom-codegen --events events.yaml --out build/generated
+axiom-bundle generate --events events.yaml --compile-db build/compile_commands.json --out build/axiomtrace-bundle
+axiom-decoder trace.bin --bundle build/axiomtrace-bundle --format text
 ```
 
 ---
@@ -146,8 +150,10 @@ axiom-decoder trace.bin -d events.yaml -o json
 | `0x05` | u32 | 4B |
 | `0x06` | i32 | 4B |
 | `0x07` | f32 | 4B |
-| `0x10` | timestamp | 4B |
-| `0x20` | bytes | 变长 |
+| `0x08` | timestamp | 4B |
+| `0x09` | bytes | 变长 |
+| `0x0A` | location metadata | 5B / 7B |
+| `0x0B` | metadata identity | 8B |
 
 ### 编码示例
 
@@ -279,7 +285,10 @@ AxiomTrace：栈帧 ≈ 50B（仅增量 CRC 和临时变量）
 | `AXIOM_RING_BUFFER_POLICY` | `DROP` | 满时策略：`DROP` 丢新帧 / `OVERWRITE` 覆旧帧 |
 | `AXIOM_MAX_PAYLOAD_LEN` | `128` | 单事件最大载荷（字节） |
 | `AXIOM_MODULE_MAX` | `32` | 最大模块数（0~31），控制滤波器位掩码宽度 |
-| `AXIOM_CFG_USE_LOCATION` | `0` | 启用后自动附加 `__LINE__` 和 `__FILE__` 哈希 |
+| `AXIOM_CFG_LOCATION_MODE` | `NONE` | 定位模式：`NONE` / `HASH` / `FILE_ID` |
+| `AXIOM_CFG_LOCATION_FUNCTION` | `0` | `HASH` 模式下附加 `__func__` hash |
+| `AXIOM_SOURCE_FILE_ID` | `0` | `FILE_ID` 模式下由构建系统按源文件注入的 ID |
+| `AXIOM_CFG_USE_LOCATION` | `0` | 兼容开关；旧集成启用时映射到 `HASH` 模式 |
 | `AXIOM_CFG_TIME_SYNC_ENABLED` | `1` | 启用双轨时间同步 |
 | `AXIOM_ENCODE_OVERFLOW_DETECTION` | `1` | 编码器溢出保护 |
 | `AXIOM_SHORT_CS` | `1` | 短临界区模式（牺牲 ~255B 栈，换取更低中断延迟） |
@@ -288,6 +297,26 @@ AxiomTrace：栈帧 ≈ 50B（仅增量 CRC 和临时变量）
 | `AXIOM_BACKEND_MAX` | `4` | 最大后端数量 |
 | `AXIOM_BACKEND_FAIL_THRESHOLD` | `5` | 连续失败多少次后降级 |
 | `AXIOM_BACKEND_RECOVERY_US` | `1000000` | 降级恢复时间（微秒） |
+
+---
+
+## 主机端元数据包
+
+AxiomTrace 推荐将每个固件版本的主机端解析材料打包为统一的 `axiomtrace-bundle`，而不是让每个工程维护私有解析配置。
+
+```text
+axiomtrace-bundle/
+  manifest.json
+  dictionary.json
+  source_map.json
+  build_info.json
+  firmware.elf
+  firmware.map
+```
+
+固件侧继续只输出轻量二进制字段；主机端通过 bundle 还原事件名称、参数名、源码文件、行号和故障地址。完整规范归入 [工具链生态设计](spec/toolchain_ecosystem_design_zh.md#3-元数据包标准)。
+
+使用 bundle 进行语义解码时，trace 必须通过生成头文件 `axiom_metadata_id_generated.h` 中的 `AXIOM_EMIT_METADATA_ID()` 至少发出一次元数据身份事件。
 
 ---
 
@@ -406,10 +435,10 @@ AxiomTrace/
 | [有线格式](spec/wire_format_zh.md) | 二进制序列化与帧结构详细规范 |
 | [事件模型](spec/event_model_zh.md) | 报头布局、时间戳与 D2R 机制深度解析 |
 | [字典规范](spec/event_dictionary_zh.md) | YAML Schema 与枚举映射方案 |
+| [工具链生态设计](spec/toolchain_ecosystem_design_zh.md) | 解码器、元数据包、codegen、验证器与主机端工作流规范 |
 | [故障胶囊](spec/fault_capsule_zh.md) | 故障冻结、提交与非易失性存储规范 |
 | [极简架构分析](spec/minimalist_architecture_analysis_zh.md) | 架构演进思想与精简论证 |
 | [静态分析集成](spec/static_analysis_zh.md) | Cppcheck / clang-tidy / MISRA 集成 |
-| [工具链生态设计](spec/toolchain_ecosystem_design_zh.md) | 解码器、渲染器、可视化工具设计 |
 | [目录结构](docs/reference/DIR_STRUCTURE.md) | 完整文件树与平面标注 |
 | [工程规则](docs/project/RULES.md) | 工程标准与热路径铁律 |
 | [移植指南](docs/reference/porting_guide.md) | 如何将 AxiomTrace 移植到新 MCU 平台 |

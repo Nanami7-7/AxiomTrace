@@ -97,7 +97,7 @@ The following behaviors are **strictly prohibited** in `axiom_write()` and all I
 | Rule | Description |
 | :--- | :--- |
 | Zero-Intrusive Backend Extension | New backends only need to implement `axiom_backend_t` and call `axiom_backend_register()`. No modification to `core/` or `frontend/` files. |
-| Extensible Payload Types | Use `0x0A~0x7F` for new type tags. Must update encoder, decoder, spec, golden tests, and docs simultaneously. Decoders should skip unknown tags and mark as `UNKNOWN_TYPE` instead of crashing. |
+| Extensible Payload Types | `0x0A` and `0x0B` are reserved for location and metadata identity. Use the remaining `0x0C~0x7F` range for new standard type tags. Must update encoder, decoder, spec, golden tests, and docs simultaneously. Decoders should skip unknown tags and mark as `UNKNOWN_TYPE` instead of crashing. |
 | Prunable Profiles | `DEV` / `FIELD` / `PROD` profiles controlled by macros. New profiles added in `frontend/` must not alter existing profile semantics. |
 | Weak Port Symbols | All port functions provide `__attribute__((weak))` defaults. New ports (e.g., new MCU series) only override necessary functions without modifying library code. |
 | Extensible Toolchain | Decoder uses pluggable dictionary loading (JSON/YAML/X-Macro). New export formats (e.g., CSV, PCAP) implemented via new render modules. |
@@ -116,6 +116,17 @@ The following behaviors are **strictly prohibited** in `axiom_write()` and all I
 | Full Example Coverage | Every Frontend API, Backend Template, and Profile must have an independent, compilable example. |
 | Synchronized Documentation | Any API change must update `../../spec/api_reference.md`. Any protocol change must update `../../spec/wire_format.md` and the decoder. |
 | Automated Single-file Library | Provide `../../tool/scripts/amalgamate.py` to merge the library into `axiomtrace.h`. Amalgamated output must pass all host tests. |
+
+### Documentation Governance
+
+| Rule | Description |
+| :--- | :--- |
+| Single Owner per Topic | Each concept has one canonical document: API in `spec/api_reference.md`, wire data in `spec/wire_format.md`, event semantics in `spec/event_model.md`, toolchain/bundle behavior in `spec/toolchain_ecosystem_design.md`, and project process in `docs/project/*.md`. |
+| No Ad-hoc Markdown | Do not add new `.md` files unless the topic cannot fit an existing canonical document and the new file is linked from README plus `docs/reference/DIR_STRUCTURE.md`. |
+| README is an Index | README files explain positioning and link to canonical docs; they must not duplicate schemas, long CLI contracts, or implementation plans. |
+| Bilingual Parity | Public docs that already have English and Chinese versions must be updated in both languages in the same change. |
+| Tool Help for Details | CLI option details belong in tool help/docstrings first; Markdown should describe stable contracts and workflows, not copy every flag repeatedly. |
+| Route Before Expansion | Large new toolchain or documentation work must first update `PLAN.md` / `ROUTE.md` so the scope is visible before implementation. |
 
 ---
 

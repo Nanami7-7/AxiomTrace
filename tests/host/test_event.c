@@ -13,8 +13,8 @@ int main(void) {
     }
 
     /* Verify wire version */
-    if (AXIOM_WIRE_VERSION != 0x10) {
-        printf("test_event: FAILED wire version 0x%02X != 0x10\n", AXIOM_WIRE_VERSION);
+    if (AXIOM_WIRE_VERSION != 0x11) {
+        printf("test_event: FAILED wire version 0x%02X != 0x11\n", AXIOM_WIRE_VERSION);
         return 1;
     }
 

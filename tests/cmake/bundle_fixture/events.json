@@ -1,0 +1,15 @@
+{
+  "version": "1.0",
+  "dictionary": {
+    "modules": [
+      {
+        "id": 16,
+        "name": "FIXTURE",
+        "events": [
+          {"id": 1, "name": "FROM_A", "level": "INFO", "text": "from a", "args": []},
+          {"id": 2, "name": "FROM_B", "level": "INFO", "text": "from b", "args": []}
+        ]
+      }
+    ]
+  }
+}

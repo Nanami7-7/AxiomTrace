@@ -27,12 +27,12 @@ log_info() {
 
 log_pass() {
     echo -e "${GREEN}[PASS]${NC} $1"
-    ((PASSED++))
+    ((++PASSED))
 }
 
 log_fail() {
     echo -e "${RED}[FAIL]${NC} $1"
-    ((FAILED++))
+    ((++FAILED))
 }
 
 run_test() {
@@ -132,6 +132,7 @@ frame.append(0x01)  # INFO level
 frame.append(0x10)  # module_id
 frame.extend(struct.pack('<H', 0x0001))  # event_id
 frame.extend(struct.pack('<H', 1))  # seq
+frame.append(0)  # timestamp_delta=0
 frame.append(0)  # payload_len
 crc = crc16_ccitt_false(bytes(frame))
 frame.extend(struct.pack('<H', crc))
@@ -182,6 +183,7 @@ with tempfile.TemporaryDirectory() as tmpdir:
     # Test not found
     empty_dir = Path(tmpdir) / 'empty'
     empty_dir.mkdir()
+    d.unlink()
     found = find_dictionary(str(empty_dir))
     assert found is None, 'Should not find dictionary in empty dir'
 
@@ -251,6 +253,7 @@ frame.append(0x02)  # WARN level
 frame.append(0xAB)  # module_id
 frame.extend(struct.pack('<H', 0x1234))  # event_id
 frame.extend(struct.pack('<H', 99))  # seq
+frame.append(0)  # timestamp_delta=0
 frame.append(0)  # payload_len
 crc = crc16_ccitt_false(bytes(frame))
 frame.extend(struct.pack('<H', crc))

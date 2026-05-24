@@ -201,14 +201,20 @@ typedef struct {
 - decoder（binary → 结构化对象）。
 - text render（结构化对象 → 人类可读文本，支持 dictionary 模板填充）。
 - json export（结构化对象 → JSON 文件）。
+- 标准元数据包（`manifest.json`、`dictionary.json`、`source_map.json`、`build_info.json`，可选 ELF/map 产物）。
+- bundle 生成器（`axiom-bundle generate`）和 CMake helper（`axiomtrace_add_bundle(...)`）。
+- 基于固件身份的 bundle-store 精确匹配解码。
 - capsule report（capsule binary → 故障分析报告）。
 - dictionary validator（校验固件 payload 与 dictionary 模板类型匹配）。
 - golden frame updater（编码器生成标准帧，供回归测试）。
 - benchmark tool（热路径周期数测量与报告）。
+- 文档治理：每个主题只有一个主文档，禁止临时 Markdown。
 
 **验收**：
 - binary → text（通过 decoder + render）。
 - binary → json（通过 decoder + json export）。
+- trace + bundle → 开启定位时可还原事件语义和源码位置。
+- trace + bundle-store → 根据固件身份精确选择 bundle。
 - capsule → report（通过 capsule decoder）。
 - golden → regression test（每次 CI 自动运行）。
 
@@ -227,7 +233,7 @@ typedef struct {
 - fuzz malformed frame（libFuzzer 或自定义 fuzz 目标）。
 - fault injection（模拟 HardFault，验证 capsule 捕获）。
 - power-loss simulation（验证 Flash capsule 掉电恢复）。
-- docs complete（README、api_reference、examples 注释）。
+- docs complete（README 只做入口、主规范文档、工具 help、examples 注释完整；无重复独立 Markdown）。
 - examples complete（全部可编译、可运行）。
 
 ---

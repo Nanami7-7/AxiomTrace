@@ -12,11 +12,12 @@
 
 1. [YAML Dictionary Schema](#1-yaml-dictionary-schema)
 2. [Codegen Tool Design](#2-codegen-tool-design)
-3. [Decoder Tool Design](#3-decoder-tool-design)
-4. [Validator Tool Design](#4-validator-tool-design)
-5. [Benchmark Tool Design](#5-benchmark-tool-design)
-6. [RTOS / Linux Integration Documentation Framework](#6-rtos--linux-integration-documentation-framework)
-7. [One-Click Workflow Experience Summary](#7-one-click-workflow-experience-summary)
+3. [Metadata Bundle Standard](#3-metadata-bundle-standard)
+4. [Decoder Tool Design](#4-decoder-tool-design)
+5. [Validator Tool Design](#5-validator-tool-design)
+6. [Benchmark Tool Design](#6-benchmark-tool-design)
+7. [RTOS / Linux Integration Documentation Framework](#7-rtos--linux-integration-documentation-framework)
+8. [One-Click Workflow Experience Summary](#8-one-click-workflow-experience-summary)
 
 ---
 
@@ -93,9 +94,9 @@ Codegen reads YAML and outputs `dictionary.json` (Decoder's collateral). Convers
 ### 2.1 Command Line Interface
 
 ```bash
-python -m axiom_codegen \
-    --input events.yaml \
-    --output-dir gen/ \
+axiom-codegen \
+    --events events.yaml \
+    --out gen/ \
     [--lang c] \
     [--check] \
     [--watch]
@@ -103,8 +104,8 @@ python -m axiom_codegen \
 
 | Option | Description |
 |--------|-------------|
-| `--input` / `-i` | Path to input YAML dictionary (Required) |
-| `--output-dir` / `-o` | Output directory (default `gen/`) |
+| `--events` | Path to input YAML/JSON dictionary (Required) |
+| `--out` | Output directory (default `gen/`) |
 | `--lang` | Target language, currently only `c` (default) |
 | `--check` | Execute validation only, no file generation; non-zero exit code on failure |
 | `--watch` | Watch YAML changes and auto-regenerate (Dev mode) |
@@ -158,15 +159,137 @@ Codegen writes a `.axiom_codegen.d` dependency file in the output directory to s
 
 ---
 
-## 3. Decoder Tool Design
+## 3. Metadata Bundle Standard
 
-### 3.1 Input Sources
+The decoder consumes a standard metadata bundle instead of project-specific configuration files. The bundle is the only host-side package format for restoring semantic meaning, source locations, and fault addresses.
+
+### 3.1 Bundle Layout
+
+```text
+axiomtrace-bundle/
+  manifest.json       # Entry point; schema, firmware identity, artifact paths
+  dictionary.json     # Event semantics: module/event/arg names and templates
+  source_map.json     # Decode metadata: file IDs/hashes and location display paths
+  build_info.json     # Target, compiler, profile, git/build metadata
+  firmware.elf        # Recommended: DWARF/addr2line for PC/LR/function lookup
+  firmware.map        # Optional: symbol and size-analysis fallback
+```
+
+Every v1 bundle contains `manifest.json`, `dictionary.json`, `source_map.json`, and `build_info.json`. When source location is disabled, `source_map.json` may contain no file entries. `firmware.elf` is recommended for production diagnostics.
+
+### 3.2 Manifest Contract
+
+`manifest.json` is the single explicit input for a decoder:
+
+```json
+{
+  "schema": "axiomtrace.bundle.v1",
+  "bundle_version": 1,
+  "metadata": {
+    "id": "7f3a9c2e1b4d6a80",
+    "wire_version": "1.1",
+    "identity_basis": ["wire_version", "location", "dictionary", "source_map"]
+  },
+  "firmware": {
+    "name": "motor-controller",
+    "version": "1.2.3"
+  },
+  "artifacts": {
+    "dictionary": "dictionary.json",
+    "source_map": "source_map.json",
+    "build_info": "build_info.json",
+    "elf": "firmware.elf",
+    "map": "firmware.map"
+  },
+  "location": {
+    "mode": "file_id",
+    "line_width_bits": 16,
+    "function_hash": false
+  },
+  "decoder": {
+    "default_format": "text",
+    "require_metadata_id_match": true
+  }
+}
+```
+
+Rules:
+
+- `schema` is fixed to `axiomtrace.bundle.v1` for this generation.
+- `metadata.id` identifies the exact wire version, location contract, dictionary, and source map required to interpret a trace; it must match before semantic decoding.
+- Artifact paths are relative to the manifest directory.
+- `location.mode` is `none`, `hash`, or `file_id`.
+- `location.function_hash` is only effective in `hash` mode; production should prefer `file_id` with function reconstruction from retained ELF/DWARF data where needed.
+
+### 3.3 Source Location Profiles
+
+| Mode | MCU Payload | MCU Cost | Host Requirement | Use |
+|------|-------------|----------|------------------|-----|
+| `none` | No source fields | Lowest | Dictionary only | Minimal production |
+| `hash` | `file_hash`, `line`, `func_hash` (zero when disabled) | Runtime string hash and ROM strings | Source map or raw hash display | Toolchain-independent development |
+| `file_id` | `file_id`, `line` | Fixed integer encode, no string scan | Generated source map | Production source-line diagnostics |
+
+In `hash` mode, `source_map.json` computes `hash16` from the exact source spelling passed by the build system and therefore seen by firmware as `__FILE__`; its displayed `path` may be normalized separately.
+
+Production default:
+
+```c
+#define AXIOM_CFG_LOCATION_MODE AXIOM_CFG_LOCATION_MODE_FILE_ID
+#define AXIOM_CFG_LOCATION_FUNCTION 0
+```
+
+Function names should usually be recovered by the host from `firmware.elf` and line metadata. The MCU should not transmit function strings in production.
+
+### 3.4 Standard Workflow
+
+Canonical decode flow:
+
+```bash
+axiom-decoder trace.bin --bundle build/axiomtrace-bundle --format text
+```
+
+Canonical bundle generation flow:
+
+```bash
+axiom-bundle generate \
+  --events events.yaml \
+  --elf build/firmware.elf \
+  --compile-db build/compile_commands.json \
+  --out build/axiomtrace-bundle
+```
+
+Build-system integrations must generate this bundle instead of private decoder configuration. CMake should expose a single helper:
+
+```cmake
+axiomtrace_add_bundle(
+    TARGET firmware
+    EVENTS ${CMAKE_SOURCE_DIR}/events.yaml
+    OUTPUT_DIR ${CMAKE_BINARY_DIR}/axiomtrace-bundle
+)
+```
+
+Decoder lookup order:
+
+1. Use `--bundle` when explicitly provided.
+2. Use `--bundle-store` and the trace `metadata_id` event to select the matching bundle.
+3. Auto-discover `build/axiomtrace-bundle`, `axiomtrace-bundle`, then `.axiom/bundle`.
+4. Fall back to raw structural decode if no bundle is available.
+
+### 3.5 Documentation Ownership
+
+This section is the single source of truth for bundle semantics. README files may link to it, but must not duplicate full schemas. Implementation details belong in tool module docstrings or CLI help, not in additional ad-hoc Markdown files.
+
+---
+
+## 4. Decoder Tool Design
+
+### 4.1 Input Sources
 
 - **Raw Binary**: `.bin` files dumped from serial/emulator.
 - **Serial Stream**: Real-time UART / USB CDC input.
 - **Hex Dump**: Text-based hex (e.g., `xxd` output).
 
-### 3.2 Processing Pipeline
+### 4.2 Processing Pipeline
 
 ```
 Input (bin / serial / hex)
@@ -190,7 +313,7 @@ Input (bin / serial / hex)
 [ Formatted Output ]
 ```
 
-### 3.3 Output Formats
+### 4.3 Output Formats
 
 - **Human-Readable Text** (Default, `dmesg`-like).
 - **JSON Lines** (`--format jsonl`): Each line is a JSON object.
@@ -198,11 +321,11 @@ Input (bin / serial / hex)
 
 ---
 
-## 4. Validator Tool Design
+## 5. Validator Tool Design
 
 Validator performs **Golden Frame Validation** by comparing byte-level binary frames (`frame.bin`) against expected metadata and decoder outputs.
 
-### 4.1 Consistency Check Rules
+### 5.1 Consistency Check Rules
 
 - **CRC Validation**: Recompute CRC-16 and compare with frame tail.
 - **Endianness**: Verify multi-byte fields are little-endian.
@@ -212,24 +335,25 @@ Validator performs **Golden Frame Validation** by comparing byte-level binary fr
 
 ---
 
-## 5. Benchmark Tool Design
+## 6. Benchmark Tool Design
 
 Measures Cycles per log, RAM/ROM footprint, and Backend throughput. Supports regression detection via baseline comparison and automatic alerting in CI.
 
 ---
 
-## 6. RTOS / Linux Integration Documentation Framework
+## 7. RTOS / Linux Integration Documentation Framework
 
 Standardized integration guides for Zephyr, FreeRTOS, systemd journald, and OpenTelemetry.
 
 ---
 
-## 7. One-Click Workflow Experience Summary
+## 8. One-Click Workflow Experience Summary
 
 The ultimate goal of the AxiomTrace toolchain: **A developer executes a single command on the host and gains a complete path from firmware binary to human-readable logs.**
 
 1. **Single Source of Truth**: `events.yaml` defines everything.
 2. **Host-side Readability**: Minimize firmware ROM/RAM by offloading strings.
-3. **Collateral Mechanism**: Shared `dictionary.json` for all tools.
-4. **Pipeline Friendly**: JSONL output for downstream integration.
-5. **CI Native**: Machine-readable reports (JUnit XML / JSON).
+3. **Bundle Mechanism**: Shared `axiomtrace-bundle` for dictionary, source map, firmware identity, and ELF artifacts.
+4. **Collateral Mechanism**: Shared `dictionary.json` remains the event-semantic core inside the bundle.
+5. **Pipeline Friendly**: JSONL output for downstream integration.
+6. **CI Native**: Machine-readable reports (JUnit XML / JSON).

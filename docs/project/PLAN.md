@@ -201,14 +201,20 @@ typedef struct {
 - Decoder (binary → structured object).
 - Text Render (structured object → human-readable text, dictionary template filling).
 - JSON Export (structured object → JSON file).
+- Standard Metadata Bundle (`manifest.json`, `dictionary.json`, `source_map.json`, `build_info.json`, optional ELF/map artifacts).
+- Bundle Generator (`axiom-bundle generate`) and CMake helper (`axiomtrace_add_bundle(...)`).
+- Firmware identity matching for bundle-store based decode.
 - Capsule Report (capsule binary → fault analysis report).
 - Dictionary Validator (verify firmware payload matches dictionary template types).
 - Golden Frame Updater (encoder generates standard frames for regression testing).
 - Benchmark Tool (hot path cycle count measurement and reporting).
+- Documentation governance: one canonical doc per topic, no ad-hoc Markdown.
 
 **Acceptance**:
 - binary → text (via decoder + render).
 - binary → json (via decoder + json export).
+- trace + bundle → semantic decode with source location when enabled.
+- trace + bundle-store → exact bundle selected by firmware identity.
 - capsule → report (via capsule decoder).
 - golden → regression test (auto-run in CI).
 
@@ -227,7 +233,7 @@ typedef struct {
 - Fuzz malformed frame (libFuzzer or custom fuzz target).
 - Fault injection (simulate HardFault, verify capsule capture).
 - Power-loss simulation (verify Flash capsule power-loss recovery).
-- Docs complete (README, api_reference, examples comments).
+- Docs complete (README as index, canonical specs, tool help, examples comments; no duplicate standalone Markdown).
 - Examples complete (all compile and run).
 
 ---

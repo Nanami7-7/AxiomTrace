@@ -2,7 +2,7 @@
 
 # AxiomTrace Wire Format Specification
 
-> 版本：v1.0  |  状态：**FROZEN**  |  对应代码：`baremetal/core/axiom_event.c`, `baremetal/core/axiom_crc.c`
+> 版本：v1.1  |  状态：**FROZEN**  |  对应代码：`baremetal/core/axiom_event.c`, `baremetal/core/axiom_crc.c`
 
 ---
 
@@ -41,11 +41,22 @@ The timestamp field is auto-inserted by `axiom_write()` for every event. It uses
 
 The timestamp is included in the CRC-16 calculation (Header + Timestamp + Payload Length + Payload). Decoders must decode the variable-length timestamp field before locating `payload_len` at `frame[8 + ts_len]`.
 
-### 2.2 Byte Order
+### 2.2 Optional Location and Metadata Identity Fields
+
+Wire v1.1 retains the 8-byte header and introduces host-decoding metadata as typed payload fields:
+
+| Tag | Encoding after tag | Purpose |
+|-----|--------------------|---------|
+| `0x0A` | `mode=1, file_hash:u16, line:u16, func_hash:u16` or `mode=2, file_id:u16, line:u16` | Optional call-site location |
+| `0x0B` | `metadata_id:8` | Selects the exact host metadata bundle |
+
+`0x0A` adds 8 bytes total in `HASH` mode or 6 bytes total in `FILE_ID` mode, including its tag. `0x0B` adds 9 bytes total and is normally emitted in the system metadata identity event `(module_id = 0, event_id = 2)`.
+
+### 2.3 Byte Order
 
 All multi-byte fields are **little-endian** unless the transport mandates otherwise (e.g., CAN-FD uses big-endian by convention; the CAN-FD backend performs byte swap).
 
-### 2.3 Alignment
+### 2.4 Alignment
 
 Wire format is unaligned (packed). The encoder uses `memcpy` or byte-wise writes to avoid undefined behavior on unaligned access. Decoders must do the same.
 
@@ -125,7 +136,7 @@ On any validation failure, the decoder must:
 
 ### 6.3 Unknown Type Tag
 
-If the decoder encounters a type tag in `0x0A-0x7F` that it does not recognize:
+If the decoder encounters a type tag in the remaining reserved range `0x0C-0x7F` that it does not recognize:
 
 1. Skip the field based on the type tag's known size (if known)
 2. If size is unknown, skip to the next field boundary heuristically or mark the payload as `PARTIAL_DECODE`
@@ -140,7 +151,7 @@ The `version` byte in the header encodes `major << 4 | minor`.
 - Decoders **must reject** unsupported **major** versions.
 - **Minor** version additions are safe to ignore (new type tags, new reserved fields).
 
-Current version: **0x10** (v1.0).
+Current version: **0x11** (v1.1). The host decoder remains able to decode legacy v1.0 frame bodies.
 
 ---
 

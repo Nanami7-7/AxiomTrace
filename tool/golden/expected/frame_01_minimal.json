@@ -3,7 +3,7 @@
     "sync": 165,
     "version": [
       1,
-      0
+      1
     ],
     "level": "INFO",
     "module_id": 3,
@@ -11,6 +11,9 @@
     "seq": 0,
     "payload_len": 0,
     "payload": [],
-    "crc": 38548
+    "crc": 40028,
+    "timestamp_delta": 0,
+    "timestamp_len": 1,
+    "timestamp": 0
   }
 ]

@@ -8,6 +8,7 @@ from axiomtrace_tools.decoder import (
     decode_frame,
     decode_stream,
 )
+from axiomtrace_tools.dictionary import EventDictionary, EventMetadata
 
 __all__ = [
     "FRAME_SYNC",
@@ -16,4 +17,6 @@ __all__ = [
     "crc16_ccitt_false",
     "decode_frame",
     "decode_stream",
+    "EventDictionary",
+    "EventMetadata",
 ]

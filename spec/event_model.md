@@ -2,7 +2,7 @@
 
 # AxiomTrace Event Model Specification
 
-> 版本：v1.0  |  状态：**FROZEN**  |  对应代码：`baremetal/core/axiom_event.h`
+> 版本：v1.1  |  状态：**FROZEN**  |  对应代码：`baremetal/core/axiom_event.h`
 
 ---
 
@@ -69,13 +69,23 @@ Payload is a concatenation of typed fields. Each field is **self-describing** vi
 | 0x07     | `float`     | 4         | IEEE-754 single little-endian     |
 | 0x08     | `timestamp` | 4         | Compressed relative timestamp (see `axiom_timestamp.c`) |
 | 0x09     | `bytes`     | N         | 1-byte length prefix + raw bytes  |
-| 0x0A-0x7F| reserved    | —         | Reserved for future standard types |
+| 0x0A     | location metadata | 5 or 7 | Mode plus fixed-width source location fields |
+| 0x0B     | metadata identity | 8       | Bundle metadata ID bytes          |
+| 0x0C-0x7F| reserved    | —         | Reserved for future standard types |
 | 0x80-0xFF| user-defined| —         | Available for project-specific types |
+
+`location metadata` does not change the fixed header. It is appended to the typed payload only when enabled:
+
+- `FILE_ID` (`mode = 2`): `[0x0A][mode:u8][file_id:u16][line:u16]`, 6 bytes total.
+- `HASH` (`mode = 1`): `[0x0A][mode:u8][file_hash:u16][line:u16][func_hash:u16]`, 8 bytes total.
+- `NONE`: no location field is emitted.
+
+`metadata identity` is emitted as `[0x0B][metadata_id:8]` in the reserved system event `(module_id = 0, event_id = 2)`. The host uses it to select and validate the matching metadata bundle before semantic decoding.
 
 **Design principles**:
 1. The encoder writes type tags so the decoder can reconstruct arguments **without external schema knowledge**.
 2. The dictionary is the authoritative source of human-readable names and templates, but is **not required** for structural decoding.
-3. New type tags in `0x0A-0x7F` require spec update, decoder update, golden update, and docs update.
+3. New type tags in the remaining `0x0C-0x7F` standard range require spec update, decoder update, golden update, and docs update.
 
 ---
 
@@ -132,7 +142,7 @@ The `text` field uses named placeholders with type hints that must match the enc
 
 ## 7. Constraints
 
-- Maximum payload length: **255 bytes**.
+- Protocol payload length field capacity: **255 bytes**; the current firmware configuration defaults `AXIOM_MAX_PAYLOAD_LEN` to **128 bytes**.
 - Maximum number of modules: **256** (`module_id` is `uint8_t`).
 - Maximum events per module: **65536** (`event_id` is `uint16_t`, practically limited by ROM).
 - Header, Timestamp and payload are always CRC-protected.
@@ -146,4 +156,4 @@ The `text` field uses named placeholders with type hints that must match the enc
 - **Major** change = incompatible header or payload structure change; decoder must reject.
 - **Minor** change = backward-compatible addition (new type tag, new flag); decoder may ignore unknown fields.
 
-Current wire format: **v1.0** (`version = 0x10`).
+Current wire format: **v1.1** (`version = 0x11`). Decoders retain structural support for v1.0 frames without location metadata.

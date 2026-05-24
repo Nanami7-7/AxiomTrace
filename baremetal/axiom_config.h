@@ -8,10 +8,10 @@
  * Bump on release. Checked at compile-time by downstream consumers.
  * --------------------------------------------------------------------------- */
 #define AXIOMTRACE_VERSION_MAJOR 0u
-#define AXIOMTRACE_VERSION_MINOR 1u
+#define AXIOMTRACE_VERSION_MINOR 7u
 #define AXIOMTRACE_VERSION_PATCH 0u
 
-/* Compile-time version check: AXIOMTRACE_VERSION_CHECK(0,1,0) */
+/* Compile-time version check: AXIOMTRACE_VERSION_CHECK(0,7,0) */
 #define AXIOMTRACE_VERSION_CHECK(ma, mi, pa) \
     ((AXIOMTRACE_VERSION_MAJOR > (ma)) ||    \
      (AXIOMTRACE_VERSION_MAJOR == (ma) && AXIOMTRACE_VERSION_MINOR > (mi)) || \
@@ -76,10 +76,35 @@
  * Observability Extensions
  * --------------------------------------------------------------------------- */
 
-/* If enabled, every AX_EVT will automatically append __LINE__ and a hash of __FILE__.
- * Adds approximately 4 bytes of payload per event. */
+/* Source-location metadata modes. Metadata stays in the typed payload so the
+ * fixed 8-byte wire header remains backward compatible. */
+#define AXIOM_CFG_LOCATION_MODE_NONE    0
+#define AXIOM_CFG_LOCATION_MODE_HASH    1
+#define AXIOM_CFG_LOCATION_MODE_FILE_ID 2
+
+/* Compatibility switch retained for existing integrations. New code should
+ * select AXIOM_CFG_LOCATION_MODE explicitly. */
 #ifndef AXIOM_CFG_USE_LOCATION
 #define AXIOM_CFG_USE_LOCATION 0
+#endif
+
+#ifndef AXIOM_CFG_LOCATION_MODE
+#if AXIOM_CFG_USE_LOCATION
+#define AXIOM_CFG_LOCATION_MODE AXIOM_CFG_LOCATION_MODE_HASH
+#else
+#define AXIOM_CFG_LOCATION_MODE AXIOM_CFG_LOCATION_MODE_NONE
+#endif
+#endif
+
+/* Include a function hash only in HASH mode. Production FILE_ID mode restores
+ * function information on the host from retained build artifacts. */
+#ifndef AXIOM_CFG_LOCATION_FUNCTION
+#define AXIOM_CFG_LOCATION_FUNCTION 0
+#endif
+
+/* FILE_ID mode callers may override this per translation unit. */
+#ifndef AXIOM_SOURCE_FILE_ID
+#define AXIOM_SOURCE_FILE_ID 0u
 #endif
 
 /* If enabled, the core will periodically (or manually) emit sync events

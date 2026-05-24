@@ -12,6 +12,9 @@ option(AXIOM_BUILD_TESTS "Build host unit tests" ON)
 option(AXIOM_BUILD_BENCHMARKS "Build benchmarks" OFF)
 option(AXIOM_BUILD_EXAMPLES "Build examples" ON)
 
+list(APPEND CMAKE_MODULE_PATH "${PROJECT_SOURCE_DIR}/cmake")
+include(AxiomTraceTools OPTIONAL)
+
 # ---------------------------------------------------------------------------
 # Platform/Port options (three-layer architecture)
 # ---------------------------------------------------------------------------
@@ -106,37 +109,37 @@ endif()
 # AxiomTrace core library
 # ---------------------------------------------------------------------------
 set(AXIOM_CORE_HEADERS
-    ${CMAKE_SOURCE_DIR}/baremetal/include/axiom_static_assert.h
-    ${CMAKE_SOURCE_DIR}/baremetal/port/axiom_port.h
-    ${CMAKE_SOURCE_DIR}/baremetal/core/axiom_event.h
-    ${CMAKE_SOURCE_DIR}/baremetal/core/axiom_encode.h
-    ${CMAKE_SOURCE_DIR}/baremetal/core/axiom_crc.h
-    ${CMAKE_SOURCE_DIR}/baremetal/core/axiom_ring.h
-    ${CMAKE_SOURCE_DIR}/baremetal/core/axiom_timestamp.h
-    ${CMAKE_SOURCE_DIR}/baremetal/core/axiom_filter.h
-    ${CMAKE_SOURCE_DIR}/baremetal/core/axiom_selftest.h
-    ${CMAKE_SOURCE_DIR}/baremetal/frontend/axiom_frontend.h
-    ${CMAKE_SOURCE_DIR}/baremetal/backend/axiom_backend.h
+    ${PROJECT_SOURCE_DIR}/baremetal/include/axiom_static_assert.h
+    ${PROJECT_SOURCE_DIR}/baremetal/port/axiom_port.h
+    ${PROJECT_SOURCE_DIR}/baremetal/core/axiom_event.h
+    ${PROJECT_SOURCE_DIR}/baremetal/core/axiom_encode.h
+    ${PROJECT_SOURCE_DIR}/baremetal/core/axiom_crc.h
+    ${PROJECT_SOURCE_DIR}/baremetal/core/axiom_ring.h
+    ${PROJECT_SOURCE_DIR}/baremetal/core/axiom_timestamp.h
+    ${PROJECT_SOURCE_DIR}/baremetal/core/axiom_filter.h
+    ${PROJECT_SOURCE_DIR}/baremetal/core/axiom_selftest.h
+    ${PROJECT_SOURCE_DIR}/baremetal/frontend/axiom_frontend.h
+    ${PROJECT_SOURCE_DIR}/baremetal/backend/axiom_backend.h
 )
 
 set(AXIOM_CORE_SOURCES
-    ${CMAKE_SOURCE_DIR}/baremetal/core/axiom_event.c
-    ${CMAKE_SOURCE_DIR}/baremetal/core/axiom_crc.c
-    ${CMAKE_SOURCE_DIR}/baremetal/core/axiom_ring.c
-    ${CMAKE_SOURCE_DIR}/baremetal/core/axiom_timestamp.c
-    ${CMAKE_SOURCE_DIR}/baremetal/core/axiom_filter.c
-    ${CMAKE_SOURCE_DIR}/baremetal/core/axiom_selftest.c
-    ${CMAKE_SOURCE_DIR}/baremetal/backend/axiom_backend.c
+    ${PROJECT_SOURCE_DIR}/baremetal/core/axiom_event.c
+    ${PROJECT_SOURCE_DIR}/baremetal/core/axiom_crc.c
+    ${PROJECT_SOURCE_DIR}/baremetal/core/axiom_ring.c
+    ${PROJECT_SOURCE_DIR}/baremetal/core/axiom_timestamp.c
+    ${PROJECT_SOURCE_DIR}/baremetal/core/axiom_filter.c
+    ${PROJECT_SOURCE_DIR}/baremetal/core/axiom_selftest.c
+    ${PROJECT_SOURCE_DIR}/baremetal/backend/axiom_backend.c
 )
 
 add_library(axiomtrace STATIC ${AXIOM_CORE_SOURCES} ${AXIOM_CORE_HEADERS})
 target_include_directories(axiomtrace PUBLIC
-    ${CMAKE_SOURCE_DIR}/baremetal
-    ${CMAKE_SOURCE_DIR}/baremetal/include
-    ${CMAKE_SOURCE_DIR}/baremetal/port
-    ${CMAKE_SOURCE_DIR}/baremetal/core
-    ${CMAKE_SOURCE_DIR}/baremetal/frontend
-    ${CMAKE_SOURCE_DIR}/baremetal/backend
+    ${PROJECT_SOURCE_DIR}/baremetal
+    ${PROJECT_SOURCE_DIR}/baremetal/include
+    ${PROJECT_SOURCE_DIR}/baremetal/port
+    ${PROJECT_SOURCE_DIR}/baremetal/core
+    ${PROJECT_SOURCE_DIR}/baremetal/frontend
+    ${PROJECT_SOURCE_DIR}/baremetal/backend
 )
 
 # Port selection (using new three-layer architecture)
@@ -145,7 +148,7 @@ target_include_directories(axiomtrace PUBLIC
 target_sources(axiomtrace PRIVATE ${AXIOM_PORT_SOURCES})
 
 # Legacy port path for backward compatibility with existing includes
-target_include_directories(axiomtrace PRIVATE ${CMAKE_SOURCE_DIR}/baremetal/ports)
+target_include_directories(axiomtrace PRIVATE ${PROJECT_SOURCE_DIR}/baremetal/ports)
 
 # ---------------------------------------------------------------------------
 # Optional feature toggles (forwarded as -D preprocessor macros)

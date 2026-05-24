@@ -145,16 +145,23 @@
 - [ ] decoder 完善：支持全部 type tag、capsule 格式、DROP_SUMMARY。
 - [ ] text render：dictionary 模板填充（`"motor current over limit: phase={u8}"`）。
 - [ ] json export：完整事件流导出为 JSON array。
+- [x] 标准元数据包：`manifest.json`、`dictionary.json`、`source_map.json`、`build_info.json`，可选 `firmware.elf`/`.map`。
+- [x] `axiom-bundle generate`：根据事件定义、ELF、compile database 生成标准 bundle。
+- [x] CMake 集成：`axiomtrace_add_bundle(TARGET ... EVENTS ... OUTPUT_DIR ...)`。
+- [x] Decoder bundle 模式：`--bundle`、`--bundle-store`、元数据身份匹配和 raw fallback。
 - [ ] capsule report：HTML/Markdown 格式故障分析报告。
-- [ ] dictionary validator：校验 payload 类型与 dictionary 模板匹配。
+- [x] dictionary validator：校验 payload 类型与 dictionary 模板匹配。
 - [ ] `../../tool/scripts/amalgamate.py`：将 core+frontend+port 合并为单文件 `axiomtrace.h`。
 - [ ] `../../tool/scripts/extract_dict.py`：从 C 源码/X-Macro 提取 `dictionary.json`。
 - [ ] benchmark 工具：`../../tool/benchmark/host_benchmark.c` 测量编码/CRC/ring write 周期。
 - [ ] golden 回归：CI 自动运行 `update_golden.py` + `test_decoder.py`。
+- [ ] 文档治理：README 只做索引；详细契约归主规范文档；禁止未链接的临时 Markdown。
 
 **验收标准**：
 - `binary -> text` 通过全部 golden frames。
 - `binary -> json` 结构正确、字段完整。
+- `trace -> bundle -> text/jsonl` 在开启定位时能还原事件语义和源码位置。
+- `trace -> bundle-store` 在固件身份不匹配时拒绝语义解码，除非显式 raw mode。
 - `capsule -> report` 包含寄存器、事件序列、firmware hash。
 - amalgamate 产物通过全部 host tests。
 
