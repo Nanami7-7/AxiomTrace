@@ -65,6 +65,18 @@ typedef enum {
     VOFA_CMD_RUN,           /**< 启动电机: Run 或 Run=0 */
     VOFA_CMD_STOP,          /**< 停止电机: Stop 或 Stop=0 */
     VOFA_CMD_STOP_ALL,      /**< 停止所有电机: StopAll */
+    VOFA_CMD_SET_FF_K,      /**< 设置前馈斜率: FFk=x */
+    VOFA_CMD_SET_FF_B,      /**< 设置前馈截距: FFb=x */
+    VOFA_CMD_SET_FF_ENABLE, /**< 使能/禁用前馈: FFe=1/0 */
+    VOFA_CMD_SWEEP,         /**< 自动扫频标定: Sweep */
+    VOFA_CMD_MENU,          /**< 刷新菜单显示: Menu */
+    VOFA_CMD_SET_FF_KP,     /**< FF模式比例增益: FFKp=x */
+    VOFA_CMD_SET_FF_KI,     /**< FF模式积分增益: FFKi=x */
+    VOFA_CMD_SET_FF_KD,     /**< FF模式微分增益: FFKd=x */
+
+    /* ---- 模型辨识命令 ---- */
+    VOFA_CMD_STEP,          /**< 阶跃响应辨识: Step or Step=300(自定义PWM) */
+    VOFA_CMD_AUTOTUNE,      /**< 自动整定: Auto or AutoBW=5(指定带宽Hz) */
 } vofa_cmd_type_t;
 
 /** VOFA+ 解析后的命令结构 */
@@ -123,7 +135,8 @@ bool app_vofa_parse_cmd(const char *line, vofa_cmd_t *cmd);
  */
 void app_vofa_apply_cmd(const vofa_cmd_t *cmd,
                          app_shared_ctx_t *ctx,
-                         uint32_t *current_motor);
+                         uint32_t *current_motor,
+                         bool *need_refresh);
 
 #ifdef __cplusplus
 }

@@ -8,6 +8,7 @@
 #include "hal_adc.h"
 #include "project_config.h"
 #include "osal_api.h"
+#include "ti_msp_dl_config.h"
 
 /* ======================== 私有常量 ======================== */
 
@@ -35,6 +36,9 @@ static const adc_channel_config_t s_adc_channels[BSP_ADC_CH_COUNT] = {
 /** 最近一次转换原始值(ISR写入, 任务读取) */
 static volatile uint16_t s_last_raw[BSP_ADC_CH_COUNT] = {0};
 
+/** 转换完成标志(ISR置位, 任务清除) */
+static volatile bool s_adc_done = false;
+
 /** 初始化标志 */
 static bool s_adc_inited = false;
 
@@ -50,6 +54,10 @@ bsp_status_t bsp_adc_init(void)
     for (uint32_t i = 0; i < BSP_ADC_CH_COUNT; i++) {
         s_last_raw[i] = 0U;
     }
+
+    /* 使能ADC中断 */
+    NVIC_ClearPendingIRQ(ADC_VOLTAGE_INST_INT_IRQN);
+    NVIC_EnableIRQ(ADC_VOLTAGE_INST_INT_IRQN);
 
     s_adc_inited = true;
     return BSP_OK;
@@ -133,6 +141,12 @@ bsp_status_t bsp_adc_start_conversion(bsp_adc_channel_t channel)
 
 void bsp_adc_irq_handler(void)
 {
+    /* 读取IIDX应答中断, 不清零则中断不会再触发 */
+    DL_ADC12_IIDX iidx = DL_ADC12_getPendingInterrupt(ADC_VOLTAGE_INST);
+    if (iidx != DL_ADC12_IIDX_MEM0_RESULT_LOADED) {
+        return;
+    }
+
     /* 读取转换结果(仅通道0) */
     uint16_t result = 0U;
     hal_status_t ret = hal_adc_read_result(
@@ -141,6 +155,28 @@ void bsp_adc_irq_handler(void)
     if (ret == HAL_OK) {
         s_last_raw[BSP_ADC_CH_VOLTAGE] = result;
     }
+    s_adc_done = true;
+}
+
+bool bsp_adc_is_conversion_done(void)
+{
+    bool done;
+    OSAL_CRITICAL_SECTION {
+        done = s_adc_done;
+    }
+    return done;
+}
+
+void bsp_adc_clear_done_flag(void)
+{
+    OSAL_CRITICAL_SECTION {
+        s_adc_done = false;
+    }
+}
+
+void ADC_VOLTAGE_INST_IRQHandler(void)
+{
+    bsp_adc_irq_handler();
 }
 
 uint16_t bsp_adc_get_last_raw(bsp_adc_channel_t channel)

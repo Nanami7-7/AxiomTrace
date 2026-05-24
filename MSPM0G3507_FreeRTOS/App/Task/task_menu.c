@@ -1,153 +1,153 @@
 /**
  * @file    task_menu.c
- * @brief   菜单任务实现
- * @note    状态机驱动串口交互菜单
- *          - MAIN: 显示电机参数+菜单选项
- *          - MOTOR_SELECT: 选择目标电机
- *          - SET_RPM: 设定目标RPM
- *          - TUNING_PID: 设定KP/KI/KD
- *          - RUNNING: 启动电机+30ms输出RPM
+ * @brief   菜单任务实现(CLI模式)
+ * @note    CLI模式: 显示状态 → 等待命令 → 执行 → 刷新
+ *          Run命令进入数据输出模式(30ms VOFA+数据)
+ *          Stop命令退出数据输出模式
  */
 #include "task_menu.h"
 #include "app_main.h"
 #include "app_pid.h"
+#include "app_feedforward.h"
 #include "app_vofa.h"
 #include "app_complementary_filter.h"
 #include "osal_api.h"
 #include "bsp_led.h"
 #include "bsp_motor.h"
 #include "bsp_uart.h"
+#include "app_debug.h"
 #include "axiomtrace.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
-/* ======================== 私有类型 ======================== */
-
-/** 菜单状态枚举 */
-typedef enum {
-    MENU_STATE_MAIN = 0,     /**< 主菜单 */
-    MENU_STATE_MOTOR_SELECT, /**< 选择电机 */
-    MENU_STATE_SET_RPM,      /**< 设定RPM */
-    MENU_STATE_TUNING_PID,   /**< 调PID参数 */
-    MENU_STATE_RUNNING,      /**< 运行中(输出RPM) */
-    MENU_STATE_COUNT         /**< 状态总数 */
-} menu_state_t;
-
-/** 菜单上下文结构体 */
-typedef struct {
-    menu_state_t state;         /**< 当前状态 */
-    uint32_t     selected_motor;/**< 选中电机索引(0~3) */
-    int32_t      target_rpm;    /**< 目标RPM(用户输入) */
-    char         line_buf[MENU_LINE_BUF_SIZE]; /**< 行缓冲 */
-    uint32_t     line_pos;      /**< 行缓冲写入位置 */
-    uint32_t     led_counter;   /**< LED分频计数器 */
-    bool         need_print;    /**< 主菜单需重印标志 */
-    app_shared_ctx_t *shared;   /**< 共享上下文指针 */
-} menu_ctx_t;
-
-/** 状态处理函数类型 */
-typedef void (*menu_handler_t)(menu_ctx_t *ctx);
-
-/* ======================== 私有变量 ======================== */
+/* ======================== 私有常量 ======================== */
 
 /** 电机名称查找表 */
 static const char *s_motor_names[BSP_MOTOR_COUNT] = {
     "A", "B", "C", "D"
 };
 
-/* ======================== 私有函数: 菜单辅助 ======================== */
+/** LED心跳周期(ms) */
+#define MENU_LED_PERIOD_MS  (100U)
+
+/** LED翻转阈值(ms) */
+#define LED_TOGGLE_THRESH   (500U)
+
+/* ======================== 私有函数: 行输入 ======================== */
 
 /**
  * @brief  非阻塞行输入
- * @note   从UART逐字节读取, 回显, 支持退格
- *         遇到\r或\n视为一行完成
- * @param  ctx 菜单上下文
- * @retval true  一行输入完成(ctx->line_buf含完整行, 以\0结尾)
- * @retval false 尚未完成, 继续轮询
+ * @param  line_buf  行缓冲区
+ * @param  buf_size  缓冲区大小
+ * @param  line_pos  当前写入位置指针(读写)
+ * @retval true  一行输入完成
+ * @retval false 尚未完成
  */
-static bool menu_read_line(menu_ctx_t *ctx)
+static bool menu_read_line(char *line_buf, uint32_t buf_size,
+                            uint32_t *line_pos)
 {
     uint8_t ch;
 
     while (bsp_uart_getc(&ch) == BSP_OK) {
         if (ch == '\r' || ch == '\n') {
-            /* 行结束: 终止字符串, 回显换行 */
-            ctx->line_buf[ctx->line_pos] = '\0';
+            line_buf[*line_pos] = '\0';
             (void)printf("\r\n");
-            ctx->line_pos = 0U;
+            *line_pos = 0U;
             return true;
         } else if (ch == 0x7FU || ch == 0x08U) {
-            /* 退格: 删除末字符 */
-            if (ctx->line_pos > 0U) {
-                ctx->line_pos--;
+            if (*line_pos > 0U) {
+                (*line_pos)--;
                 (void)printf("\b \b");
             }
         } else if (ch >= 0x20U && ch < 0x7FU) {
-            /* 可打印字符: 存入+回显 */
-            if (ctx->line_pos < (MENU_LINE_BUF_SIZE - 1U)) {
-                ctx->line_buf[ctx->line_pos] = (char)ch;
-                ctx->line_pos++;
+            if (*line_pos < (buf_size - 1U)) {
+                line_buf[*line_pos] = (char)ch;
+                (*line_pos)++;
                 (void)bsp_uart_putc(ch);
             }
         }
-        /* 其他字符(如0x1B ESC)忽略 */
     }
 
     return false;
 }
 
-/**
- * @brief  重置行缓冲区
- */
-static void menu_line_reset(menu_ctx_t *ctx)
-{
-    ctx->line_pos = 0U;
-    ctx->line_buf[0] = '\0';
-    bsp_uart_rx_flush();
-}
+/* ======================== 私有函数: 状态显示 ======================== */
 
 /**
- * @brief  LED心跳(分频实现)
- * @param  ctx     菜单上下文
- * @param  period  当前循环延时(ms)
+ * @brief  打印当前状态(电机参数+FF状态+IMU数据)
  */
-static void menu_led_heartbeat(menu_ctx_t *ctx, uint32_t period)
+static void menu_print_status(const app_shared_ctx_t *ctx,
+                               uint32_t motor)
 {
-    ctx->led_counter += period;
-    if (ctx->led_counter >= 500U) {
-        ctx->led_counter = 0U;
-        bsp_led_toggle();
+    (void)printf("\r\n=== Motor: %s ===\r\n", s_motor_names[motor]);
+
+    /* 当前目标RPM */
+    {
+        float sp;
+        OSAL_CRITICAL_SECTION {
+            sp = ctx->pid[motor].setpoint;
+        }
+        (void)printf("Target: %.0f RPM\r\n", (double)sp);
     }
-}
 
-/**
- * @brief  打印主菜单信息(选中电机+所有PID参数+选项)
- */
-static void menu_print_main(const menu_ctx_t *ctx)
-{
-    (void)printf("\r\n=== Motor: %s ===\r\n",
-        s_motor_names[ctx->selected_motor]);
-
-    for (uint32_t i = 0; i < BSP_MOTOR_COUNT; i++) {
+    /* 各电机PID参数 */
+    for (uint32_t i = 0U; i < BSP_MOTOR_COUNT; i++) {
         float kp, ki, kd;
         OSAL_CRITICAL_SECTION {
-            kp = ctx->shared->pid[i].kp;
-            ki = ctx->shared->pid[i].ki;
-            kd = ctx->shared->pid[i].kd;
+            kp = ctx->pid[i].kp;
+            ki = ctx->pid[i].ki;
+            kd = ctx->pid[i].kd;
         }
         (void)printf("%c: KP=%.2f KI=%.2f KD=%.2f\r\n",
             'A' + (int)i,
             (double)kp, (double)ki, (double)kd);
     }
 
-    /* IMU姿态 + 融合数据 */
+    /* FF状态 */
+    {
+        float ff_k, ff_b, ff_kp, ff_ki, ff_kd;
+        bool ff_en;
+        OSAL_CRITICAL_SECTION {
+            ff_k = ctx->ff[motor].k;
+            ff_b = ctx->ff[motor].b;
+            ff_en = ctx->ff[motor].enabled;
+            ff_kp = ctx->pid[motor].ff_kp;
+            ff_ki = ctx->pid[motor].ff_ki;
+            ff_kd = ctx->pid[motor].ff_kd;
+        }
+        if (ff_en) {
+            (void)printf("FF: ON  k=%.3f  b=%.1f\r\n",
+                (double)ff_k, (double)ff_b);
+            (void)printf("FF_PID: KP=%.2f KI=%.2f KD=%.2f\r\n",
+                (double)ff_kp, (double)ff_ki, (double)ff_kd);
+        } else {
+            (void)printf("FF: OFF\r\n");
+        }
+    }
+
+    /* 电机运行状态 */
+    {
+        bool en;
+        int32_t rpm;
+        OSAL_CRITICAL_SECTION {
+            en = ctx->motor_enabled[motor];
+            rpm = ctx->status.rpm[motor];
+        }
+        if (en) {
+            (void)printf("Motor: running (%ld RPM)\r\n", (long)rpm);
+        } else {
+            (void)printf("Motor: stopped\r\n");
+        }
+    }
+
+    /* IMU数据 */
     {
         float roll, pitch, yaw, heading, vx;
         OSAL_CRITICAL_SECTION {
-            roll  = ctx->shared->imu.roll;
-            pitch = ctx->shared->imu.pitch;
-            yaw   = ctx->shared->imu.yaw;
+            roll  = ctx->imu.roll;
+            pitch = ctx->imu.pitch;
+            yaw   = ctx->imu.yaw;
         }
         heading = app_cf_get_heading();
         vx      = app_cf_get_velocity_x();
@@ -155,287 +155,158 @@ static void menu_print_main(const menu_ctx_t *ctx)
             (double)roll, (double)pitch, (double)yaw,
             (double)heading, (double)vx);
     }
-
-    (void)printf(
-        "a:Motor b:RPM c:PID d:Run q:Back\r\n");
 }
 
-/* ======================== 私有函数: 菜单状态处理 ======================== */
+/* ======================== 私有函数: 数据输出循环 ======================== */
 
 /**
- * @brief  主菜单状态处理
- * @note   显示菜单, 等待a/b/c/d切换状态
+ * @brief  VOFA+数据输出模式(Run后进入, Stop退出)
+ * @param  ctx          共享上下文
+ * @param  motor        当前电机索引指针
+ * @param  need_refresh 刷新标志指针
  */
-static void menu_state_main(menu_ctx_t *ctx)
+static void menu_data_output_loop(app_shared_ctx_t *ctx,
+                                   uint32_t *motor,
+                                   bool *need_refresh)
 {
-    if (ctx->need_print) {
-        menu_print_main(ctx);
-        ctx->need_print = false;
-    }
+    char line_buf[MENU_LINE_BUF_SIZE];
+    uint32_t line_pos = 0U;
+    uint32_t led_cnt = 0U;
 
-    if (!menu_read_line(ctx)) {
-        osal_task_delay_ms(APP_MENU_POLL_PERIOD_MS);
-        menu_led_heartbeat(ctx, APP_MENU_POLL_PERIOD_MS);
-        return;
-    }
+    (void)printf("[DATA] VOFA+ output started. Send Stop to exit.\r\n");
 
-    char ch = ctx->line_buf[0];
+    for (;;) {
+        /* 非阻塞检查命令 */
+        if (menu_read_line(line_buf, MENU_LINE_BUF_SIZE, &line_pos)) {
+            vofa_cmd_t cmd;
+            if (app_vofa_parse_cmd(line_buf, &cmd)) {
+                app_vofa_apply_cmd(&cmd, ctx, motor, need_refresh);
 
-    switch (ch) {
-    case 'a':
-        ctx->state = MENU_STATE_MOTOR_SELECT;
-        (void)printf("Select motor (a-d, q=back):\r\n");
-        break;
-    case 'b':
-        ctx->state = MENU_STATE_SET_RPM;
-        (void)printf("Set RPM for Motor %s (q=back):\r\n",
-            s_motor_names[ctx->selected_motor]);
-        break;
-    case 'c':
-        ctx->state = MENU_STATE_TUNING_PID;
-        (void)printf(
-            "Set KP KI KD for Motor %s (e.g. 1.5 0.3 0.1, q=back):\r\n",
-            s_motor_names[ctx->selected_motor]);
-        break;
-    case 'd': {
-        ctx->state = MENU_STATE_RUNNING;
-        /* 设PID目标值(RPM)并使能电机(原子操作) */
-        OSAL_CRITICAL_SECTION {
-            app_pid_set_setpoint(
-                &ctx->shared->pid[ctx->selected_motor],
-                (float)ctx->target_rpm);
-            ctx->shared->motor_enabled[ctx->selected_motor] = true;
+                /* Stop退出数据输出模式 */
+                if (cmd.type == VOFA_CMD_STOP ||
+                    cmd.type == VOFA_CMD_STOP_ALL) {
+                    (void)printf("[DATA] VOFA+ output stopped.\r\n");
+                    return;
+                }
+                /* 非Stop命令: 只打印反馈, 不刷新菜单 */
+            }
         }
-        char info[48];
-        (void)snprintf(info, sizeof(info),
-            "Motor %s RUN target=%ld RPM",
-            s_motor_names[ctx->selected_motor],
-            (long)ctx->target_rpm);
-        AX_LOG_INFO(info);
-        (void)printf("Motor %s running (q=stop):\r\n",
-            s_motor_names[ctx->selected_motor]);
-        break;
-    }
-    default:
-        break;
-    }
 
-    menu_line_reset(ctx);
-    osal_task_delay_ms(APP_MENU_POLL_PERIOD_MS);
-    menu_led_heartbeat(ctx, APP_MENU_POLL_PERIOD_MS);
-}
-
-/**
- * @brief  电机选择状态处理
- * @note   输入a-d选择电机, q返回主菜单
- */
-static void menu_state_motor_select(menu_ctx_t *ctx)
-{
-    if (!menu_read_line(ctx)) {
-        osal_task_delay_ms(APP_MENU_POLL_PERIOD_MS);
-        menu_led_heartbeat(ctx, APP_MENU_POLL_PERIOD_MS);
-        return;
-    }
-
-    char ch = ctx->line_buf[0];
-
-    if (ch == 'q') {
-        ctx->state = MENU_STATE_MAIN;
-        ctx->need_print = true;
-    } else if (ch >= 'a' && ch <= 'd') {
-        ctx->selected_motor = (uint32_t)(ch - 'a');
-        (void)printf("Motor %s selected\r\n",
-            s_motor_names[ctx->selected_motor]);
-        ctx->state = MENU_STATE_MAIN;
-        ctx->need_print = true;
-    } else {
-        (void)printf("Invalid! Enter a-d or q\r\n");
-    }
-
-    menu_line_reset(ctx);
-    osal_task_delay_ms(APP_MENU_POLL_PERIOD_MS);
-    menu_led_heartbeat(ctx, APP_MENU_POLL_PERIOD_MS);
-}
-
-/**
- * @brief  设定RPM状态处理
- * @note   输入整数RPM值, q返回主菜单
- */
-static void menu_state_set_rpm(menu_ctx_t *ctx)
-{
-    if (!menu_read_line(ctx)) {
-        osal_task_delay_ms(APP_MENU_POLL_PERIOD_MS);
-        menu_led_heartbeat(ctx, APP_MENU_POLL_PERIOD_MS);
-        return;
-    }
-
-    char ch = ctx->line_buf[0];
-
-    if (ch == 'q') {
-        ctx->state = MENU_STATE_MAIN;
-        ctx->need_print = true;
-    } else {
-        /* 使用 strtol 代替 atoi, 区分 "0" 和非法输入 */
-        char *endptr = NULL;
-        long rpm_long = strtol(ctx->line_buf, &endptr, 10);
-        if (endptr == ctx->line_buf || *endptr != '\0') {
-            (void)printf("Invalid RPM!\r\n");
-        } else {
-            int32_t rpm = (int32_t)rpm_long;
-            ctx->target_rpm = rpm;
-            (void)printf("Motor %s target: %ld RPM\r\n",
-                s_motor_names[ctx->selected_motor],
-                (long)rpm);
-            ctx->state = MENU_STATE_MAIN;
-            ctx->need_print = true;
-        }
-    }
-
-    menu_line_reset(ctx);
-    osal_task_delay_ms(APP_MENU_POLL_PERIOD_MS);
-    menu_led_heartbeat(ctx, APP_MENU_POLL_PERIOD_MS);
-}
-
-/**
- * @brief  调PID参数状态处理
- * @note   输入"KP KI KD"空格分隔, q返回主菜单
- */
-static void menu_state_tuning_pid(menu_ctx_t *ctx)
-{
-    if (!menu_read_line(ctx)) {
-        osal_task_delay_ms(APP_MENU_POLL_PERIOD_MS);
-        menu_led_heartbeat(ctx, APP_MENU_POLL_PERIOD_MS);
-        return;
-    }
-
-    char ch = ctx->line_buf[0];
-
-    if (ch == 'q') {
-        ctx->state = MENU_STATE_MAIN;
-        ctx->need_print = true;
-    } else {
-        float kp = 0.0f, ki = 0.0f, kd = 0.0f;
-        int n = sscanf(ctx->line_buf, "%f %f %f",
-            &kp, &ki, &kd);
-        if (n == 3) {
+        /* 输出VOFA+数据(11通道, DMA非阻塞) */
+        {
+            float channels[11];
             OSAL_CRITICAL_SECTION {
-                app_pid_set_params(
-                    &ctx->shared->pid[ctx->selected_motor],
-                    kp, ki, kd);
+                for (uint32_t i = 0U; i < BSP_MOTOR_COUNT; i++) {
+                    channels[i] = (float)ctx->status.rpm[i];
+                    channels[4 + i] = ctx->pid[i].setpoint;
+                }
+                /* CH8: FF duty(选中电机) */
+                if (ctx->ff[*motor].enabled) {
+                    channels[8] = app_ff_compute(
+                        &ctx->ff[*motor], ctx->pid[*motor].setpoint);
+                } else {
+                    channels[8] = 0.0f;
+                }
+                /* CH9: PID修正量(选中电机) */
+                channels[9] = ctx->status.pid_correction[*motor];
+                /* CH10: 实际DUTY输出(选中电机) */
+                channels[10] = (float)ctx->status.output[*motor];
             }
-            (void)printf(
-                "Motor %s: KP=%.2f KI=%.2f KD=%.2f\r\n",
-                s_motor_names[ctx->selected_motor],
-                (double)kp, (double)ki, (double)kd);
-            ctx->state = MENU_STATE_MAIN;
-            ctx->need_print = true;
-        } else {
-            (void)printf(
-                "Invalid! e.g. 1.5 0.3 0.1\r\n");
-        }
-    }
 
-    menu_line_reset(ctx);
-    osal_task_delay_ms(APP_MENU_POLL_PERIOD_MS);
-    menu_led_heartbeat(ctx, APP_MENU_POLL_PERIOD_MS);
-}
-
-/**
- * @brief  运行状态处理(VOFA+ 协议输出 + 远程调参)
- * @note   30ms间隔输出12通道VOFA+数据, 支持下行命令
- *         通道分配(0~11):
- *         0~3: 4电机实际RPM, 4~7: 4电机目标RPM
- *         8: roll, 9: pitch, 10: heading, 11: 融合速度
- *         下行命令: Kp=x, Ki=x, Kd=x, Target=x, Run, Stop, StopAll
- */
-static void menu_state_running(menu_ctx_t *ctx)
-{
-    /* ---- 检查下行命令输入 ---- */
-    if (menu_read_line(ctx)) {
-        /* 尝试解析为 VOFA+ 命令 */
-        vofa_cmd_t cmd;
-        if (app_vofa_parse_cmd(ctx->line_buf, &cmd)) {
-            app_vofa_apply_cmd(&cmd, ctx->shared,
-                &ctx->selected_motor);
-        } else {
-            /* 非VOFA命令, 检查 'q' 退出 */
-            if (ctx->line_buf[0] == 'q') {
-                app_motor_stop(ctx->shared,
-                    ctx->selected_motor);
-                (void)printf("Motor %s stopped\r\n",
-                    s_motor_names[ctx->selected_motor]);
-                ctx->state = MENU_STATE_MAIN;
-                ctx->need_print = true;
-                menu_line_reset(ctx);
-                osal_task_delay_ms(
-                    APP_RPM_OUTPUT_PERIOD_MS);
-                menu_led_heartbeat(ctx,
-                    APP_RPM_OUTPUT_PERIOD_MS);
-                return;
-            } else {
-                (void)printf("Unknown cmd: '%s'\r\n",
-                    ctx->line_buf);
+            /* 格式化到临时缓冲区 */
+            char tx_buf[180];
+            int len = 0;
+            for (uint32_t i = 0U; i < 11U; i++) {
+                if (i > 0U) {
+                    tx_buf[len] = ',';
+                    len++;
+                }
+                int ret = snprintf(&tx_buf[len],
+                    sizeof(tx_buf) - (uint32_t)len,
+                    "%.6f", (double)channels[i]);
+                if (ret < 0 || (uint32_t)ret >= sizeof(tx_buf) - (uint32_t)len) {
+                    len = 0;  /* 缓冲区不足,放弃本帧 */
+                    break;
+                }
+                len += ret;
+            }
+            if (len > 0 && len < (int)sizeof(tx_buf)) {
+                tx_buf[len] = '\n';
+                len++;
+                /* 非阻塞DMA发送：检查标志位，忙则跳过本帧 */
+                if (bsp_uart_tx_idle()) {
+                    (void)bsp_uart_send_dma((uint8_t *)tx_buf, (uint16_t)len);
+                }
             }
         }
-        menu_line_reset(ctx);
-    }
 
-    /* ---- 构建12通道数据 ---- */
-    float channels[12];
-    OSAL_CRITICAL_SECTION {
-        for (uint32_t i = 0; i < BSP_MOTOR_COUNT; i++) {
-            /* ch0~3: 实际RPM */
-            channels[i] = (float)ctx->shared->status.rpm[i];
-            /* ch4~7: 目标RPM */
-            channels[4 + i] =
-                ctx->shared->pid[i].setpoint;
+        /* LED心跳 */
+        led_cnt += APP_RPM_OUTPUT_PERIOD_MS;
+        if (led_cnt >= LED_TOGGLE_THRESH) {
+            led_cnt = 0U;
+            bsp_led_toggle();
         }
-        /* ch8: roll, ch9: pitch */
-        channels[8]  = ctx->shared->imu.roll;
-        channels[9]  = ctx->shared->imu.pitch;
+
+        osal_task_delay_ms(APP_RPM_OUTPUT_PERIOD_MS);
     }
-    /* ch10: 融合航向角, ch11: 融合线速度 */
-    channels[10] = app_cf_get_heading();
-    channels[11] = app_cf_get_velocity_x();
-
-    /* ---- 发送 VOFA+ FireWater 格式 ---- */
-    app_vofa_send_firewater(channels, 12U);
-
-    osal_task_delay_ms(APP_RPM_OUTPUT_PERIOD_MS);
-    menu_led_heartbeat(ctx, APP_RPM_OUTPUT_PERIOD_MS);
 }
-
-/** 状态处理函数表 */
-static const menu_handler_t
-    s_menu_handlers[MENU_STATE_COUNT] = {
-    [MENU_STATE_MAIN]         = menu_state_main,
-    [MENU_STATE_MOTOR_SELECT] = menu_state_motor_select,
-    [MENU_STATE_SET_RPM]      = menu_state_set_rpm,
-    [MENU_STATE_TUNING_PID]   = menu_state_tuning_pid,
-    [MENU_STATE_RUNNING]      = menu_state_running,
-};
 
 /* ======================== 公共函数实现 ======================== */
 
 void app_menu_task(void *param)
 {
-    app_shared_ctx_t *shared = (app_shared_ctx_t *)param;
+    app_shared_ctx_t *ctx = (app_shared_ctx_t *)param;
+    uint32_t selected_motor = 0U;
+    char line_buf[MENU_LINE_BUF_SIZE];
+    uint32_t line_pos = 0U;
+    uint32_t led_cnt = 0U;
+    bool need_refresh = true;  /* 初始显示 */
 
-    /* 初始化菜单上下文 */
-    menu_ctx_t ctx;
-    (void)memset(&ctx, 0, sizeof(ctx));
-    ctx.state = MENU_STATE_MAIN;
-    ctx.selected_motor = 0U;
-    ctx.target_rpm = 200;
-    ctx.need_print = true;
-    ctx.shared = shared;
+    (void)printf("\r\n=== MSPM0G3507 Motor Control ===\r\n");
+    (void)printf("Send VOFA+ commands to control.\r\n");
 
     for (;;) {
-        /* 查表调用当前状态的handler */
-        if (ctx.state < MENU_STATE_COUNT) {
-            s_menu_handlers[ctx.state](&ctx);
-        } else {
-            ctx.state = MENU_STATE_MAIN;
+        /* 刷新菜单 */
+        if (need_refresh) {
+            menu_print_status(ctx, selected_motor);
+            need_refresh = false;
         }
+
+        /* 检查命令 */
+        if (menu_read_line(line_buf, MENU_LINE_BUF_SIZE, &line_pos)) {
+            if (strcmp(line_buf, "enc") == 0) {
+                app_debug_encoder_stream(50);
+                need_refresh = true;
+            } else if (strcmp(line_buf, "diag") == 0) {
+                app_debug_encoder_diag(ctx, selected_motor);
+                need_refresh = true;
+            } else if (strcmp(line_buf, "adc") == 0) {
+                app_debug_adc_test();
+                need_refresh = true;
+            } else {
+                vofa_cmd_t cmd;
+                if (app_vofa_parse_cmd(line_buf, &cmd)) {
+                    app_vofa_apply_cmd(&cmd, ctx, &selected_motor,
+                                       &need_refresh);
+
+                    /* Run命令进入数据输出模式 */
+                    if (cmd.type == VOFA_CMD_RUN) {
+                        menu_data_output_loop(ctx, &selected_motor,
+                                              &need_refresh);
+                        /* 退出后刷新菜单 */
+                        need_refresh = true;
+                    }
+                }
+            }
+        }
+
+        /* LED心跳 */
+        led_cnt += MENU_LED_PERIOD_MS;
+        if (led_cnt >= LED_TOGGLE_THRESH) {
+            led_cnt = 0U;
+            bsp_led_toggle();
+        }
+
+        osal_task_delay_ms(MENU_LED_PERIOD_MS);
     }
 }

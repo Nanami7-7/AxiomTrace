@@ -1,12 +1,12 @@
 /**
  * @file    bsp_encoder.c
  * @brief   编码器驱动实现
- * @note    基于4个TIMG定时器的组合捕获模式实现四路编码器
+ * @note    基于TIMG7/TIMA1/TIMG6/TIMG0四个定时器的组合捕获模式实现四路编码器
  *          A相接CAPTURE(CC0/CC1), B相接GPIO输入
  *
  *          ISR调用链:
- *          TIMG8_IRQHandler() → bsp_encoder_irq_handler(BSP_ENCODER_LF)
- *          TIMG7_IRQHandler() → bsp_encoder_irq_handler(BSP_ENCODER_LB)
+ *          TIMG7_IRQHandler()  → bsp_encoder_irq_handler(BSP_ENCODER_LF)
+ *          TIMA1_IRQHandler()  → bsp_encoder_irq_handler(BSP_ENCODER_LB)
  *          TIMG6_IRQHandler() → bsp_encoder_irq_handler(BSP_ENCODER_RF)
  *          TIMG0_IRQHandler() → bsp_encoder_irq_handler(BSP_ENCODER_RB)
  *
@@ -25,7 +25,6 @@
 #include "osal_api.h"
 #include "ti_msp_dl_config.h"
 #include "project_config.h"
-
 /* ======================== 编码器参数 ======================== */
 
 /**
@@ -53,6 +52,25 @@ static volatile int32_t s_encoder_count[BSP_ENCODER_COUNT] = {0};
 /** 各编码器方向标志(+1=正转, -1=反转) */
 static volatile int8_t s_encoder_sign[BSP_ENCODER_COUNT] = {1, 1, 1, 1};
 
+/** 各编码器累计总脉冲(ISR写入, 不被清除, 用于调试) */
+static volatile int32_t s_encoder_total[BSP_ENCODER_COUNT] = {0};
+
+/* ======================== M/T法测速变量 ======================== */
+/** 首边沿timer计数值 */
+static volatile uint16_t s_mt_first_cnt[BSP_ENCODER_COUNT];
+/** 末边沿timer计数值 */
+static volatile uint16_t s_mt_last_cnt[BSP_ENCODER_COUNT];
+/** 最后边沿方向(+1/-1) */
+static volatile int32_t  s_mt_last_dir[BSP_ENCODER_COUNT];
+/** 窗口内是否有边沿 */
+static volatile bool     s_mt_has_edge[BSP_ENCODER_COUNT];
+/** CC1硬件捕获周期值 */
+static volatile uint16_t s_mt_last_period[BSP_ENCODER_COUNT];
+/** timer溢出计数 */
+static volatile uint32_t s_mt_overflow_cnt[BSP_ENCODER_COUNT];
+/** 最后边沿32位绝对时间戳 */
+static volatile uint32_t s_mt_last_abs[BSP_ENCODER_COUNT];
+
 /** 初始化标志 */
 static bool s_encoder_inited = false;
 
@@ -75,10 +93,18 @@ bsp_status_t bsp_encoder_init(const bsp_encoder_config_t *cfg,
     s_encoder_cfg_count = count;
     s_encoder_pulses_per_rev = pulses_per_rev;
 
-    /* 清零所有计数 */
+    /* 清零所有计数及M/T变量 */
     for (uint32_t i = 0; i < s_encoder_cfg_count; i++) {
-        s_encoder_count[i]        = 0;
-        s_encoder_sign[i]         = 1;
+        s_encoder_count[i]    = 0;
+        s_encoder_total[i]    = 0;
+        s_encoder_sign[i]     = 1;
+        s_mt_first_cnt[i]     = 0;
+        s_mt_last_cnt[i]      = 0;
+        s_mt_last_dir[i]      = 0;
+        s_mt_has_edge[i]      = false;
+        s_mt_last_period[i]   = 0;
+        s_mt_overflow_cnt[i]  = 0;
+        s_mt_last_abs[i]      = 0;
     }
 
     /* 使能4路编码器定时器的NVIC中断并启动计数 */
@@ -118,6 +144,22 @@ bsp_status_t bsp_encoder_get_all_counts(int32_t counts[])
         for (uint32_t i = 0; i < BSP_ENCODER_COUNT; i++) {
             counts[i] = (i < s_encoder_cfg_count) ?
                 s_encoder_count[i] : 0;
+        }
+    }
+
+    return BSP_OK;
+}
+
+bsp_status_t bsp_encoder_get_all_totals(int32_t totals[])
+{
+    if (totals == NULL) {
+        return BSP_ERR_NULL_PTR;
+    }
+
+    OSAL_CRITICAL_SECTION {
+        for (uint32_t i = 0; i < BSP_ENCODER_COUNT; i++) {
+            totals[i] = (i < s_encoder_cfg_count) ?
+                s_encoder_total[i] : 0;
         }
     }
 
@@ -253,6 +295,149 @@ float bsp_encoder_rpm_to_pulse(float rpm, uint32_t dt_ms)
          * (float)dt_ms / 60000.0f;
 }
 
+/* ======================== 诊断接口 ======================== */
+
+bsp_status_t bsp_encoder_get_diag(bsp_encoder_id_t id,
+                                   bsp_encoder_diag_t *out)
+{
+    if ((uint32_t)id >= s_encoder_cfg_count) {
+        return BSP_ERR_INVALID_PARAM;
+    }
+    if (out == NULL) {
+        return BSP_ERR_NULL_PTR;
+    }
+
+    OSAL_CRITICAL_SECTION {
+        out->count     = s_encoder_count[id];
+        out->total     = s_encoder_total[id];
+        out->sign      = s_encoder_sign[id];
+        out->has_edge  = s_mt_has_edge[id];
+        out->first_cnt = s_mt_first_cnt[id];
+        out->last_cnt  = s_mt_last_cnt[id];
+        out->last_dir  = s_mt_last_dir[id];
+        out->period    = s_mt_last_period[id];
+        out->overflow  = s_mt_overflow_cnt[id];
+        out->last_abs  = s_mt_last_abs[id];
+        {
+            uint16_t now_cnt = (uint16_t)hal_timer_get_count(
+                s_encoder_cfg[id].timer);
+            uint32_t now_abs = (s_mt_overflow_cnt[id] << 16) | now_cnt;
+            out->time_since = now_abs - out->last_abs;
+        }
+    }
+    /* 注意: count 和 has_edge 不清零 — 只读诊断 */
+
+    return BSP_OK;
+}
+
+/* ======================== M/T法测速 ======================== */
+
+bsp_status_t bsp_encoder_get_all_rpm_mt(int32_t rpms[], bool had_edge[])
+{
+    if (rpms == NULL) {
+        return BSP_ERR_NULL_PTR;
+    }
+
+    OSAL_CRITICAL_SECTION {
+        for (uint32_t i = 0; i < s_encoder_cfg_count; i++) {
+            int32_t M = s_encoder_count[i];
+            bool has_edge = s_mt_has_edge[i];
+            uint16_t first_cnt = s_mt_first_cnt[i];
+            uint16_t last_cnt  = s_mt_last_cnt[i];
+            uint16_t period    = s_mt_last_period[i];
+            int32_t  last_dir  = s_mt_last_dir[i];
+            uint32_t last_abs  = s_mt_last_abs[i];
+            uint32_t overflow  = s_mt_overflow_cnt[i];
+
+            s_encoder_count[i] = 0;
+            s_mt_has_edge[i]   = false;
+
+            if (had_edge != NULL) {
+                had_edge[i] = has_edge;
+            }
+
+            int32_t rpm = 0;
+
+            if (M >= 2 || M <= -2) {
+                /* M/T法: T_ref = 末边沿 - 首边沿 */
+                int16_t diff = (int16_t)(last_cnt - first_cnt);
+                uint32_t t_ref = (diff > 0)
+                    ? (uint32_t)diff
+                    : (uint32_t)(diff + 65536);
+                if (t_ref == 0) t_ref = 1;
+                int64_t num = (int64_t)M * 6000000LL;
+                int64_t den = (int64_t)t_ref
+                    * (int64_t)s_encoder_pulses_per_rev;
+                rpm = (int32_t)(num / den);
+
+            } else if (M == 1 || M == -1) {
+                /* T法: 用CC1硬件周期 */
+                if (period == 0) {
+                    /* CC0首沿, period尚未更新, 改用time_since估算 */
+                    uint16_t now_cnt;
+                    uint32_t now_abs;
+                    OSAL_CRITICAL_SECTION {
+                        now_cnt = (uint16_t)hal_timer_get_count(
+                            s_encoder_cfg[i].timer);
+                        now_abs = (s_mt_overflow_cnt[i] << 16) | now_cnt;
+                    }
+                    uint32_t time_since = now_abs - last_abs;
+                    if (time_since == 0) time_since = 1;
+                    int64_t num = (int64_t)M * 6000000LL;
+                    int64_t den = (int64_t)time_since
+                        * (int64_t)s_encoder_pulses_per_rev;
+                    rpm = (int32_t)(num / den);
+                } else {
+                    int64_t num = (int64_t)M * 6000000LL;
+                    int64_t den = (int64_t)period
+                        * (int64_t)s_encoder_pulses_per_rev;
+                    rpm = (int32_t)(num / den);
+                }
+
+            } else {
+                /* M=0: 无当前窗口内边沿 */
+                if (last_dir == 0) {
+                    /* 从未捕获到边沿(初始化后首次运行) */
+                    rpm = 0;
+                } else {
+                    /* 平滑衰减: MAX(time_since, last_period) */
+                    uint16_t now_cnt;
+                    uint32_t now_abs;
+                    OSAL_CRITICAL_SECTION {
+                        now_cnt = (uint16_t)hal_timer_get_count(
+                            s_encoder_cfg[i].timer);
+                        now_abs = (s_mt_overflow_cnt[i] << 16) | now_cnt;
+                    }
+                    uint32_t time_since = now_abs - last_abs;
+
+                    if (period == 0) period = 1;
+                    uint32_t effective =
+                        (time_since > period) ? time_since : period;
+
+                    int64_t num = (int64_t)last_dir * 6000000LL;
+                    int64_t den = (int64_t)effective
+                        * (int64_t)s_encoder_pulses_per_rev;
+                    rpm = (int32_t)(num / den);
+                }
+            }
+
+            rpms[i] = rpm;
+        }
+
+        for (uint32_t i = s_encoder_cfg_count;
+             i < BSP_ENCODER_COUNT; i++) {
+            rpms[i] = 0;
+            if (had_edge != NULL) {
+                had_edge[i] = false;
+            }
+        }
+    }
+
+    return BSP_OK;
+}
+
+/* ======================== ISR 实现 ======================== */
+
 void bsp_encoder_irq_handler(bsp_encoder_id_t id)
 {
     hal_timer_irq_flag_t flag = hal_timer_get_irq_flag(s_encoder_cfg[id].timer);
@@ -271,9 +456,24 @@ void bsp_encoder_irq_handler(bsp_encoder_id_t id)
          * 方向判别: 下降沿时B=高→正转, B=低→反转
          */
         s_encoder_sign[id] = b_high ? 1 : -1;
-        s_encoder_count[id] +=
-            (int32_t)s_encoder_sign[id]
-            * (int32_t)dir_sign;
+        {
+            int32_t inc = (int32_t)s_encoder_sign[id] * (int32_t)dir_sign;
+            s_encoder_count[id] += inc;
+            s_encoder_total[id] += inc;
+        }
+        {
+            /* M/T: 记录边沿时间戳 */
+            uint16_t cnt = (uint16_t)hal_timer_get_count(
+                s_encoder_cfg[id].timer);
+            if (!s_mt_has_edge[id]) {
+                s_mt_first_cnt[id] = cnt;
+                s_mt_has_edge[id] = true;
+            }
+            s_mt_last_cnt[id] = cnt;
+            s_mt_last_abs[id] =
+                (s_mt_overflow_cnt[id] << 16) | cnt;
+            s_mt_last_dir[id] = s_encoder_sign[id];
+        }
         break;
 
     case HAL_TIMER_IRQ_CC1:
@@ -282,12 +482,34 @@ void bsp_encoder_irq_handler(bsp_encoder_id_t id)
          * 方向判别: 上升沿时B=高→反转, B=低→正转
          */
         s_encoder_sign[id] = b_high ? -1 : 1;
-        s_encoder_count[id] +=
-            (int32_t)s_encoder_sign[id]
-            * (int32_t)dir_sign;
+        {
+            int32_t inc = (int32_t)s_encoder_sign[id] * (int32_t)dir_sign;
+            s_encoder_count[id] += inc;
+            s_encoder_total[id] += inc;
+        }
+        {
+            /* M/T: 记录边沿时间戳 */
+            uint16_t cnt = (uint16_t)hal_timer_get_count(
+                s_encoder_cfg[id].timer);
+            if (!s_mt_has_edge[id]) {
+                s_mt_first_cnt[id] = cnt;
+                s_mt_has_edge[id] = true;
+            }
+            s_mt_last_cnt[id] = cnt;
+            s_mt_last_abs[id] =
+                (s_mt_overflow_cnt[id] << 16) | cnt;
+            s_mt_last_dir[id] = s_encoder_sign[id];
+        }
+        {
+            /* CC1硬件周期(上升沿到上升沿) */
+            s_mt_last_period[id] =
+                (uint16_t)hal_timer_get_capture_value(
+                    s_encoder_cfg[id].timer, 1);
+        }
         break;
 
     case HAL_TIMER_IRQ_LOAD:
+        s_mt_overflow_cnt[id]++;
         break;
 
     default:

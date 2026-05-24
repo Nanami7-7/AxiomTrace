@@ -1,8 +1,7 @@
 #include "board.h"
-#include "bsp_encoder.h"
 #include "bsp_uart.h"
 #include "ti_msp_dl_config.h"
-#include "stdio.h"
+#include <stdio.h>
 
 
 void delay_ms(uint32_t count)
@@ -57,28 +56,6 @@ void delay_us(uint32_t count)
 
 void delay_1us(uint32_t  __us){ delay_us(__us); }
 void delay_1ms( uint32_t ms){ delay_ms(ms); }
-
-void uart0_send_char(char ch)
-{
-	while( DL_UART_isBusy(UART_0_DEBUG_INST) == true );
-	DL_UART_Main_transmitData(UART_0_DEBUG_INST, ch);
-
-}
-void uart0_send_string(char* str)
-{
-	if (str == NULL) {
-		return;
-	}
-	while (*str != '\0') {
-		uart0_send_char(*str++);
-	}
-}
-
-void board_test_print_encoder(bsp_encoder_id_t id)
-{
-	int32_t count = bsp_encoder_get_count(id);
-	printf("ENC[%d]=%ld\r\n", (int)id, (long)count);
-}
 
 /**
  * @brief  UART0中断服务函数

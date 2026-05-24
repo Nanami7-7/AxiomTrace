@@ -66,7 +66,7 @@ hal_status_t hal_uart_enable_irq(hal_uart_id_t id)
     }
 
     /* 清除挂起的中断标志后再使能NVIC */
-    NVIC_ClearPendingIRQ(s_uart_irq_map[id]);
+   // NVIC_ClearPendingIRQ(s_uart_irq_map[id]);
     NVIC_EnableIRQ(s_uart_irq_map[id]);
 
     return HAL_OK;
@@ -175,4 +175,33 @@ hal_uart_irq_flag_t hal_uart_get_irq_flag(hal_uart_id_t id)
     }
 
     return HAL_UART_IRQ_NONE;
+}
+
+/* ======================== DMA TX 实现 ======================== */
+
+hal_status_t hal_uart_transmit_dma(hal_uart_id_t id,
+                                    const uint8_t *data, uint16_t len)
+{
+    UART_Regs *regs = uart_to_regs(id);
+    if (regs == NULL || data == NULL || len == 0U) {
+        return HAL_ERR_INVALID_PARAM;
+    }
+
+    /* 配置DMA传输: 源=缓冲区, 目标=UART TX寄存器 */
+    DL_DMA_setSrcAddr(DMA, DMA_CH1_CHAN_ID, (uint32_t)data);
+    DL_DMA_setDestAddr(DMA, DMA_CH1_CHAN_ID,
+        (uint32_t)&(regs->TXDATA));
+    DL_DMA_setTransferSize(DMA, DMA_CH1_CHAN_ID, (uint32_t)len);
+
+    /* 启动DMA通道 */
+    DL_DMA_enableChannel(DMA, DMA_CH1_CHAN_ID);
+
+    return HAL_OK;
+}
+
+hal_status_t hal_uart_abort_tx_dma(hal_uart_id_t id)
+{
+    (void)id;
+    DL_DMA_disableChannel(DMA, DMA_CH1_CHAN_ID);
+    return HAL_OK;
 }

@@ -9,7 +9,8 @@
 5. [初始化流程 / Initialization Flow](#5-初始化流程--initialization-flow)
 6. [编码器测速 / Encoder Speed Measurement](#6-编码器测速--encoder-speed-measurement)
 7. [电机驱动 / Motor Driver](#7-电机驱动--motor-driver)
-8. [数据流向 / Data Flow](#8-数据流向--data-flow)
+8. [模型参数辨识 / Model Parameter Identification](#8-模型参数辨识--model-parameter-identification)
+9. [数据流向 / Data Flow](#9-数据流向--data-flow)
 
 ---
 
@@ -22,18 +23,22 @@ The system follows a strict four-layer architecture: App → BSP → HAL → OSA
 ```
 ┌─────────────────────────────────────────────────────────────────┐
 │  App Layer / 应用层                                              │
-│  业务逻辑：PID 控制、菜单交互、VOFA+ 通信                         │
+│  业务逻辑：PID 控制、菜单交互、VOFA+ 通信、互补滤波               │
 │  文件: app_main.c/h, app_pid.c/h, app_vofa.c/h                  │
-│        Task/task_control.c/h, Task/task_menu.c/h                │
+│        app_feedforward.c/h, app_model_id.c/h                     │
+│        app_complementary_filter.c/h                              │
+│        Task/task_control.c/h, Task/task_imu.c/h, Task/task_menu.c│
 ├─────────────────────────────────────────────────────────────────┤
 │  BSP Layer / 板级支持包 (Board Support Package)                  │
-│  硬件驱动封装：电机 PWM、编码器、UART、LED、ADC                   │
-│  文件: bsp_motor.c/h, bsp_encoder.c/h, bsp_uart.c/h             │
-│        bsp_led.c/h, bsp_adc.c/h, bsp_common.h                   │
+│  硬件驱动封装：电机 PWM、编码器、UART、LED、ADC、MPU6050 I2C     │
+│  文件: bsp_motor.c/h, bsp_encoder.c/h, bsp_uart.c/h            │
+│        bsp_led.c/h, bsp_adc.c/h, bsp_mpu6050.c/h              │
+│        eMPL/inv_mpu.c/h (Invensense DMP 驱动)                 │
+│        bsp_common.h                                             │
 ├─────────────────────────────────────────────────────────────────┤
 │  HAL Layer / 硬件抽象层 (Hardware Abstraction Layer)              │
 │  寄存器级操作：直接操作 MCU 外设寄存器                             │
-│  文件: hal_uart.c/h, hal_gpio.c/h, hal_timer.c/h, hal_adc.c/h   │
+│  文件: hal_uart.c/h, hal_gpio.c/h, hal_timer.c/h, hal_adc.c/h  │
 ├─────────────────────────────────────────────────────────────────┤
 │  OSAL Layer / 操作系统抽象层 (OS Abstraction Layer)               │
 │  RTOS 封装：任务、临界区、延时、互斥锁、信号量、队列              │
@@ -69,45 +74,68 @@ The system follows a strict four-layer architecture: App → BSP → HAL → OSA
 ## 2. 模块依赖关系 / Module Dependency Graph
 
 ```
-                    ┌─────────────┐
-                    │  task_menu  │
-                    │  (菜单任务)  │
-                    └──────┬──────┘
-                           │
+                     ┌─────────────┐
+                     │  task_menu  │
+                     │  (菜单任务)  │
+                     └──────┬──────┘
+                            │
               ┌────────────┼────────────┐
               │            │            │
               ▼            ▼            ▼
-        ┌──────────┐ ┌──────────┐ ┌──────────┐
-        │ app_vofa │ │ app_main │ │ app_pid  │
-        │ (VOFA+)  │ │ (主入口)  │ │ (PID算法)│
-        └────┬─────┘ └────┬─────┘ └────┬─────┘
-             │            │            │
-             ▼            ▼            │
-        ┌──────────┐ ┌──────────┐      │
-        │ bsp_uart │ │ bsp_motor│      │
-        │ (串口)   │ │ (电机)   │      │
-        └──────────┘ └────┬─────┘      │
-                          │            │
-        ┌─────────────┐   │            │
-        │ task_control │───┘            │
-        │ (控制任务)    │───────────────┘
-        └──────┬──────┘
-               │
-               ▼
-        ┌──────────┐
-        │ bsp_encoder│
-        │ (编码器)   │
-        └──────────┘
+         ┌──────────┐ ┌──────────┐ ┌──────────┐
+         │ app_vofa │ │ app_main │ │ app_pid  │
+         │ (VOFA+)  │ │ (主入口)  │ │ (PID算法)│
+         └────┬─────┘ └────┬─────┘ └────┬─────┘
+              │            │            │
+              ▼            ▼            │
+         ┌──────────┐ ┌──────────┐      │
+         │ bsp_uart │ │ bsp_motor│      │
+         │ (串口)   │ │ (电机)   │      │
+         └──────────┘ └────┬─────┘      │
+                           │            │
+          ┌────────────────────────┐    │
+          │      task_control     │────┘
+          │     (控制任务)         │─────────┐
+          └──────────┬────────────┘         │
+                     │                      │
+          ┌──────────┴──────────┐  ┌────────┴────────┐
+          │     bsp_encoder     │  │  app_model_id   │
+          │      (编码器)       │  │  (模型辨识算法)  │
+          └─────────────────────┘  └────────┬────────┘
+                                            │
+                                     ┌──────┴──────┐
+                                     │   app_pid   │
+                                     │ (PID算法)    │
+                                     └─────────────┘
+
+          ┌─────────────┐
+          │  task_imu   │
+          │  (IMU任务)   │
+         └──────┬──────┘
+                │
+                ▼
+         ┌──────────┐    ┌──────────────────┐
+         │  inv_mpu  │──►│ app_complementary│
+         │ (eMPL DMP)│    │    _filter      │
+         └──────────┘    └──────────────────┘
+                │
+                ▼
+         ┌──────────┐
+         │bsp_mpu6050│
+         │ (I2C bitbang)│
+         └──────────┘
 ```
 
 ### 头文件包含规则 / Header Inclusion Rules
 
 | 模块 | 可包含 / May Include | 禁止包含 / Must Not Include |
 |---|---|---|
-| `task_control.c` | `app_main.h`, `app_pid.h`, `bsp_encoder.h`, `bsp_motor.h`, `osal_api.h` | `project_config.h` (间接), `ti_msp_dl_config.h` |
+| `task_control.c` | `app_main.h`, `app_pid.h`, `app_model_id.h`, `bsp_encoder.h`, `bsp_motor.h`, `osal_api.h` | `project_config.h` (间接), `ti_msp_dl_config.h` |
 | `task_menu.c` | `app_main.h`, `app_pid.h`, `app_vofa.h`, `bsp_uart.h`, `osal_api.h` | `hal_*.h`, `ti_msp_dl_config.h` |
 | `app_main.c` | 所有 BSP/OSAL 头文件（初始化职责） | — |
 | `app_pid.c` | `<math.h>` (仅) | 任何 BSP/HAL/OSAL 头文件 |
+| `app_model_id.c` | `<math.h>` (仅) | 任何 BSP/HAL/OSAL 头文件 |
+| `app_feedforward.c` | `<math.h>` (仅) | 任何 BSP/HAL/OSAL 头文件 |
 
 ---
 
@@ -140,6 +168,7 @@ typedef struct {
 | `motor_enabled[i]` | 菜单任务 (Run/Stop 命令) | 控制任务 (guard check) |
 | `status.rpm[i]` | 控制任务 (encoder calc) | 菜单任务 (VOFA 输出) |
 | `status.output[i]` | 控制任务 (PID compute) | 菜单任务 (VOFA 输出) |
+| `imu.roll/pitch/yaw` | IMU任务 (DMP解算) | 菜单任务 (VOFA CH8-10) |
 
 ### 同步机制 / Synchronization
 
@@ -164,23 +193,83 @@ OSAL_CRITICAL_SECTION {
 - 互斥锁有 FreeRTOS 调度开销，不适合 5ms 控制周期内的高频访问
 - `taskENTER_CRITICAL` 是可重入的（嵌套计数），多层临界区嵌套安全
 
+### 临界区最佳实践 (v2.4) / Critical Section Best Practices (v2.4)
+
+**原则：尽量缩小临界区范围，仅保护必要的共享数据访问**
+
+v2.4 版本优化了 `task_control.c` 中的临界区范围：
+
+```c
+// v2.4 之前的实现（❌ 临界区过大）
+OSAL_CRITICAL_SECTION {
+    // 编码器读取
+    bsp_encoder_get_and_clear_all(deltas);
+    // RPM 计算
+    for (i = 0; i < BSP_MOTOR_COUNT; i++) {
+        rpm[i] = bsp_encoder_counts_to_rpm(deltas[i], CONTROL_PERIOD_MS);
+    }
+    // PID 计算（耗时 ~16-36µs）
+    for (i = 0; i < BSP_MOTOR_COUNT; i++) {
+        if (ctx->motor_enabled[i]) {
+            output = app_pid_compute(&ctx->pid[i], rpm[i], dt_s);
+        }
+    }
+    // 共享数据写入
+    ctx->status.rpm[i] = rpm[i];
+    ctx->status.output[i] = (int32_t)output;
+}
+// 临界区时间过长，影响系统实时响应
+```
+
+```c
+// v2.4 的实现（✅ 临界区最小化）
+// 临界区外：编码器读取和 RPM 计算
+bsp_encoder_get_and_clear_all(deltas);
+for (i = 0; i < BSP_MOTOR_COUNT; i++) {
+    rpm[i] = bsp_encoder_counts_to_rpm(deltas[i], CONTROL_PERIOD_MS);
+}
+// 临界区外：PID 计算（耗时 ~16-36µs）
+for (i = 0; i < BSP_MOTOR_COUNT; i++) {
+    if (ctx->motor_enabled[i]) {
+        output = app_pid_compute(&ctx->pid[i], rpm[i], dt_s);
+    }
+}
+// 仅共享数据写入在临界区内（~2µs）
+OSAL_CRITICAL_SECTION {
+    ctx->status.rpm[i] = rpm[i];
+    ctx->status.output[i] = (int32_t)output;
+}
+// 临界区时间极短，对实时性影响最小
+```
+
+**优化效果**：
+- 临界区时间：~16-36µs → ~2µs（减少 87.5%+）
+- PID 计算在临界区外执行，不被中断延迟
+- 系统可响应更高优先级的外设中断
+
+**注意事项**：
+- 读 `motor_enabled` 在临界区内确保一致性
+- 写 `status.rpm/output` 在临界区内确保菜单任务读取时数据完整
+- PID 计算中间变量（`rpm[]`、`output`）在临界区外，无数据竞争风险
+
 ---
 
 ## 4. 任务模型 / Task Model
 
 ### 任务配置 / Task Configuration
 
-| 属性 | 控制任务 (control) | 菜单任务 (menu) |
-|---|---|---|
-| **函数** | `app_control_task()` | `app_menu_task()` |
-| **优先级** | 5 (最高) | 2 (低) |
-| **栈大小** | 256 字 (1024 B) | 512 字 (2048 B) |
-| **周期** | 5 ms | 100 ms (菜单) / 30 ms (运行) |
-| **实时性** | 硬实时：PID 必须准时计算 | 软实时：菜单延迟可容忍 |
+| 属性 | 控制任务 (control) | IMU任务 (imu) | 菜单任务 (menu) |
+|---|---|---|---|
+| **函数** | `app_control_task()` | `app_imu_task()` | `app_menu_task()` |
+| **优先级** | 5 (最高) | 4 (中) | 2 (低) |
+| **栈大小** | 384 字 (1536 B) | 256 字 (1024 B) | 512 字 (2048 B) |
+| **周期** | 5 ms | 10 ms | 100 ms (菜单) / 30 ms (运行) |
+| **实时性** | 硬实时：PID 必须准时计算 | 中等：IMU 数据更新可容忍少量抖动 | 软实时：菜单延迟可容忍 |
 
 ### 优先级设计理由 / Priority Design Rationale
 
 - **控制任务 = 5 (最高)**: PID 闭环需要精确的 5ms 周期，任何抖动都会影响控制质量。如果菜单任务（含 printf、sscanf 等阻塞操作）优先级更高，会抢占控制任务导致控制周期不稳定。
+- **IMU任务 = 4 (中)**: IMU 数据更新频率要求不高（10ms），DMP 解算需要一定时间，优先级介于 control 和 menu 之间避免抢占控制任务。
 - **菜单任务 = 2 (低)**: 串口交互是人类操作，100ms 的响应延迟完全不可感知。VOFA+ 输出是 30ms 周期，也不需要硬实时。
 
 ### 任务时序图 / Task Timing Diagram
@@ -230,18 +319,18 @@ main()
   │     ├── UART 初始化
   │     └── ADC 初始化
   │
-  ├── board_init()                ← Board 级初始化
-  │
   ├── app_main_init()             ← 应用层初始化
   │     ├── bsp_modules_init()    ← BSP 模块初始化
   │     │     ├── bsp_led_init()          → LED GPIO
   │     │     ├── bsp_uart_init()         → UART 环形缓冲区
   │     │     ├── bsp_motor_init()        → PWM Timer + GPIO
   │     │     └── bsp_encoder_init()      → Encoder Timer Capture
-  │     │
-  │     ├── pid_controllers_init()        → 4路PID参数初始化
-  │     │
-  │     ├── 清零 motor_enabled[]
+    │     │
+    │     ├── pid_controllers_init()        → 4路PID参数初始化
+    │     ├── app_cf_init()                 → 互补滤波器初始化
+    │     ├── app_id_init()                 → 模型辨识模块初始化
+    │     │
+    │     ├── 清零 motor_enabled[]
   │     │
   │     ├── 串口打印启动信息
   │     │
@@ -262,81 +351,96 @@ main()
 
 ## 6. 编码器测速 / Encoder Speed Measurement
 
-### M 法测速原理 / M-Method Speed Measurement
+### M/T 法测速原理 / M/T-Method Speed Measurement
 
-M 法（测频法）是在固定时间窗口内计数编码器脉冲数，通过脉冲数换算转速。
+M/T 法结合了 M 法（测频）和 T 法（测周期）的优点：在固定窗口 **和** 一个完整脉冲边沿
+结束时采样，同时测量脉冲数 `M` 和首次至末次边沿的实际时间 `t_ref`。
 
 ```
-          ┌───────────────────────────┐
-          │     dt = 5ms 窗口         │
-          │                           │
-  脉冲 ──►│ |||||||||                 │──► RPM = delta * 60000 / (PPR * dt_ms)
-          │    ↑                      │
-          │    delta = 脉冲计数        │
-          └───────────────────────────┘
+  固定窗口 (5ms)
+  ┌──────────────────┐
+  │        ┌──┐  ┌──┐│──┐
+  │  ┌──┐  │  │  │  ││  │
+──┘  └──┘──┘  └──┘  └──┘──
+  ↑     ↑          ↑     ↑
+  │     │          │     └─ 读取 + 清除
+  │     │          └──────── t_ref (边沿捕获时间)
+  │     └─────────────────── M = 脉冲数
+  └───────────────────────── 窗口起点
 ```
 
 ### RPM 计算公式 / RPM Formula
 
 ```
-RPM = delta * 60000 / (PPR * dt_ms)
+RPM = M * 6000000 / (t_ref * PPR)
 
 其中:
-  delta    = 窗口内编码器脉冲数 (signed, 含方向)
+  M        = 有效脉冲数 (signed, 含方向)
+  t_ref    = 从首次到末次边沿的时间 (μs)
   PPR      = 编码器每转脉冲数 (520)
-  dt_ms    = 窗口时间 (5ms)
-  60000    = 60 * 1000 (ms → min 转换)
+  6000000  = 60 * 10^6 (μs → min 转换)
 ```
+
+### 三分支处理 / Three-Branch Logic
+
+`bsp_encoder_get_all_rpm_mt()` 根据 `M` 分为三种情况：
+
+| 条件 | 处理方式 | 适用场景 |
+|------|----------|----------|
+| `M ≥ 2` | 标准 M/T：`RPM = M * 6000000 / (t_ref * PPR)` | 中高速，精度最高 |
+| `M = 1` | 纯 T 法：`RPM = 6000000 / (t_ref * PPR)` | 极低速（一个脉冲跨越整个窗口） |
+| `M = 0` | `RPM = 0.0` | 静止/超低速 |
 
 ### 数值分析 / Numerical Analysis
 
 | 参数 | 值 |
 |---|---|
 | PPR | 520 |
-| dt_ms | 5 ms |
-| **1 RPM 对应脉冲数** | 520 * 5 / 60000 = 0.0433 |
-| **1 个脉冲对应 RPM** | 60000 / (520 * 5) = 23.08 RPM |
-| **检测下限** | ~23 RPM (1 个脉冲) |
-| **中间变量类型** | `int64_t` (防溢出) |
+| 窗口周期 | 5 ms |
+| **检测下限 (M=1 时)** | t_ref ≤ 5ms → RPM ≥ 6000000/(5000*520) ≈ 2.3 RPM |
+| **检测下限 (传统 M 法)** | ~23.08 RPM |
+| **低速精度提升** | **~10 倍** |
 
-### 低速量化误差 / Low-Speed Quantization Error
+### 实现细节 / Implementation Details
 
-M 法在低速时存在量化误差：当转速低于 23 RPM 时，5ms 窗口内可能检测不到脉冲，导致 RPM 读数为 0。这是 M 法的固有限制，可通过以下方式改善：
+- **边沿捕获定时器**: 使用 Timer32 的捕获模式，在编码器 A 相上升沿捕获计数值
+- **定时器时钟**: 与系统时钟相同（通常 40 MHz），分辨率为 1 timer tick = 25 ns
+- **溢出处理**: 当边沿数超出硬件捕获深度时，脉冲计数溢出标志置位，RPM 返回 0.0
+- **方向判断**: 读取第二个捕获值并与第一个对比，决定方向标记
 
-1. **增大窗口时间**（`dt_ms`）：增加采样时间可降低检测下限，但会降低响应速度
-2. **增大 PPR**：使用更高分辨率的编码器
-3. **改用 T 法**（测周期法）：测量两个脉冲之间的时间间隔，低速精度更高但高速精度差
-4. **M/T 法结合**：高速用 M 法，低速用 T 法（本项目未实现）
-
-### 溢出安全 / Overflow Safety
+### API 接口 / API Reference
 
 ```c
-// bsp_encoder.c
-int32_t bsp_encoder_counts_to_rpm(int32_t counts, uint32_t period_ms)
-{
-    // int64_t 中间变量，即使 counts=INT32_MAX 也不会溢出
-    int64_t rpm = (int64_t)counts * 60000LL
-                  / ((int64_t)PRJ_ENCODER_PULSES_PER_REV * (int64_t)period_ms);
-    return (int32_t)rpm;
-}
+// bsp_encoder_mt.h — M/T 法编码器接口
+
+void bsp_encoder_mt_init(void);
+    // 初始化编码器 GPIO、Timer 时钟、捕获通道
+
+void bsp_encoder_mt_read_get_and_clear_all(int32_t deltas[], int32_t deltas_ex[]);
+    // 原子读取全部四路脉冲计数并清零 (delta_raw + delta_ex)
+
+void bsp_encoder_get_all_rpm_mt(bsp_motor_control_t *ctx, float rpm[], int32_t raw_counts[]);
+    // 计算四路 RPM (M/T 法)，返回 float RPM + 原始脉冲数
 ```
 
-### 脉冲清零时序 / Pulse Clear Timing
+### M/T 读取时序 / M/T Read Timing
 
 ```
 Control Task (5ms cycle):
   │
-  ├── bsp_encoder_get_and_clear_all(deltas)  ← 原子读取+清零
-  ├── 计算 RPM
+  ├── bsp_encoder_mt_read_get_and_clear_all(deltas, deltas_ex)
+  │     └── 原子读取四路脉冲计数 + 边沿捕获溢出标志，立即清零
+  ├── bsp_encoder_get_all_rpm_mt(ctx, rpm, raw)
+  │     └── 根据 M 分支计算 RPM
   ├── PID 计算
   ├── 设置电机 PWM
-  └── osal_task_delay_ms(5)                  ← 等待下一个 5ms
+  └── osal_task_delay_ms(5)
 ```
 
-在 5ms 窗口结束时读取并清零脉冲计数，确保：
+在 5ms 窗口结束时读取并清零，确保：
 - 不丢失脉冲（读和清零是原子操作）
 - 不重复计数（每个窗口独立）
-- 时间窗口一致（固定 5ms）
+- 窗口一致，低速精度较 M 法提升显著
 
 ---
 
@@ -379,13 +483,76 @@ if (|duty| > 0 && |duty| < dead_zone) {
 
 ---
 
-## 8. 数据流向 / Data Flow
+## 8. 模型参数辨识 / Model Parameter Identification
+
+### 概述 / Overview
+
+模型参数辨识模块 (`app_model_id.c/h`) 通过阶跃响应实验，自动提取直流电机的一阶模型参数：
+$$G(s) = \frac{\omega(s)}{U(s)} = \frac{K}{T s + 1}$$
+
+其中 $K$ 为直流增益，$T$ 为机电时间常数。这些参数可用于极点配置 PID 自动整定。
+
+### 架构位置 / Architecture Position
+
+`app_model_id` 位于 App 层，是纯算法模块（仅依赖 `<math.h>`），与 `app_pid` 同级。它通过 `app_id_shared_t` 共享数据接口与控制任务交互。
+
+### 阶跃响应流程 / Step Response Flow
+
+```
+菜单任务发送 "Step" 命令
+  │
+  ├── app_motor_stop(motor_id)                 ← 停止电机
+  ├── osal_task_delay_ms(300)                  ← 等待完全停止
+  │
+  ├── app_id_start_step(motor_id, PWM)         ← 设置 ID 状态为 PRE_STOP
+  │     └── 控制任务下一周期检测到 PRE_STOP
+  │           ├── bsp_motor_stop(BRAKE)        ← 持续制动
+  │           ├── 检查 RPM < 5 保持 100ms      ← 确认静止
+  │           └── 状态 → STEP_RECORDING
+  │
+  ├── 控制任务进入 RECORDING 模式
+  │     ├── bsp_motor_set_speed(motor, PWM)    ← 施加阶跃（开环）
+  │     ├── rpm_buf[idx++] = 编码器RPM          ← 记录响应
+  │     └── 重复 400 次 (5ms × 400 = 2秒)
+  │
+  ├── 缓冲区满 → done = true, 电机刹车停止
+  │
+  ├── app_id_process_step(rpm_buf, ...)        ← 辨识算法
+  │     ├── 稳态转速 omega_ss = 最后25%均值
+  │     ├── K = omega_ss / PWM
+  │     ├── 搜索 0.632 × omega_ss 穿越点 + 线性插值 → T
+  │     └── 计算拟合质量 NRMSE
+  │
+  └── 打印结果: K, T, fit_quality
+```
+
+### 极点配置 PID 整定 / Pole Placement PID Tuning
+
+基于辨识得到的 $K$ 和 $T$，使用零极点对消法自动计算 PI 参数：
+
+$$\tau_{cl} = \frac{1}{2\pi f_{BW}}, \quad K_p = \frac{T}{K \cdot \tau_{cl}}, \quad K_i = \frac{1}{K \cdot \tau_{cl}}$$
+
+其中 $f_{BW}$ 为用户期望的闭环带宽，默认 5Hz，限幅范围 [1Hz, 1/(2π·0.01) ≈ 16Hz]。
+
+### 数据接口 / Shared Data Interface
+
+| 变量 | 写入方 | 读取方 | 说明 |
+|---|---|---|---|
+| `g_id_data.write_idx` | 控制任务 | 菜单任务 | 已采集样本数 |
+| `g_id_data.done` | 控制任务 | 菜单任务 | 采集完成标志 |
+| `g_id_data.rpm_buf[]` | 控制任务 | 菜单任务 | 转速样本 |
+| `g_id_data.pwm_buf[]` | 控制任务 | 菜单任务 | PWM 样本 |
+| `g_id_data.result` | 菜单任务 | — | 辨识结果 |
+
+---
+
+## 9. 数据流向 / Data Flow
 
 ### 控制环路数据流 / Control Loop Data Flow
 
 ```
 ┌──────────┐    delta    ┌──────────┐    rpm     ┌──────────┐
-│ Encoder  │───────────►│ M-Method │───────────►│  PID     │
+│ Encoder │───────────►│ M/T Method│───────────►│  PID     │
 │ (Timer   │            │ RPM Calc │            │ Compute  │
 │ Capture) │            │          │            │          │
 └──────────┘            └──────────┘            └────┬─────┘
@@ -425,6 +592,60 @@ if (|duty| > 0 && |duty| < dead_zone) {
                      └────────────────────────┘
 ```
 
+### IMU 数据流 / IMU Data Flow
+
+```
+                         ┌──────────────────┐
+                         │   MPU6050 传感器  │
+                         │  (I2C 从机地址0x68)│
+                         └────────┬─────────┘
+                                  I2C (软件bitbang)
+                                  PA0=SCL, PA1=SDA
+                                  │
+                                  ▼
+                         ┌──────────────────┐
+                         │  bsp_mpu6050.c   │
+                         │  I2C bitbang驱动 │
+                         └────────┬─────────┘
+                                  │
+                                  ▼
+                         ┌──────────────────┐
+                         │   inv_mpu.c       │
+                         │  (Invensense eMPL)│
+                         │  mpu_dmp_get_data│
+                         │  返回四元数→欧拉角│
+                         └────────┬─────────┘
+                                  │
+                    ┌─────────────┴─────────────┐
+                    │                             │
+                    ▼                             ▼
+          ┌──────────────────┐        ┌────────────────────┐
+          │   task_imu.c    │        │ app_complementary  │
+          │   (10ms周期)    │        │    _filter.c      │
+          │  写入 ctx->imu  │        │  航向角/速度融合  │
+          └──────────────────┘        └────────────────────┘
+                    │                             │
+                    │        ┌────────────────────┘
+                    │        │
+                    ▼        ▼
+          ┌──────────────────────────┐
+          │   task_menu (VOFA输出)  │
+          │  CH8=roll, CH9=pitch    │
+          │  CH10=heading, CH11=vx  │
+          └──────────────────────────┘
+```
+
+### MPU6050 DMP 解算 / MPU6050 DMP Processing
+
+本项目使用 Invensense eMPL (Motion Driver Library) 驱动实现 MPU6050 DMP 解算：
+
+- **DMP (Digital Motion Processor)**: MPU6050 内置的运动处理内核
+- **四元数→欧拉角**: DMP 输出四元数，通过算法转换为 roll/pitch/yaw
+- **数据来源**: `mpu_dmp_get_data(pitch, roll, yaw)` 返回 DMP 解算后的欧拉角
+- **航向角来源**: DMP yaw 直接作为 `app_cf_update()` 的输入，用于 `app_cf_get_heading()`
+
+**注意**: 航向角使用 DMP 直接解算的 yaw 角，而非通过陀螺仪积分计算，避免了积分漂移问题。
+
 ### UART 环形缓冲区 / UART Ring Buffer
 
 串口使用 SPSC（Single Producer Single Consumer）环形缓冲区实现中断安全的数据传输：
@@ -449,10 +670,10 @@ typedef struct {
 
 **VOFA+ FireWater 输出**:
 - 每通道约 13 字节 (如 `123.456789,`)
-- 12 通道 ≈ 156 字节/帧
-- 30ms 周期 → 156 / 0.03 ≈ 5200 B/s
-- **占用率**: 5200 / 11520 ≈ 45% ✅ 安全
+- 11 通道 ≈ 143 字节/帧
+- 30ms 周期 → 143 / 0.03 ≈ 4767 B/s
+- **占用率**: 4767 / 11520 ≈ 41% ✅ 安全
 
-**裕量**: 剩余 55% 带宽可用于下行命令和菜单交互。
+**裕量**: 剩余 59% 带宽可用于下行命令和菜单交互。
 
 ---

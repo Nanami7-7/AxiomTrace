@@ -36,17 +36,25 @@ typedef enum {
  *        可重入(无全局/静态变量)
  */
 typedef struct {
-    /* ---- 参数 ---- */
+    /* ---- 参数(普通模式) ---- */
     float kp;              /**< 比例增益 */
     float ki;              /**< 积分增益 */
     float kd;              /**< 微分增益 */
     app_pid_mode_t mode;   /**< PID模式 */
 
+    /* ---- 参数(FF模式) ---- */
+    float ff_kp;           /**< FF模式比例增益 */
+    float ff_ki;           /**< FF模式积分增益 */
+    float ff_kd;           /**< FF模式微分增益 */
+    bool  use_ff;          /**< 是否使用FF模式(位置式PID) */
+
     /* ---- 限幅 ---- */
     float out_min;         /**< 输出下限 */
     float out_max;         /**< 输出上限 */
-    float integral_min;    /**< 积分项下限(抗饱和) */
-    float integral_max;    /**< 积分项上限(抗饱和) */
+    float integral_min;    /**< 积分项下限(抗饱和,普通模式) */
+    float integral_max;    /**< 积分项上限(抗饱和,普通模式) */
+    float ff_integral_min; /**< 积分项下限(抗饱和,FF模式) */
+    float ff_integral_max; /**< 积分项上限(抗饱和,FF模式) */
 
     /* ---- 滤波 ---- */
     float d_filter_coeff;  /**< 微分滤波系数(0~1, 0=无滤波) */

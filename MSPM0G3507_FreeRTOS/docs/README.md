@@ -19,9 +19,8 @@ A FreeRTOS-based 4-channel DC motor PID closed-loop speed control system running
 | [vofa_protocol.md](vofa_protocol.md) | VOFA+ 协议详解 — 上行格式、下行命令、通道分配、带宽计算 / VOFA+ protocol spec — uplink format, downlink commands, channel mapping, bandwidth analysis |
 | [menu_guide.md](menu_guide.md) | 菜单交互与操作指南 — 状态机、操作流程、VOFA+ 运行模式 / Menu & operation guide — state machine, step-by-step workflow, VOFA+ runtime mode |
 | [development_guide.md](development_guide.md) | 开发指南 — 环境搭建、编码规范、新增模块指南、OSAL API / Development guide — setup, coding conventions, adding modules, OSAL API reference |
-| [hardware_setup.md](hardware_setup.md) | 硬件连接与配置 — 引脚分配、电机/编码器接线、电源要求 / Hardware setup — pin mapping, motor/encoder wiring, power requirements |
-| [troubleshooting.md](troubleshooting.md) | 故障排除 — 常见问题及解决方案 / Troubleshooting — common issues and solutions |
-| [changelog.md](changelog.md) | 变更日志 — 按版本记录所有变更 / Changelog — versioned change history |
+| [pin_assignment.md](pin_assignment.md) | 引脚分配图 — SysConfig 完整引脚表、定时器分配、PWM/编码器/ADC 配置 / Pin assignment — full pin mapping based on current SysConfig |
+| [pin_changes_vs_old.md](pin_changes_vs_old.md) | SysConfig 变更记录 — 新旧引脚对比、需处理的已知问题 / SysConfig changes — old vs new pin comparison, known issues |
 
 ---
 
@@ -62,6 +61,4 @@ A FreeRTOS-based 4-channel DC motor PID closed-loop speed control system running
 ## 适用读者 / Target Audience
 
 - **开发者 / Developers**: [development_guide.md](development_guide.md) + [architecture.md](architecture.md)
-- **使用者 / Users**: [menu_guide.md](menu_guide.md) + [hardware_setup.md](hardware_setup.md)
-- **调参工程师 / Tuning Engineers**: [vofa_protocol.md](vofa_protocol.md) + [pid_controller.md](pid_controller.md)
-- **故障排除 / Troubleshooting**: [troubleshooting.md](troubleshooting.md)
+- **使用者 / Users**: [menu_guide.md](menu_guide.md) + [pin_assignment.md](pin_assignment.md) + [pin_changes_vs_old.md](pin_changes_vs_old.md)

@@ -17,6 +17,8 @@
 #include "ti_msp_dl_config.h"
 #include "app_main.h"
 #include "bsp_motor.h"
+#include "bsp_timer.h"
+#include "test_uart_dma.h"
 /* ======================== main入口 ======================== */
 
 int main(void)
@@ -26,10 +28,17 @@ int main(void)
 
     /* 第2步: 应用层初始化(BSP模块+PID控制器+FreeRTOS任务) */
     app_main_init();
-	
-	//	bsp_motor_set_speed(BSP_MOTOR_A, 500);
 
-    /* 第3步: 启动FreeRTOS调度器,不再返回 */
+    /* 第3步: 确保UART中断使能(SYSCFG_DL_init只配置外设，未使能NVIC) */
+   // NVIC_EnableIRQ(UART0_INT_IRQn);
+
+    /* 初始化TIMER_0为测试提供计时基准 */
+    bsp_timer_init();
+
+    /* DMA测试(调度器启动前执行) */
+  //  test_uart_dma_run();
+
+    /* 第4步: 启动FreeRTOS调度器,不再返回 */
     vTaskStartScheduler();
 
     /* 调度器启动失败(内存不足) */

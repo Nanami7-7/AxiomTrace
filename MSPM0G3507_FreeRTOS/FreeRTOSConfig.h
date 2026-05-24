@@ -140,7 +140,7 @@
 
 /* 软件定时器定义 */
 #define configUSE_TIMERS 1                             // 启用软件定时器
-#define configTIMER_TASK_PRIORITY (5)                  // 定时器任务的优先级
+#define configTIMER_TASK_PRIORITY (3)                  // 定时器任务优先级(低于control@5,高于menu@2)
 #define configTIMER_QUEUE_LENGTH (20)                  // 定时器队列长度
 /* 定时器任务栈大小（以字为单位） */
 #define configTIMER_TASK_STACK_DEPTH (configMINIMAL_STACK_SIZE)

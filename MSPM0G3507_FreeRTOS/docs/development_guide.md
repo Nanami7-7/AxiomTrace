@@ -45,11 +45,18 @@ MSPM0G3507_FreeRTOS/
 │   ├── app_main.c/h          主入口 + 公共函数
 │   ├── app_pid.c/h           PID 控制器
 │   ├── app_vofa.c/h          VOFA+ 协议
+│   ├── app_complementary_filter.c/h  互补滤波器
 │   └── Task/
 │       ├── task_control.c/h  控制任务
+│       ├── task_imu.c/h     IMU任务 (MPU6050 DMP)
 │       └── task_menu.c/h     菜单任务
 │
 ├── BSP/                      板级支持包
+│   └── eMPL/                 Invensense eMPL 驱动
+│       ├── inv_mpu.c/h       MPU6050 核心驱动
+│       ├── inv_mpu_dmp_motion_driver.c/h  DMP接口
+│       ├── dmpmap.h          DMP 内存映射
+│       └── dmpKey.h         DMP 配置键值
 ├── Config/                   工程配置
 ├── HAL/                      硬件抽象层
 ├── OSAL/                     操作系统抽象层
@@ -74,6 +81,20 @@ MSPM0G3507_FreeRTOS/
 | 枚举值 | `模块_值` 大写 | `APP_PID_MODE_INCREMENT`, `BSP_OK` |
 | 私有变量 | `s_` 前缀 | `s_shared_ctx`, `s_motor_cfg` |
 | 私有函数 | 模块内 `static` | `static float clamp_f(...)` |
+
+### 硬件常量命名 (v2.4) / Hardware Constant Naming (v2.4)
+
+所有硬件相关的魔数应替换为有明确语义的宏定义：
+
+| 类型 | 规则 | 示例 |
+|---|---|---|
+| I2C 从机地址 | `设备_I2C_ADDR` | `MPU6050_I2C_ADDR (0x68)` |
+| 时序参数 | `时序描述_US/MS` | `IIC_HALF_PERIOD_US (5)` |
+| 延时参数 | `动作_DELAY_MS` | `MPU6050_RESET_DELAY_MS (100)` |
+| 引脚定义 | `模块_PIN名称` | `IIC_SCL_PIN (DL_GPIO_PIN_NA)` |
+| 配置参数 | `模块_配置项` | `MPU6050_ACCEL_FS (0)` |
+
+v2.4 版本 `bsp_mpu6050.h` 已规范化 12 个硬件常量宏，参考 `BSP/bsp_mpu6050.h`。
 
 ### 注释风格 / Comment Style
 
@@ -190,6 +211,28 @@ void app_xxx_task(void *param)
 - 尽量减少临界区内的计算量
 - 复制到局部变量后再处理
 
+**v2.4 最佳实践**：临界区应尽可能小，仅保护必要的共享数据读写：
+
+```c
+// v2.4 推荐写法：计算在临界区外
+bool enabled;
+float output;
+OSAL_CRITICAL_SECTION {
+    enabled = ctx->motor_enabled[i];  // 仅读使能标志
+}
+if (enabled) {
+    output = app_pid_compute(&ctx->pid[i], rpm, dt_s);  // 临界区外计算
+}
+OSAL_CRITICAL_SECTION {
+    ctx->status.output[i] = (int32_t)output;  // 仅写输出
+}
+```
+
+**关键原则**：
+- PID 计算本身无共享数据竞争，不需要在临界区内
+- 仅 `motor_enabled` 读和 `status.output` 写需要保护
+- 缩小临界区可显著减少中断禁用时间，提升实时响应
+
 ---
 
 ## 6. OSAL API 参考 / OSAL API Reference
@@ -277,7 +320,65 @@ AxiomTrace 通过 `bsp_uart_putc()` 输出字符，共享 UART 串口。
 
 ---
 
-## 8. 版本控制 / Version Control
+## 8. MPU6050/eMPL 驱动 / MPU6050/eMPL Driver Integration
+
+### 驱动架构 / Driver Architecture
+
+本项目使用 Invensense 官方 eMPL (Motion Driver Library) 驱动 MPU6050：
+
+```
+┌─────────────────────────────────────────┐
+│  应用层                                  │
+│  task_imu.c → mpu_dmp_get_data()        │
+└────────────────┬────────────────────────┘
+                 │
+┌────────────────▼────────────────────────┐
+│  eMPL 层 (BSP/eMPL/)                   │
+│  inv_mpu.c → 核心驱动                   │
+│  inv_mpu_dmp_motion_driver.c → DMP接口  │
+└────────────────┬────────────────────────┘
+                 │
+┌────────────────▼────────────────────────┐
+│  BSP 层                                 │
+│  bsp_mpu6050.c → 软件 I2C bitbang      │
+│  (PA0=SCL, PA1=SDA)                    │
+└─────────────────────────────────────────┘
+```
+
+### 关键 API / Key API
+
+```c
+// 初始化 DMP (在 app_main_init 中调用)
+uint8_t mpu_dmp_init(void);
+
+// 获取 DMP 解算数据 (在 task_imu 中调用)
+uint8_t mpu_dmp_get_data(float *pitch, float *roll, float *yaw);
+```
+
+### 返回值 / Return Values
+
+| 值 | 含义 |
+|---|---|
+| 0 | 成功 |
+| 1 | I2C 通信错误 |
+| 2 | DMP 固件加载失败 |
+| 其他 | 详见 inv_mpu.h 错误码 |
+
+### 配置文件 / Configuration
+
+DMP 配置参数在 `project_config.h` 中定义：
+
+```c
+#define PRJ_MPU6050_I2C_ADDR     (0x68U)   // AD0 接地
+#define PRJ_MPU6050_ACCEL_FS     (0U)      // ±2g
+#define PRJ_MPU6050_GYRO_FS      (0U)      // ±250°/s
+#define PRJ_MPU6050_DLPF_CFG     (3U)      // 44Hz 带宽
+#define PRJ_MPU6050_SAMPLE_RATE  (9U)      // 100Hz
+```
+
+---
+
+## 9. 版本控制 / Version Control
 
 ### Git Commit 规范 / Commit Convention
 

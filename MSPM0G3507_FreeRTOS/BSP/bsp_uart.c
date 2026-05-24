@@ -9,6 +9,8 @@
 #include "hal_uart.h"
 #include "osal_api.h"
 #include "project_config.h"
+#include "ti_msp_dl_config.h"
+#include <string.h>
 
 /* ======================== 私有变量 ======================== */
 
@@ -21,6 +23,29 @@ static bsp_ringbuf_t s_rx_ringbuf;
 /** 初始化标志 */
 static bool s_is_inited = false;
 
+/* ======================== DMA发送标志位 ======================== */
+
+/** UART发送完成标志(EOT: FIFO空，可以发送新数据) */
+static volatile bool s_uart_tx_complete = true;
+
+/** DMA搬运完成标志(DMA_DONE_TX: 数据已复制到FIFO) */
+static volatile bool s_uart_tx_dma_done = true;
+
+/* ======================== DMA发送安全缓冲区 ======================== */
+
+/** DMA发送bounce buffer：防止调用方在DMA完成前覆盖源数据 */
+#define BSP_DMA_TX_BUF_SIZE     512U
+static uint8_t s_dma_tx_buf[BSP_DMA_TX_BUF_SIZE];
+
+/* ======================== 调试计数器 ======================== */
+volatile uint32_t dbg_isr_count = 0;
+volatile uint32_t dbg_uart_isr_total = 0;
+volatile uint32_t dbg_iidx_value = 0;
+volatile uint32_t dbg_eot_count = 0;
+volatile uint32_t dbg_rx_count = 0;
+volatile uint32_t dbg_other_count = 0;
+volatile uint32_t dbg_rx_overflow = 0;
+
 /* ======================== 函数实现 ======================== */
 
 bsp_status_t bsp_uart_init(void)
@@ -29,12 +54,15 @@ bsp_status_t bsp_uart_init(void)
         return BSP_OK;
     }
 
-    /* 初始化环形缓冲区 */
-    bsp_ringbuf_init(&s_rx_ringbuf, s_rx_buf,
-                     BSP_UART_RX_BUF_SIZE);
+    /* 初始化接收环形缓冲区 */
+    bsp_ringbuf_init(&s_rx_ringbuf, s_rx_buf, BSP_UART_RX_BUF_SIZE);
 
-    /* 使能UART中断(NVIC) — SYSCFG_DL_init()未做此步 */
+    /* 使能UART NVIC中断 — RX中断已在SysConfig中使能 */
     hal_uart_enable_irq(PRJ_UART_DEBUG_ID);
+
+    /* 初始化DMA发送标志位 */
+    s_uart_tx_complete = true;
+    s_uart_tx_dma_done = true;
 
     s_is_inited = true;
     return BSP_OK;
@@ -94,16 +122,93 @@ void bsp_uart_rx_flush(void)
     bsp_ringbuf_flush(&s_rx_ringbuf);
 }
 
+/* ======================== DMA发送实现 ======================== */
+
+bsp_status_t bsp_uart_send_dma(const uint8_t *data, uint16_t len)
+{
+    if (data == NULL) {
+        return BSP_ERR_NULL_PTR;
+    }
+    if (len == 0U) {
+        return BSP_OK;
+    }
+
+    /* 非阻塞检查：上一次发送未完成，直接返回 */
+    if (!s_uart_tx_complete) {
+        return BSP_ERR_BUSY;
+    }
+
+    /* 清除标志位 */
+    s_uart_tx_complete = false;
+    s_uart_tx_dma_done = false;
+
+    /* 拷贝到bounce buffer，防止调用方在DMA完成前覆盖源数据 */
+    uint32_t src_addr;
+    if (len <= BSP_DMA_TX_BUF_SIZE) {
+        memcpy(s_dma_tx_buf, data, len);
+        src_addr = (uint32_t)s_dma_tx_buf;
+    } else {
+        src_addr = (uint32_t)data;
+    }
+
+    /* 配置DMA传输：从bounce buffer发送 */
+    DL_DMA_setSrcAddr(DMA, DMA_CH1_CHAN_ID, src_addr);
+    DL_DMA_setDestAddr(DMA, DMA_CH1_CHAN_ID,
+        (uint32_t)(&UART0->TXDATA));
+    DL_DMA_setTransferSize(DMA, DMA_CH1_CHAN_ID, (uint32_t)len);
+    DL_DMA_enableChannel(DMA, DMA_CH1_CHAN_ID);
+
+    return BSP_OK;
+}
+
+bool bsp_uart_tx_idle(void)
+{
+    return s_uart_tx_complete;
+}
+
 void bsp_uart_irq_handler(void)
 {
-    hal_uart_irq_flag_t flag =
-        hal_uart_get_irq_flag(PRJ_UART_DEBUG_ID);
+    dbg_uart_isr_total++;
+    DL_UART_IIDX idx = DL_UART_getPendingInterrupt(UART0);
+    dbg_iidx_value = (uint32_t)idx;
 
-    if (HAL_UART_IRQ_RX == flag) {
-        uint8_t data;
-        if (HAL_OK == hal_uart_receive(PRJ_UART_DEBUG_ID, &data)) {
-            /* ISR中仅存入缓冲区，丢弃满时的数据 */
-            (void)bsp_ringbuf_put(&s_rx_ringbuf, data);
-        }
+    switch (idx) {
+        case DL_UART_IIDX_DMA_DONE_TX:
+            /* DMA搬运完成：数据已复制到UART FIFO */
+            s_uart_tx_dma_done = true;
+            dbg_isr_count++;
+            break;
+
+        case DL_UART_IIDX_EOT_DONE:
+            /* 发送完成：UART FIFO空，可以发送新数据 */
+            s_uart_tx_complete = true;
+            dbg_eot_count++;
+            break;
+
+        case DL_UART_IIDX_RX:
+        case DL_UART_IIDX_RX_TIMEOUT_ERROR:
+            /* 接收中断：循环读取FIFO直到为空 */
+            {
+                uint8_t data;
+                while (DL_UART_receiveDataCheck(UART0, &data)) {
+                    if (!bsp_ringbuf_put(&s_rx_ringbuf, data)) {
+                        dbg_rx_overflow++;
+                        break;
+                    }
+                }
+                dbg_rx_count++;
+            }
+            break;
+
+        default:
+            dbg_other_count++;
+            break;
     }
+}
+
+void DMA_IRQHandler(void)
+{
+    /* 清除DMA中断标志，防止进入Default_Handler死循环 */
+    DL_DMA_clearInterruptStatus(DMA, DL_DMA_INTERRUPT_CHANNEL1); /* CH0 (RX) */
+    DL_DMA_clearInterruptStatus(DMA, DL_DMA_INTERRUPT_CHANNEL0); /* CH1 (TX) */
 }

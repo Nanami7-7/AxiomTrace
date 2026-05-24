@@ -40,11 +40,20 @@ void app_pid_init(app_pid_t *pid, float kp, float ki,
     pid->kd   = kd;
     pid->mode = mode;
 
+    /* FF模式默认参数(禁用,参数与普通模式相同) */
+    pid->ff_kp = kp;
+    pid->ff_ki = ki;
+    pid->ff_kd = 0.0f;
+    pid->use_ff = false;
+
     pid->out_min = out_min;
     pid->out_max = out_max;
     /* 积分限幅默认等于输出限幅 */
     pid->integral_min = out_min;
     pid->integral_max = out_max;
+    /* FF模式积分限幅默认与普通模式相同 */
+    pid->ff_integral_min = out_min;
+    pid->ff_integral_max = out_max;
 
     pid->d_filter_coeff = 0.0f;
 
@@ -83,7 +92,48 @@ float app_pid_compute(app_pid_t *pid, float feedback,
     float error = pid->setpoint - feedback;
     float output = 0.0f;
 
-    if (pid->mode == APP_PID_MODE_POSITION) {
+    /* 根据模式选择参数和积分限幅 */
+    float kp, ki, kd, int_min, int_max;
+    if (pid->use_ff) {
+        kp = pid->ff_kp;
+        ki = pid->ff_ki;
+        kd = pid->ff_kd;
+        int_min = pid->ff_integral_min;
+        int_max = pid->ff_integral_max;
+    } else {
+        kp = pid->kp;
+        ki = pid->ki;
+        kd = pid->kd;
+        int_min = pid->integral_min;
+        int_max = pid->integral_max;
+    }
+
+    if (pid->use_ff) {
+        /* ---- FF模式: 位置式PID(输出修正量) ---- */
+        /* 积分项: 梯形积分 */
+        if (!pid->is_first_run && dt_s > 0.0f) {
+            pid->integral += (error + pid->last_error)
+                             * 0.5f * dt_s;
+        }
+        pid->integral = clamp_f(pid->integral,
+            int_min, int_max);
+
+        /* 微分项 */
+        float derivative = 0.0f;
+        if (!pid->is_first_run && dt_s > 0.0f) {
+            derivative = (error - pid->last_error) / dt_s;
+            if (pid->d_filter_coeff > 0.0f) {
+                derivative = pid->last_derivative
+                    + (1.0f - pid->d_filter_coeff)
+                    * (derivative - pid->last_derivative);
+            }
+        }
+        pid->last_derivative = derivative;
+
+        output = kp * error + ki * pid->integral
+               + kd * derivative;
+
+    } else if (pid->mode == APP_PID_MODE_POSITION) {
         /* ---- 位置式PID ---- */
         /* 积分项: 梯形积分 */
         if (!pid->is_first_run && dt_s > 0.0f) {
@@ -92,7 +142,7 @@ float app_pid_compute(app_pid_t *pid, float feedback,
         }
         /* 积分限幅(抗饱和) */
         pid->integral = clamp_f(pid->integral,
-            pid->integral_min, pid->integral_max);
+            int_min, int_max);
 
         /* 微分项 */
         float derivative = 0.0f;
@@ -108,9 +158,9 @@ float app_pid_compute(app_pid_t *pid, float feedback,
         }
         pid->last_derivative = derivative;
 
-        output = pid->kp * error
-               + pid->ki * pid->integral
-               + pid->kd * derivative;
+        output = kp * error
+               + ki * pid->integral
+               + kd * derivative;
 
     } else {
         /*
@@ -131,7 +181,7 @@ float app_pid_compute(app_pid_t *pid, float feedback,
              * 首次运行: 无历史偏差, 用当前偏差估算初始输出
              * output ≈ Kp*e + Ki*e (等效 P+I 启动)
              */
-            output = pid->kp * error + pid->ki * error;
+            output = kp * error + ki * error;
         } else {
             /* 计算偏差增量和二阶差分 */
             float delta_error =
@@ -145,14 +195,14 @@ float app_pid_compute(app_pid_t *pid, float feedback,
 
             /* 计算输出增量 Δu */
             float delta_out =
-                pid->kp * delta_error
-              + pid->ki * error
-              + pid->kd * delta2_error;
+                kp * delta_error
+              + ki * error
+              + kd * delta2_error;
 
             /* 累加到上次输出, 先限幅再累加(抗饱和) */
             pid->integral = clamp_f(
                 pid->integral + delta_out,
-                pid->integral_min, pid->integral_max);
+                int_min, int_max);
             output = clamp_f(
                 pid->integral,
                 pid->out_min, pid->out_max);

@@ -10,18 +10,26 @@
 │  ├── app_main.c/h    应用入口 + 公共函数    │
 │  ├── app_pid.c/h     增量式 PID 控制器      │
 │  ├── app_vofa.c/h    VOFA+ 协议(收发)       │
+│  ├── app_complementary_filter.c/h 互补滤波器 │
 │  └── Task/                                   │
-│      ├── task_control.c/h  控制任务(5ms)     │
-│      └── task_menu.c/h     菜单任务(串口)    │
+│      ├── task_control.c/h  控制任务(5ms)    │
+│      ├── task_imu.c/h     IMU任务(10ms)     │
+│      └── task_menu.c/h     菜单任务(串口)   │
 ├─────────────────────────────────────────────┤
 │  BSP Layer          Board Support Package    │
 │  ├── bsp_motor.c/h   PWM 电机驱动           │
 │  ├── bsp_encoder.c/h 编码器 + M法测速        │
+│  ├── bsp_mpu6050.c/h MPU6050 I2C bitbang   │
 │  ├── bsp_uart.c/h    串口(中断+环形缓冲)    │
 │  ├── bsp_led.c/h     LED 心跳               │
 │  ├── bsp_adc.c/h     ADC 电压采集           │
-│  ├── bsp_soft_i2c.c/h 软件 I2C              │
 │  └── bsp_common.h    环形缓冲/宏/状态码     │
+├─────────────────────────────────────────────┤
+│  BSP/eMPL Layer  Invensense eMPL Driver    │
+│  ├── inv_mpu.c/h     MPU6050 核心驱动       │
+│  ├── inv_mpu_dmp_motion_driver.c/h DMP接口  │
+│  ├── dmpmap.h        DMP 内存映射           │
+│  └── dmpKey.h       DMP 配置键值           │
 ├─────────────────────────────────────────────┤
 │  HAL Layer          Hardware Abstraction     │
 │  ├── hal_uart.c/h    UART 寄存器抽象        │
@@ -60,6 +68,7 @@ MSPM0G3507_FreeRTOS/
 │       ├── task_control.c/h  PID 闭环控制任务
 │       └── task_menu.c/h     串口交互菜单任务
 ├── BSP/                   板级支持包
+│   └── eMPL/              Invensense eMPL 驱动 (MPU6050 DMP)
 ├── Config/                工程配置 (project_config.h)
 ├── HAL/                   硬件抽象层
 ├── OSAL/                  操作系统抽象层
@@ -105,7 +114,10 @@ val0,val1,val2,val3,val4,val5,val6,val7,val8,val9,val10,val11\n
 |------|------|
 | CH0~CH3 | 电机 A/B/C/D 实际 RPM |
 | CH4~CH7 | 电机 A/B/C/D 目标 RPM |
-| CH8~CH11 | 电机 A/B/C/D PID 输出 |
+| CH8 | 横滚角 (roll, 度) |
+| CH9 | 俯仰角 (pitch, 度) |
+| CH10 | 融合航向角 (heading, 度) |
+| CH11 | 融合线速度 (m/s) |
 
 ### 下行命令
 
@@ -124,7 +136,7 @@ val0,val1,val2,val3,val4,val5,val6,val7,val8,val9,val10,val11\n
 
 **参数安全限制：**
 - Kp/Ki/Kd: ±100，拒绝 NaN/Inf
-- Target RPM: ±500，拒绝 NaN/Inf
+- Target RPM: ±800，拒绝 NaN/Inf
 
 ## 串口菜单操作
 
@@ -158,6 +170,8 @@ a:Motor b:RPM c:PID d:Run q:Back
 
 **4 路编码器输入** — Timer Capture 模式，正交解码
 
+**MPU6050 IMU** — 软件 I2C (PA0=SCL, PA1=SDA)，使用 Invensense eMPL DMP 驱动
+
 **UART 串口** — 115200 波特率，用于菜单交互 + VOFA+ 通信
 
 ## 构建说明
@@ -171,7 +185,8 @@ a:Motor b:RPM c:PID d:Run q:Back
 
 | 任务 | 优先级 | 栈大小 | 周期 |
 |------|--------|--------|------|
-| 控制任务 (control) | 5 (最高) | 256 字 | 5ms |
+| 控制任务 (control) | 5 (最高) | 384 字 | 5ms |
+| IMU任务 (imu) | 4 (中) | 256 字 | 10ms |
 | 菜单任务 (menu) | 2 (低) | 512 字 | 100ms (菜单) / 30ms (运行) |
 
 ## 文档 / Documentation

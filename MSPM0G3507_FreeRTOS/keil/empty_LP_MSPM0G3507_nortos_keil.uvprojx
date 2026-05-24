@@ -10,6 +10,7 @@
       <TargetName>empty_LP_MSPM0G3507_nortos_keil</TargetName>
       <ToolsetNumber>0x4</ToolsetNumber>
       <ToolsetName>ARM-ADS</ToolsetName>
+      <pArmCC>6240000::V6.24::ARMCLANG</pArmCC>
       <pCCUsed>6240000::V6.24::ARMCLANG</pCCUsed>
       <uAC6>1</uAC6>
       <TargetOption>
@@ -455,6 +456,26 @@
               <FilePath>..\App\app_pid.h</FilePath>
             </File>
             <File>
+              <FileName>app_feedforward.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\App\app_feedforward.c</FilePath>
+            </File>
+            <File>
+              <FileName>app_feedforward.h</FileName>
+              <FileType>5</FileType>
+              <FilePath>..\App\app_feedforward.h</FilePath>
+            </File>
+            <File>
+              <FileName>app_model_id.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\App\app_model_id.c</FilePath>
+            </File>
+            <File>
+              <FileName>app_model_id.h</FileName>
+              <FileType>5</FileType>
+              <FilePath>..\App\app_model_id.h</FilePath>
+            </File>
+            <File>
               <FileName>app_vofa.c</FileName>
               <FileType>1</FileType>
               <FilePath>..\App\app_vofa.c</FilePath>
@@ -503,6 +524,26 @@
               <FileName>app_complementary_filter.h</FileName>
               <FileType>5</FileType>
               <FilePath>..\App\app_complementary_filter.h</FilePath>
+            </File>
+            <File>
+              <FileName>test_uart_dma.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\App\test_uart_dma.c</FilePath>
+            </File>
+            <File>
+              <FileName>test_uart_dma.h</FileName>
+              <FileType>5</FileType>
+              <FilePath>..\App\test_uart_dma.h</FilePath>
+            </File>
+            <File>
+              <FileName>app_debug.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\App\app_debug.c</FilePath>
+            </File>
+            <File>
+              <FileName>app_debug.h</FileName>
+              <FileType>5</FileType>
+              <FilePath>..\App\app_debug.h</FilePath>
             </File>
           </Files>
         </Group>
@@ -670,6 +711,16 @@
           <GroupName>BSP</GroupName>
           <Files>
             <File>
+              <FileName>bsp_motor.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\BSP\bsp_motor.c</FilePath>
+            </File>
+            <File>
+              <FileName>bsp_timer.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\BSP\bsp_timer.c</FilePath>
+            </File>
+            <File>
               <FileName>bsp_adc.c</FileName>
               <FileType>1</FileType>
               <FilePath>..\BSP\bsp_adc.c</FilePath>
@@ -695,19 +746,14 @@
               <FilePath>..\BSP\bsp_encoder.h</FilePath>
             </File>
             <File>
-              <FileName>bsp_led.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\BSP\bsp_led.c</FilePath>
-            </File>
-            <File>
               <FileName>bsp_led.h</FileName>
               <FileType>5</FileType>
               <FilePath>..\BSP\bsp_led.h</FilePath>
             </File>
             <File>
-              <FileName>bsp_motor.c</FileName>
+              <FileName>bsp_led.c</FileName>
               <FileType>1</FileType>
-              <FilePath>..\BSP\bsp_motor.c</FilePath>
+              <FilePath>..\BSP\bsp_led.c</FilePath>
             </File>
             <File>
               <FileName>bsp_motor.h</FileName>

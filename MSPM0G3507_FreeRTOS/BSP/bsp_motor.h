@@ -29,10 +29,10 @@ extern "C" {
 
 /** 电机编号枚举 */
 typedef enum {
-    BSP_MOTOR_A = 0,   /**< 电机A(左前): CC0=PA0, IN1=PB20, IN2=PB24 */
-    BSP_MOTOR_B,       /**< 电机B(左后): CC1=PA1, IN1=PA4, IN2=PA7 */
-    BSP_MOTOR_C,       /**< 电机C(右前): CC2=PA15, IN1=PB2, IN2=PB3 */
-    BSP_MOTOR_D,       /**< 电机D(右后): CC3=PA12, IN1=PA8, IN2=PA9 */
+    BSP_MOTOR_A = 0,   /**< 电机A(左前): CC0=PB8, IN1=PB24, IN2=PB20 */
+    BSP_MOTOR_B,       /**< 电机B(左后): CC1=PA22, IN1=PA24, IN2=PA31 */
+    BSP_MOTOR_C,       /**< 电机C(右前): CC2=PA15, IN1=PA2, IN2=PA7 */
+    BSP_MOTOR_D,       /**< 电机D(右后): CC3=PA17, IN1=PB6, IN2=PB7 */
     BSP_MOTOR_COUNT    /**< 电机总数 */
 } bsp_motor_id_t;
 

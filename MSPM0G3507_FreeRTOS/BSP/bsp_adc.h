@@ -85,6 +85,19 @@ uint16_t bsp_adc_get_last_raw(bsp_adc_channel_t channel);
  */
 uint32_t bsp_adc_get_last_voltage(bsp_adc_channel_t channel);
 
+/**
+ * @brief  查询ADC转换是否完成(中断模式下使用)
+ * @retval true  转换完成, 可读取结果
+ * @retval false 转换未完成
+ */
+bool bsp_adc_is_conversion_done(void);
+
+/**
+ * @brief  清除ADC转换完成标志
+ * @note   每次读取结果后调用, 准备下一次转换
+ */
+void bsp_adc_clear_done_flag(void);
+
 #ifdef __cplusplus
 }
 #endif

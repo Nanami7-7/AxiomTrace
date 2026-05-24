@@ -76,11 +76,11 @@ typedef struct {
  */
 typedef enum {
     HAL_TIMER_PWM_MOTOR = 0, /**< TIMA0 - 电机PWM */
-    HAL_TIMER_CAPTURE_LF,    /**< TIMG8 - 左前编码器捕获 */
-    HAL_TIMER_CAPTURE_LB,    /**< TIMG7 - 左后编码器捕获 */
+    HAL_TIMER_CAPTURE_LF,    /**< TIMG7 - 左前编码器捕获 */
+    HAL_TIMER_CAPTURE_LB,    /**< TIMA1 - 左后编码器捕获 */
     HAL_TIMER_CAPTURE_RF,    /**< TIMG6 - 右前编码器捕获 */
     HAL_TIMER_CAPTURE_RB,    /**< TIMG0 - 右后编码器捕获 */
-    HAL_TIMER_SYS_TICK,      /**< TIMA1 - 系统节拍定时器 */
+    HAL_TIMER_SYS_TICK,      /**< TIMG8 - 系统节拍定时器 */
     HAL_TIMER_COUNT          /**< 实例总数(用于数组大小定义) */
 } hal_timer_id_t;
 

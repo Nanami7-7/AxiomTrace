@@ -30,16 +30,16 @@ typedef struct {
 static const timer_instance_t s_timer_map[HAL_TIMER_COUNT] = {
     /* HAL_TIMER_PWM_MOTOR -> TIMA0, 4通道PWM */
     { (GPTIMER_Regs *)TIMA0, TIMA0_INT_IRQn, true  },
-    /* HAL_TIMER_CAPTURE_LF -> TIMG8, 编码器捕获 */
-    { (GPTIMER_Regs *)TIMG8, TIMG8_INT_IRQn, false },
-    /* HAL_TIMER_CAPTURE_LB -> TIMG7, 编码器捕获 */
+    /* HAL_TIMER_CAPTURE_LF -> TIMG7, 编码器捕获 */
     { (GPTIMER_Regs *)TIMG7, TIMG7_INT_IRQn, false },
+    /* HAL_TIMER_CAPTURE_LB -> TIMA1, 编码器捕获 */
+    { (GPTIMER_Regs *)TIMA1, TIMA1_INT_IRQn, false },
     /* HAL_TIMER_CAPTURE_RF -> TIMG6, 编码器捕获 */
     { (GPTIMER_Regs *)TIMG6, TIMG6_INT_IRQn, false },
     /* HAL_TIMER_CAPTURE_RB -> TIMG0, 编码器捕获 */
     { (GPTIMER_Regs *)TIMG0, TIMG0_INT_IRQn, false },
-    /* HAL_TIMER_SYS_TICK -> TIMA1, 系统节拍 */
-    { (GPTIMER_Regs *)TIMA1, TIMA1_INT_IRQn, false },
+    /* HAL_TIMER_SYS_TICK -> TIMG8, 系统节拍 */
+    { (GPTIMER_Regs *)TIMG8, TIMG8_INT_IRQn, false },
 };
 
 /* ======================== 内联辅助函数 ======================== */

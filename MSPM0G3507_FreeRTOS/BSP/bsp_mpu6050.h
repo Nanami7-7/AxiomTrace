@@ -11,9 +11,22 @@
 
 #include "ti_msp_dl_config.h"
 
+#define MPU6050_I2C_ADDR         (0x68)
+#define MPU6050_DEVICE_ID        (0x68)
+
+#define IIC_HALF_PERIOD_US       (5)
+#define IIC_DATA_SETUP_US        (1)
+#define IIC_ACK_TIMEOUT_RETRIES  (10)
+
+#define MPU6050_POWER_ON_DELAY_MS    (10)
+#define MPU6050_RESET_DELAY_MS       (100)
+#define MPU6050_TEMP_SENSITIVITY     (340.0f)
+#define MPU6050_TEMP_OFFSET          (36.53f)
+#define MPU6050_DEFAULT_SAMPLE_RATE (50)
+
 #define SDA_OUT()   {                                                  \
                         DL_GPIO_initDigitalOutput(IIC_SDA_IOMUX);      \
-                        DL_GPIO_setPins(IIC_PORT, IIC_SDA_PIN);        \
+                        DL_GPIO_setPins(IIC_PORT, IIC_SDA_PIN);       \
                         DL_GPIO_enableOutput(IIC_PORT, IIC_SDA_PIN);   \
                     }
 #define SDA_IN()    { DL_GPIO_initDigitalInput(IIC_SDA_IOMUX); }

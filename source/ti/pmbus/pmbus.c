@@ -1152,14 +1152,14 @@ int8_t PMBus_cmdExtendedReadByte(SMBus *SMB,
         return(PMBUS_RET_ERROR);
     }
 
-    uint8_t *txData = (uint8_t *)malloc(sizeof(uint8_t)*1);
-    txData[0] = commandByte2;
+    static uint8_t txData = 0;
+    txData = commandByte2;
 
     (SMB)->nwk.currentCmd = commandByte1;
     (SMB)->nwk.rxLen = rxSize; // Read 1 byte
     (SMB)->nwk.rxBuffPtr = rxData;
     (SMB)->nwk.txLen = 2; // Only send 2 command
-    (SMB)->nwk.txBuffPtr = txData;
+    (SMB)->nwk.txBuffPtr = &txData;
     (SMB)->nwk.eState = SMBus_NwkState_TX;
     (SMB)->nwk.currentAddr = targetAddress;
 
@@ -1199,14 +1199,14 @@ int8_t PMBus_cmdExtendedReadWord(SMBus *SMB,
         return(PMBUS_RET_ERROR);
     }
 
-    uint8_t *txData = (uint8_t *)malloc(sizeof(uint8_t)*1);
-    txData[0] = commandByte2;
+    static uint8_t txData = 0;
+    txData = commandByte2;
 
     (SMB)->nwk.currentCmd = commandByte1;
     (SMB)->nwk.rxLen = rxSize; // Read 2 bytes
     (SMB)->nwk.rxBuffPtr = rxData;
     (SMB)->nwk.txLen = 2; // Only send 2 commands
-    (SMB)->nwk.txBuffPtr = txData;
+    (SMB)->nwk.txBuffPtr = &txData;
     (SMB)->nwk.eState = SMBus_NwkState_TX;
     (SMB)->nwk.currentAddr = targetAddress;
 

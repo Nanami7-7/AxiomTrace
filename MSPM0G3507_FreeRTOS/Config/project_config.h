@@ -37,9 +37,9 @@ extern "C" {
 
 /* ================================================================
  *  电机PWM配置
- *  SysConfig已配置: TIMA0, 4通道PWM, 20MHz时钟, 1kHz周期
+ *  SysConfig已配置: TIMA0, 4通道PWM, 20MHz时钟, 20kHz周期
  *  每个电机1个PWM通道(控速) + 2个GPIO(IN1/IN2控方向)
- *  通道: C0=PA0/PINCM1, C1=PA1/PINCM2, C2=PA15/PINCM37, C3=PA12/PINCM34
+ *  通道: C0=PB8/PINCM25, C1=PA22/PINCM47, C2=PA15/PINCM37, C3=PA17/PINCM39
  *  驱动芯片: TB6612FNG
  *  正转: IN1=1, IN2=0, PWM=duty
  *  反转: IN1=0, IN2=1, PWM=duty
@@ -51,35 +51,35 @@ extern "C" {
 #define PRJ_MOTOR_PWM_TIMER     HAL_TIMER_PWM_MOTOR
 /** PWM时钟频率(Hz) */
 #define PRJ_MOTOR_PWM_CLK_HZ    (20000000UL)
-/** PWM周期值(1kHz = 20000个20MHz时钟周期) */
-#define PRJ_MOTOR_PWM_PERIOD    (20000U)
+/** PWM周期值(20kHz = 1000个20MHz时钟周期) */
+#define PRJ_MOTOR_PWM_PERIOD    (1000U)
 
-/* ---- 电机A(左前): CC0=PA0, IN1=PB20, IN2=PB24 ---- */
+/* ---- 电机A(左前): CC0=PB8, IN1=PB24, IN2=PB20 ---- */
 #define PRJ_MOTOR_A_PWM_CH      (0U)
 #define PRJ_MOTOR_A_IN1_PORT    HAL_GPIO_PORT_B
 #define PRJ_MOTOR_A_IN1_PIN     MOTOR_AIN1_PIN
 #define PRJ_MOTOR_A_IN2_PORT    HAL_GPIO_PORT_B
 #define PRJ_MOTOR_A_IN2_PIN     MOTOR_AIN2_PIN
 
-/* ---- 电机B(左后): CC1=PA1, IN1=PA4, IN2=PA7 ---- */
+/* ---- 电机B(左后): CC1=PA22, IN1=PA24, IN2=PA31 ---- */
 #define PRJ_MOTOR_B_PWM_CH      (1U)
 #define PRJ_MOTOR_B_IN1_PORT    HAL_GPIO_PORT_A
 #define PRJ_MOTOR_B_IN1_PIN     MOTOR_BIN1_PIN
 #define PRJ_MOTOR_B_IN2_PORT    HAL_GPIO_PORT_A
 #define PRJ_MOTOR_B_IN2_PIN     MOTOR_BIN2_PIN
 
-/* ---- 电机C(右前): CC2=PA15, IN1=PB2, IN2=PB3 ---- */
+/* ---- 电机C(右前): CC2=PA15, IN1=PA2, IN2=PA7 ---- */
 #define PRJ_MOTOR_C_PWM_CH      (2U)
-#define PRJ_MOTOR_C_IN1_PORT    HAL_GPIO_PORT_B
+#define PRJ_MOTOR_C_IN1_PORT    HAL_GPIO_PORT_A
 #define PRJ_MOTOR_C_IN1_PIN     MOTOR_CIN1_PIN
-#define PRJ_MOTOR_C_IN2_PORT    HAL_GPIO_PORT_B
+#define PRJ_MOTOR_C_IN2_PORT    HAL_GPIO_PORT_A
 #define PRJ_MOTOR_C_IN2_PIN     MOTOR_CIN2_PIN
 
-/* ---- 电机D(右后): CC3=PA12, IN1=PA8, IN2=PA9 ---- */
+/* ---- 电机D(右后): CC3=PA17, IN1=PB6, IN2=PB7 ---- */
 #define PRJ_MOTOR_D_PWM_CH      (3U)
-#define PRJ_MOTOR_D_IN1_PORT    HAL_GPIO_PORT_A
+#define PRJ_MOTOR_D_IN1_PORT    HAL_GPIO_PORT_B
 #define PRJ_MOTOR_D_IN1_PIN     MOTOR_DIN1_PIN
-#define PRJ_MOTOR_D_IN2_PORT    HAL_GPIO_PORT_A
+#define PRJ_MOTOR_D_IN2_PORT    HAL_GPIO_PORT_B
 #define PRJ_MOTOR_D_IN2_PIN     MOTOR_DIN2_PIN
 
 /** 电机方向修正(+1/-1, 0视为+1) */
@@ -102,7 +102,7 @@ extern "C" {
 
 /* ================================================================
  *  编码器捕获配置
- *  SysConfig已配置: TIMG8/7/6/0, 组合捕获模式(脉宽+周期)
+ *  SysConfig已配置: TIMG7/TIMA1/TIMG6/TIMG0, 组合捕获模式(脉宽+周期)
  * ================================================================ */
 
 /** 编码器每转脉冲数(单相PPR) */
@@ -122,15 +122,18 @@ extern "C" {
 /** 右后编码器HAL实例 */
 #define PRJ_ENCODER_RB_TIMER    HAL_TIMER_CAPTURE_RB
 
-/** 编码器B相端口(SysConfig已配置, GPIOA) */
-#define PRJ_ENCODER_PORT        HAL_GPIO_PORT_A
-/** 左前B相引脚(PA28) */
+/** 编码器B相端口(SysConfig已配置) */
+#define PRJ_ENCODER_LF_B_PORT        HAL_GPIO_PORT_B
+#define PRJ_ENCODER_LB_B_PORT        HAL_GPIO_PORT_A
+#define PRJ_ENCODER_RF_B_PORT        HAL_GPIO_PORT_A
+#define PRJ_ENCODER_RB_B_PORT        HAL_GPIO_PORT_A
+/** 左前B相引脚(PB2) */
 #define PRJ_ENCODER_LF_B_PIN    ENCODER_LEFT_FRONT_B_PIN
-/** 左后B相引脚(PA31) */
+/** 左后B相引脚(PA13) */
 #define PRJ_ENCODER_LB_B_PIN    ENCODER_LEFT_BACK_B_PIN
-/** 右前B相引脚(PA2) */
+/** 右前B相引脚(PA8) */
 #define PRJ_ENCODER_RF_B_PIN    ENCODER_RIGHT_FRONT_B_PIN
-/** 右后B相引脚(PA3) */
+/** 右后B相引脚(PA9) */
 #define PRJ_ENCODER_RB_B_PIN    ENCODER_RIGHT_BACK_B_PIN
 
 /** 编码器方向修正(+1/-1, 0视为+1) */
@@ -141,13 +144,13 @@ extern "C" {
 
 /** 编码器配置表(顺序需与BSP_ENCODER_x一致) */
 #define PRJ_ENCODER_CONFIGS { \
-		{ PRJ_ENCODER_LF_TIMER, PRJ_ENCODER_PORT, PRJ_ENCODER_LF_B_PIN, \
+		{ PRJ_ENCODER_LF_TIMER, PRJ_ENCODER_LF_B_PORT, PRJ_ENCODER_LF_B_PIN, \
 			PRJ_ENCODER_LF_DIR_SIGN }, \
-		{ PRJ_ENCODER_LB_TIMER, PRJ_ENCODER_PORT, PRJ_ENCODER_LB_B_PIN, \
+		{ PRJ_ENCODER_LB_TIMER, PRJ_ENCODER_LB_B_PORT, PRJ_ENCODER_LB_B_PIN, \
 			PRJ_ENCODER_LB_DIR_SIGN }, \
-		{ PRJ_ENCODER_RF_TIMER, PRJ_ENCODER_PORT, PRJ_ENCODER_RF_B_PIN, \
+		{ PRJ_ENCODER_RF_TIMER, PRJ_ENCODER_RF_B_PORT, PRJ_ENCODER_RF_B_PIN, \
 			PRJ_ENCODER_RF_DIR_SIGN }, \
-		{ PRJ_ENCODER_RB_TIMER, PRJ_ENCODER_PORT, PRJ_ENCODER_RB_B_PIN, \
+		{ PRJ_ENCODER_RB_TIMER, PRJ_ENCODER_RB_B_PORT, PRJ_ENCODER_RB_B_PIN, \
 			PRJ_ENCODER_RB_DIR_SIGN }, \
 }
 

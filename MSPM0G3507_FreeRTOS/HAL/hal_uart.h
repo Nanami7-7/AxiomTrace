@@ -84,6 +84,26 @@ bool hal_uart_is_busy(hal_uart_id_t id);
  */
 hal_uart_irq_flag_t hal_uart_get_irq_flag(hal_uart_id_t id);
 
+/**
+ * @brief  启动DMA发送(非阻塞)
+ * @note   使用DMA CH1(UART0 TX触发)，数据必须在DMA可访问内存中
+ * @param  id   UART实例编号
+ * @param  data 数据缓冲区指针
+ * @param  len  数据长度(字节,最大65535)
+ * @retval HAL_OK           启动成功
+ * @retval HAL_ERR_BUSY     DMA正在发送
+ * @retval HAL_ERR_INVALID_PARAM 参数无效
+ */
+hal_status_t hal_uart_transmit_dma(hal_uart_id_t id,
+                                    const uint8_t *data, uint16_t len);
+
+/**
+ * @brief  停止DMA发送
+ * @param  id UART实例编号
+ * @retval HAL_OK 停止成功
+ */
+hal_status_t hal_uart_abort_tx_dma(hal_uart_id_t id);
+
 #ifdef __cplusplus
 }
 #endif

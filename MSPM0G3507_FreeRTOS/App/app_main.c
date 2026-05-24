@@ -20,6 +20,7 @@
 #include "inv_mpu.h"
 #include "bsp_uart.h"
 #include "app_complementary_filter.h"
+#include "app_model_id.h"
 #include "hal_gpio.h"
 #include "project_config.h"
 #include "axiomtrace.h"
@@ -95,6 +96,16 @@ static void pid_controllers_init(void)
             -duty_max,
              duty_max);
 
+        /* FF模式PID默认参数 */
+        s_shared_ctx.pid[i].ff_kp = 0.5f;
+        s_shared_ctx.pid[i].ff_ki = 0.1f;
+        s_shared_ctx.pid[i].ff_kd = 0.0f;
+        s_shared_ctx.pid[i].ff_integral_min = -duty_max;
+        s_shared_ctx.pid[i].ff_integral_max =  duty_max;
+        s_shared_ctx.pid[i].use_ff = false;
+
+        app_ff_init(&s_shared_ctx.ff[i]);
+
         /*
          * 增量式PID中 integral 变量实际存储"上次输出累加值",
          * 其限幅应与输出限幅一致, 否则会限制最大输出幅度.
@@ -146,6 +157,9 @@ int32_t app_main_init(void)
 
     /* 初始化互补滤波器 */
     app_cf_init(NULL);  /* 使用project_config.h中的默认参数 */
+
+    /* 初始化模型参数辨识模块 */
+    app_id_init();
 
     /* 清零共享上下文 */
     for (uint32_t i = 0; i < BSP_MOTOR_COUNT; i++) {

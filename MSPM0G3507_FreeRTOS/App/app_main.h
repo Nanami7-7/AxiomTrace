@@ -19,6 +19,7 @@ extern "C" {
 #include <stdint.h>
 #include <stdbool.h>
 #include "app_pid.h"
+#include "app_feedforward.h"
 #include "bsp_motor.h"
 #include "project_config.h"
 
@@ -33,11 +34,11 @@ extern "C" {
 
 /* ======================== 任务栈大小 ======================== */
 
-/** 控制任务栈大小(字, 含浮点运算) */
-#define APP_TASK_STACK_CONTROL      (256U)
+/** 控制任务栈大小(字, 含浮点运算+软件FPU) */
+#define APP_TASK_STACK_CONTROL      (384U)
 /** IMU任务栈大小(字, 含DMP读取+浮点运算) */
 #define APP_TASK_STACK_IMU          (256U)
-/** 菜单任务栈大小(字, 行缓冲+printf+sscanf+VOFA+12通道) */
+/** 菜单任务栈大小(字, 行缓冲+printf+sscanf+VOFA+11通道DMA) */
 #define APP_TASK_STACK_MENU         (512U)
 
 /* ======================== 控制周期 ======================== */
@@ -46,7 +47,7 @@ extern "C" {
 #define APP_CONTROL_PERIOD_MS       (5U)
 /** 菜单轮询周期(ms) */
 #define APP_MENU_POLL_PERIOD_MS     (100U)
-/** RPM输出周期(ms, 运行模式下, 需满足: 12通道×12字节/周期 < 波特率×周期) */
+/** RPM输出周期(ms, 运行模式下, DMA非阻塞发送) */
 #define APP_RPM_OUTPUT_PERIOD_MS    (30U)
 
 /* ======================== 菜单配置 ======================== */
@@ -69,6 +70,7 @@ extern "C" {
 typedef struct {
     int32_t rpm[BSP_MOTOR_COUNT];
     int32_t output[BSP_MOTOR_COUNT];
+    float   pid_correction[BSP_MOTOR_COUNT];  /**< FF模式PID修正量 */
 } app_control_status_t;
 
 /** IMU姿态数据(由IMU任务写入, 控制/菜单任务读取) */
@@ -82,8 +84,9 @@ typedef struct {
 } app_imu_data_t;
 
 /** 应用层共享上下文(控制任务和菜单任务之间共享) */
-typedef struct {
+typedef struct app_shared_ctx_s {
     app_pid_t            pid[BSP_MOTOR_COUNT];       /**< PID控制器实例 */
+    app_ff_params_t      ff[BSP_MOTOR_COUNT];        /**< 前馈参数实例 */
     bool                 motor_enabled[BSP_MOTOR_COUNT]; /**< 电机使能标志 */
     app_control_status_t status;                     /**< 控制任务状态 */
     app_imu_data_t       imu;                        /**< IMU姿态数据 */

@@ -74,11 +74,40 @@ uint32_t bsp_uart_rx_count(void);
 void bsp_uart_rx_flush(void);
 
 /**
+ * @brief  通过DMA发送数据(非阻塞)
+ * @note   数据被拷贝到内部bounce buffer，调用者可立即重用data指向的内存
+ *         如果上一次DMA未完成，返回BSP_ERR_BUSY
+ * @param  data 数据指针
+ * @param  len  数据长度（最大BSP_DMA_TX_BUF_SIZE，超过则直接使用data指针）
+ * @retval BSP_OK          启动DMA成功
+ * @retval BSP_ERR_BUSY    上一次发送未完成
+ * @retval BSP_ERR_NULL_PTR 空指针
+ */
+bsp_status_t bsp_uart_send_dma(const uint8_t *data, uint16_t len);
+
+/**
+ * @brief  查询DMA发送是否空闲
+ * @retval true  上一次DMA发送已完成(EOT)
+ * @retval false DMA正在发送
+ */
+bool bsp_uart_tx_idle(void);
+
+/**
  * @brief  UART中断服务函数
  * @note   在UART0_IRQHandler中调用此函数
  *         ISR中仅将接收字节存入环形缓冲区
+ *         处理DMA发送完成中断
  */
 void bsp_uart_irq_handler(void);
+
+/* ======================== 调试计数器 ======================== */
+extern volatile uint32_t dbg_isr_count;
+extern volatile uint32_t dbg_uart_isr_total;
+extern volatile uint32_t dbg_iidx_value;
+extern volatile uint32_t dbg_eot_count;
+extern volatile uint32_t dbg_rx_count;
+extern volatile uint32_t dbg_other_count;
+extern volatile uint32_t dbg_rx_overflow;
 
 #ifdef __cplusplus
 }
