@@ -21,6 +21,27 @@ from axiomtrace_tools.validator import (
 
 OUTPUT_FORMATS = ["text", "json", "jsonl", "raw"]
 
+BANNER = r"""
+    _              _                 _____
+   / \\   __  __  _(_)  ___   _ __   |_   _| _ __  __ _   ___  ___
+  / _ \\  \\ \\/ / (_)_  / _ \\ | '_ \\    | |  | '__|/ _` | / __|/ _ \\\\
+ / ___ \\  >  <   | | | (_) || | | |   | |  | |  | (_| || (__|  __/
+/_/   \\_\\/_/\\_\\  |_|  \\___/ |_| |_|   |_|  |_|   \\__,_| \\___|\\___|
+  AxiomTrace host-side tools
+"""
+
+def echo_success(msg: str, err: bool = False):
+    click.secho(f"# SUCCESS: {msg}", fg="green", bold=True, err=err)
+
+def echo_info(msg: str, err: bool = False):
+    click.secho(f"# INFO: {msg}", fg="blue", bold=True, err=err)
+
+def echo_warning(msg: str, err: bool = False):
+    click.secho(f"# WARNING: {msg}", fg="yellow", bold=True, err=err)
+
+def echo_error(msg: str, err: bool = False):
+    click.secho(f"# ERROR: {msg}", fg="red", bold=True, err=err)
+
 
 @click.command(context_settings={"help_option_names": ["-h", "--help"]})
 @click.argument("input", type=click.File("rb"))
@@ -39,7 +60,8 @@ OUTPUT_FORMATS = ["text", "json", "jsonl", "raw"]
 def decoder_main(input, dictionary, bundle, bundle_store, output_format, legacy_output, output_file):
     """AxiomTrace binary frame decoder."""
     selected_format = output_format or legacy_output or "text"
-    frames = decode_stream(input.read())
+    raw_bytes = input.read()
+    frames = decode_stream(raw_bytes)
     if selected_format == "raw":
         rendered = render_raw_json(frames)
         _emit_output(rendered, output_file)
@@ -54,18 +76,20 @@ def decoder_main(input, dictionary, bundle, bundle_store, output_format, legacy_
     if active_bundle:
         try:
             loaded_bundle = validate_bundle(active_bundle)
+            active_dictionary = loaded_bundle.load_dictionary()
+            frames = decode_stream(raw_bytes, active_dictionary)
             validate_trace_bundle(frames, loaded_bundle)
         except ValueError as exc:
             raise click.ClickException(str(exc)) from exc
-        active_dictionary = loaded_bundle.load_dictionary()
         active_metadata_id = loaded_bundle.metadata_id
         active_source_map = loaded_bundle.load_source_map()
-        click.echo(f"# Using bundle: {loaded_bundle.root}", err=True)
+        echo_info(f"Using metadata bundle: {loaded_bundle.root}", err=True)
     else:
         dict_path = Path(dictionary) if dictionary else find_dictionary()
         if dict_path and dict_path.is_file():
             active_dictionary = load_dictionary(dict_path)
-            click.echo(f"# Using dictionary: {dict_path}", err=True)
+            frames = decode_stream(raw_bytes, active_dictionary)
+            echo_info(f"Using dictionary: {dict_path}", err=True)
         else:
             raise click.ClickException(
                 "semantic output requires a metadata bundle or dictionary; use --format raw for structural decode"
@@ -133,10 +157,10 @@ def codegen_main(events, out, source_id_map, location_mode, location_function, c
         location_function=location_function,
     )
     if check:
-        click.echo("AxiomTrace codegen check passed")
+        echo_success("AxiomTrace codegen check passed")
         return
     for name, path in generated.items():
-        click.echo(f"{name}: {path}")
+        echo_success(f"Generated {name}: {path}")
 
 
 @click.group(context_settings={"help_option_names": ["-h", "--help"]})
@@ -181,7 +205,7 @@ def bundle_generate(
         location_function=location_function,
     )
     for name, path in generated.items():
-        click.echo(f"{name}: {path}")
+        echo_success(f"Bundled {name}: {path}")
 
 
 @click.command(context_settings={"help_option_names": ["-h", "--help"]})
@@ -201,21 +225,22 @@ def validate_main(bundle, dictionary, events, golden, trace):
         loaded = None
         if bundle:
             loaded = validate_bundle(bundle)
-            click.echo(f"Bundle OK: {loaded.root}")
+            echo_success(f"Bundle validation PASSED: {loaded.root}")
         if dictionary:
             validate_dictionary_file(dictionary)
-            click.echo(f"Dictionary OK: {dictionary}")
+            echo_success(f"Dictionary validation PASSED: {dictionary}")
         if events:
             validate_event_source(load_event_source(events))
-            click.echo(f"Events OK: {events}")
+            echo_success(f"Event definitions validation PASSED: {events}")
         if golden:
             checked = validate_golden(golden)
-            click.echo(f"Golden OK: {len(checked)} frame(s)")
+            echo_success(f"Golden vectors validation PASSED: {len(checked)} frame(s) matches expected JSON outputs")
         if trace:
             if loaded is None:
                 raise ValueError("--trace requires --bundle")
-            validate_trace_bundle(decode_stream(Path(trace).read_bytes()), loaded)
-            click.echo(f"Trace OK: {trace}")
+            active_dict = loaded.load_dictionary()
+            validate_trace_bundle(decode_stream(Path(trace).read_bytes(), dictionary=active_dict), loaded)
+            echo_success(f"Trace matches bundle metadata identity & payload schema: {trace}")
         if not any([bundle, dictionary, events, golden, trace]):
             raise ValueError("nothing to validate")
     except ValueError as exc:
@@ -223,8 +248,11 @@ def validate_main(bundle, dictionary, events, golden, trace):
 
 
 @click.group(context_settings={"help_option_names": ["-h", "--help"]})
-def tool_main():
+@click.pass_context
+def tool_main(ctx):
     """AxiomTrace tool multiplexer."""
+    if ctx.invoked_subcommand is None:
+        click.echo(BANNER)
 
 
 tool_main.add_command(decoder_main, "decode")

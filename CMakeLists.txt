@@ -163,6 +163,10 @@ endif()
 if(AXIOM_DEBUG)
     target_compile_definitions(axiomtrace PUBLIC AXIOM_DEBUG=1)
 endif()
+if(AXIOM_BUILD_TESTS AND AXIOM_PLATFORM STREQUAL "host")
+    # Expose a controllable generic-port timestamp only to host test builds.
+    target_compile_definitions(axiomtrace PUBLIC AXIOM_HOST_TESTING=1)
+endif()
 
 # ---------------------------------------------------------------------------
 # Tests

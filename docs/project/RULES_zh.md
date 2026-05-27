@@ -74,8 +74,8 @@ AxiomTrace 是一个 **MCU 裸机可观测微内核**。我们的坚定目标：
 | Text 只是渲染 | 文本输出由主机 decoder 根据 dictionary 模板渲染生成。 |
 | JSON 只是导出 | JSON 由主机工具从 binary 转换生成。 |
 | Binary 是存储/传输形态 | Binary frame 是唯一穿越固件-主机边界的数据形态。 |
-| Payload 自描述 | 每个 payload 字段必须带类型标签（`0x01=u8, 0x02=i8...`），decoder 无需外部 schema 即可解析结构；dictionary 只负责语义映射（ID → 名称/模板）。 |
-| 协议向前兼容 | Minor version 增加只追加新 type tag 或新 flag，不修改已有字段语义；Major version 变化必须同步更新 decoder、golden、spec、docs。 |
+| 版本化 Payload 解释 | Wire v2 普通参数按照 identity 匹配的 dictionary packed 编码；metadata suffix 仍带标签。Decoder 保留对历史 wire v1 typed payload 的结构解码。 |
+| 协议向前兼容 | Minor version 增加必须保持同一 major 内的 payload 解释不变；Major version 变化必须同步更新 decoder、golden、spec、docs。 |
 
 ---
 
@@ -97,7 +97,7 @@ AxiomTrace 是一个 **MCU 裸机可观测微内核**。我们的坚定目标：
 | 规则 | 说明 |
 | :--- | :--- |
 | Backend 零侵入扩展 | 新增 backend 只需实现 `axiom_backend_t` 接口并调用 `axiom_backend_register()`；不允许修改 `core/` 或 `frontend/` 任何文件。 |
-| Payload 类型可扩展 | `0x0A` 与 `0x0B` 已保留给定位和元数据身份；后续标准 type tag 使用剩余 `0x0C~0x7F` 区间。必须同步更新 encoder、decoder、spec、golden tests、docs；旧 decoder 遇到未知 type tag 应跳过并标记 `UNKNOWN_TYPE` 而非崩溃。 |
+| Payload Metadata 可扩展 | Wire v2 中 `0x0A` 与 `0x0B` 标识 dictionary-defined packed 参数后的定位与 metadata identity suffix。新增 suffix 必须同步更新 encoder、decoder、spec、golden tests、docs；未知 suffix 必须安全拒绝。 |
 | Profile 可裁剪 | `DEV / FIELD / PROD` Profile 通过宏控制编译期裁剪；新增 Profile 需在 `frontend/` 中增加对应宏分支，不得改变已有 Profile 语义。 |
 | Port 层弱符号 | 所有 port 函数提供 `__attribute__((weak))` 默认实现；新增 port（如新 MCU 系列）只需覆盖所需函数，无需修改库代码。 |
 | 工具链可扩展 | decoder 采用插件化字典加载（支持 JSON/YAML/X-Macro 提取）；新增导出格式（如 CSV、PCAP）通过新增 render 模块实现。 |
@@ -145,7 +145,7 @@ Golden Frame 更新（若涉及 wire format，更新 golden/*.bin 与 expected.j
     ↓
 代码实现（遵循本 RULES.md 全部规则）
     ↓
-Decoder 更新（若涉及协议或 type tag，同步更新 Python decoder）
+Decoder 更新（若涉及协议、packed schema 或 metadata suffix，同步更新 Python decoder）
     ↓
 测试（C host unit tests + Python decoder regression tests）
     ↓
@@ -201,11 +201,11 @@ PR 评审（至少 1 人评审，检查是否违反 RULES.md）
 只有 **全部满足** 才允许打 `v1.0` tag：
 
 - [ ] stable API (`AX_*` 宏锁定)。
-- [ ] stable wire format (header 结构、type tag 定义冻结)。
+- [ ] stable wire format（header、packed 参数与 metadata suffix 契约冻结）。
 - [ ] stable event model (Event Record 语义不变)。
 - [ ] stable backend contract (`axiom_backend_t` 结构体冻结)。
 - [ ] stable capsule format (capsule 布局冻结)。
-- [ ] stable decoder (Python decoder 能解析全部 type tag 与 capsule)。
+- [ ] stable decoder（Python decoder 能解析当前 packed frame、历史 typed frame 与 capsule）。
 - [ ] stable golden tests (全部通过，无 flakiness)。
 - [ ] stable examples (全部可编译、可运行、输出符合预期)。
 - [ ] stable benchmark report (热路径周期数基准锁定)。
@@ -244,7 +244,7 @@ PR 评审（至少 1 人评审，检查是否违反 RULES.md）
 - [ ] 没有 RTOS/Linux 实现分支（port 层隔离，core 无 OS 依赖）。
 - [ ] 热路径无 malloc、无 printf、无 Flash erase、无阻塞。
 - [ ] 新增 backend 未修改 core 代码。
-- [ ] 新增 type tag 同步更新了 decoder 与 spec。
+- [ ] 新增 packed 布局或 metadata suffix 同步更新了 decoder 与 spec。
 - [ ] 新增 API 同步更新了 docs、examples、tests。
 - [ ] 无静默丢弃（有 drop counter + DROP_SUMMARY）。
 - [ ] 示例可独立编译（不依赖未文档化的内部符号）。

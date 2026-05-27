@@ -16,6 +16,11 @@ extern "C" {
 /* Monotonic timestamp in microseconds (wraps naturally) */
 extern uint32_t axiom_port_timestamp(void);
 
+#if defined(AXIOM_HOST_TESTING)
+/* Mutable generic-port time source used only by host regression tests. */
+extern uint32_t g_axiom_port_simulated_time;
+#endif
+
 /* Critical section: must be nestable or simply disable/enable IRQs */
 extern void axiom_port_critical_enter(void);
 extern void axiom_port_critical_exit(void);

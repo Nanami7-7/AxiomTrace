@@ -39,23 +39,33 @@ uint32_t axiom_port_timestamp(void) {
 #endif
 }
 
+#define MSTATUS_MIE 0x8u
+
+static uint32_t g_critical_nesting = 0u;
+static uint32_t g_mstatus_state = 0u;
+
 void axiom_port_critical_enter(void) {
 #if defined(__riscv)
-    /* 禁用所有中断 (MIE bit in mstatus) */
+    /* Atomically save mstatus and clear MIE before touching nesting state. */
     uint32_t mstatus;
-    __asm volatile ("csrr %0, mstatus" : "=r"(mstatus));
-    mstatus &= ~0x8;  /* 清除 MIE */
-    __asm volatile ("csrw mstatus, %0" : : "r"(mstatus));
+    const uint32_t mie = MSTATUS_MIE;
+    __asm volatile ("csrrc %0, mstatus, %1" : "=r"(mstatus) : "r"(mie) : "memory");
+    if (g_critical_nesting == 0u) {
+        g_mstatus_state = mstatus;
+    }
+    g_critical_nesting++;
 #endif
 }
 
 void axiom_port_critical_exit(void) {
 #if defined(__riscv)
-    /* 恢复中断使能 */
-    uint32_t mstatus;
-    __asm volatile ("csrr %0, mstatus" : "=r"(mstatus));
-    mstatus |= 0x8;  /* 设置 MIE */
-    __asm volatile ("csrw mstatus, %0" : : "r"(mstatus));
+    if (g_critical_nesting > 0u) {
+        g_critical_nesting--;
+        if (g_critical_nesting == 0u && (g_mstatus_state & MSTATUS_MIE) != 0u) {
+            const uint32_t mie = MSTATUS_MIE;
+            __asm volatile ("csrs mstatus, %0" : : "r"(mie) : "memory");
+        }
+    }
 #endif
 }
 

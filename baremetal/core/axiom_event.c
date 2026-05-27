@@ -45,6 +45,19 @@ static uint16_t s_seq;
 static axiom_filter_t s_filter;
 static axiom_timestamp_ctx_t s_ts_ctx;
 
+static void axiom_write_drop_summary(uint32_t lost, uint8_t mod, uint16_t evt) {
+    uint8_t summary[7];
+    uint8_t sp = 0;
+    summary[sp++] = (uint8_t)(lost & 0xFFu);
+    summary[sp++] = (uint8_t)((lost >> 8) & 0xFFu);
+    summary[sp++] = (uint8_t)((lost >> 16) & 0xFFu);
+    summary[sp++] = (uint8_t)(lost >> 24);
+    summary[sp++] = mod;
+    summary[sp++] = (uint8_t)(evt & 0xFFu);
+    summary[sp++] = (uint8_t)(evt >> 8);
+    axiom_write(AXIOM_LEVEL_WARN, AXIOM_SYSTEM_MODULE_ID, AXIOM_SYSTEM_EVENT_DROP_SUMMARY, summary, sp);
+}
+
 void axiom_init(void) {
     axiom_ring_init(&s_ring, s_ring_buf, AXIOM_RING_BUFFER_SIZE);
     s_seq = 0;
@@ -191,19 +204,7 @@ void axiom_write(axiom_level_t level, uint8_t module_id, uint16_t event_id,
      * Recursive axiom_write() is safe: it has its own critical section.
      * Using cached_* locals avoids touching s_filter after CS exit. */
     if (has_drop) {
-        uint8_t summary[10];
-        uint8_t sp = 0;
-        summary[sp++] = AXIOM_TYPE_U32;
-        summary[sp++] = (uint8_t)(cached_lost & 0xFFu);
-        summary[sp++] = (uint8_t)((cached_lost >> 8) & 0xFFu);
-        summary[sp++] = (uint8_t)((cached_lost >> 16) & 0xFFu);
-        summary[sp++] = (uint8_t)(cached_lost >> 24);
-        summary[sp++] = AXIOM_TYPE_U8;
-        summary[sp++] = cached_mod;
-        summary[sp++] = AXIOM_TYPE_U16;
-        summary[sp++] = (uint8_t)(cached_evt & 0xFFu);
-        summary[sp++] = (uint8_t)(cached_evt >> 8);
-        axiom_write(AXIOM_LEVEL_WARN, AXIOM_SYSTEM_MODULE_ID, AXIOM_SYSTEM_EVENT_DROP_SUMMARY, summary, sp);
+        axiom_write_drop_summary(cached_lost, cached_mod, cached_evt);
     }
 }
 
@@ -285,19 +286,7 @@ void axiom_write(axiom_level_t level, uint8_t module_id, uint16_t event_id,
     axiom_port_critical_exit();
 
     if (has_drop) {
-        uint8_t summary[10];
-        uint8_t sp = 0;
-        summary[sp++] = AXIOM_TYPE_U32;
-        summary[sp++] = (uint8_t)(cached_lost & 0xFFu);
-        summary[sp++] = (uint8_t)((cached_lost >> 8) & 0xFFu);
-        summary[sp++] = (uint8_t)((cached_lost >> 16) & 0xFFu);
-        summary[sp++] = (uint8_t)(cached_lost >> 24);
-        summary[sp++] = AXIOM_TYPE_U8;
-        summary[sp++] = cached_mod;
-        summary[sp++] = AXIOM_TYPE_U16;
-        summary[sp++] = (uint8_t)(cached_evt & 0xFFu);
-        summary[sp++] = (uint8_t)(cached_evt >> 8);
-        axiom_write(AXIOM_LEVEL_WARN, AXIOM_SYSTEM_MODULE_ID, AXIOM_SYSTEM_EVENT_DROP_SUMMARY, summary, sp);
+        axiom_write_drop_summary(cached_lost, cached_mod, cached_evt);
     }
 }
 

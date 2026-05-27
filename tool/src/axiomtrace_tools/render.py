@@ -24,6 +24,7 @@ def semantic_frame(
     metadata = dictionary.find_event(module_id, event_id) if dictionary else None
     args = _payload_args(frame.get("payload", []), metadata)
     system_names = {
+        (0x00, 0x0000): ("SYSTEM", "PROBE"),
         (0x00, 0x0001): ("SYSTEM", "DROP_SUMMARY"),
         (0x00, 0x0002): ("SYSTEM", "METADATA_ID"),
     }

@@ -127,7 +127,7 @@ assert crc == 0xFFFF, f'CRC of empty bytes should be 0xFFFF, got {crc:04X}'
 # Build a minimal valid frame
 frame = bytearray()
 frame.append(FRAME_SYNC)
-frame.append((WIRE_VERSION_MAJOR << 4) | 0x01)  # v1.1
+frame.append((WIRE_VERSION_MAJOR << 4) | 0x00)  # current wire version
 frame.append(0x01)  # INFO level
 frame.append(0x10)  # module_id
 frame.extend(struct.pack('<H', 0x0001))  # event_id
@@ -248,7 +248,7 @@ from axiomtrace_tools.decoder import (
 # Create frame with various payload types
 frame = bytearray()
 frame.append(FRAME_SYNC)
-frame.append((WIRE_VERSION_MAJOR << 4) | 0x01)  # v1.1
+frame.append((WIRE_VERSION_MAJOR << 4) | 0x00)  # current wire version
 frame.append(0x02)  # WARN level
 frame.append(0xAB)  # module_id
 frame.extend(struct.pack('<H', 0x1234))  # event_id

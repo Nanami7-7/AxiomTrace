@@ -9,7 +9,7 @@ from typing import Any
 from axiomtrace_tools.bundle import AxiomBundle, load_bundle
 from axiomtrace_tools.decoder import decode_stream, extract_metadata_id
 from axiomtrace_tools.dictionary import EventDictionary, load_dictionary
-from axiomtrace_tools.metadata_id import metadata_id_for_data
+from axiomtrace_tools.metadata_id import WIRE_VERSION, metadata_id_for_data
 
 
 def validate_dictionary_file(path: str | Path) -> EventDictionary:
@@ -39,8 +39,8 @@ def validate_bundle(path: str | Path) -> AxiomBundle:
     expected_id = metadata_id_for_data(dictionary_data, source_map, location)
     if bundle.metadata_id != expected_id:
         raise ValueError("bundle metadata identity does not match decode artifacts")
-    if bundle.manifest.get("metadata", {}).get("wire_version") != "1.1":
-        raise ValueError("bundle wire_version must be 1.1")
+    if bundle.manifest.get("metadata", {}).get("wire_version") != WIRE_VERSION:
+        raise ValueError(f"bundle wire_version must be {WIRE_VERSION}")
     if location.get("mode") == "file_id" and not source_map.get("files"):
         raise ValueError("file_id bundle must contain source-map file entries")
     with bundle.artifact_path("build_info").open("r", encoding="utf-8") as handle:  # type: ignore[union-attr]
@@ -59,12 +59,18 @@ def validate_trace_bundle(frames: list[dict[str, Any]], bundle: AxiomBundle) -> 
         raise ValueError("semantic decode requires a trace metadata identity event")
     if trace_id != bundle.metadata_id:
         raise ValueError("trace metadata identity does not match bundle")
+    wire_version = str(bundle.manifest.get("metadata", {}).get("wire_version", "")).split(".")
+    expected_version = tuple(int(part) for part in wire_version[:2])
 
     dictionary = bundle.load_dictionary()
     if dictionary is None:
         raise ValueError("bundle dictionary could not be loaded")
     source_map = bundle.load_source_map()
     for frame in frames:
+        if tuple(frame.get("version", ())) != expected_version:
+            raise ValueError(f"trace wire version does not match bundle: expected {expected_version}")
+        if frame.get("warnings"):
+            raise ValueError(f"payload decode warning: {frame['warnings']}")
         metadata = dictionary.find_event(int(frame.get("module_id", -1)), int(frame.get("event_id", -1)))
         if metadata:
             actual = [item.get("type") for item in frame.get("payload", [])]
@@ -88,9 +94,10 @@ def validate_golden(path: str | Path) -> list[Path]:
     frames = sorted(frame_dir.glob("*.bin"))
     if not frames:
         raise ValueError("golden directory contains no .bin frames")
+    dictionary = load_dictionary(root / "dictionary.json") if (root / "dictionary.json").is_file() else None
     checked: list[Path] = []
     for frame_path in frames:
-        decoded = decode_stream(frame_path.read_bytes())
+        decoded = decode_stream(frame_path.read_bytes(), dictionary)
         if not decoded or any("error" in frame for frame in decoded):
             raise ValueError(f"golden frame fails decode: {frame_path.name}")
         expected_path = expected_dir / f"{frame_path.stem}.json"

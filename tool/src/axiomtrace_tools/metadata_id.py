@@ -8,7 +8,7 @@ from pathlib import Path
 from typing import Any
 
 
-WIRE_VERSION = "1.1"
+WIRE_VERSION = "2.0"
 METADATA_ID_HEX_LEN = 16
 
 

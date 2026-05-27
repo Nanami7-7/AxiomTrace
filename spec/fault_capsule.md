@@ -60,7 +60,7 @@ The committed capsule consists of:
 │   - register snapshot (variable, see §4)                    │
 ├─────────────────────────────────────────────────────────────┤
 │ Event Records (copied from Capsule Ring)                     │
-│   - Each record is a complete supported frame (current v1.1) │
+│   - Each record is a complete supported frame (current v2.0) │
 ├─────────────────────────────────────────────────────────────┤
 │ Capsule CRC-32 (4B LE)                                       │
 │   - Covers header + all event records                        │
@@ -147,6 +147,6 @@ void axiom_capsule_clear(void);
 
 - Flash erase/write **never** occurs in ISR or hot path.
 - `axiom_capsule_commit()` must be called from main loop or fault handler tail, with interrupts managed by the port layer.
-- Capsule data format is self-describing and versioned; decoder can parse capsules without external schema.
+- Capsule framing and register snapshots are versioned. For wire v2 event semantics, the decoder requires the identity-matched metadata bundle; without it, normal event payload values remain raw.
 - Bundle-backed semantic reports require a metadata identity event within the captured Event Records. The capsule `firmware_hash` remains a firmware diagnostic field and is not the bundle `metadata_id`.
 - If Flash commit fails (e.g., Flash controller busy), the capsule remains in RAM (if retention RAM is available) and `commit()` returns `false`.

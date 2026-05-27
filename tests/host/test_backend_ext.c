@@ -4,6 +4,9 @@
 #include <stdbool.h>
 #include <string.h>
 #include "axiom_backend.h"
+#include "axiom_event.h"
+#include "axiom_port.h"
+
 
 /* ---- Mock backend ---- */
 static int be_write_count;
@@ -148,6 +151,46 @@ static void test_dispatch_data_integrity(void) {
     CHECK("data_integrity: all 3 backends called", be_write_count >= 1);
 }
 
+/* ---- Test 9: Backend Degradation & Self-Recovery under high jitter / failure ---- */
+static int mock_fail_write(const uint8_t *buf, uint16_t len, void *ctx) {
+    (void)buf; (void)len; (void)ctx;
+    return -1; /* Always fail */
+}
+
+static void test_backend_degradation_and_recovery(void) {
+    reset_mocks();
+    g_axiom_port_simulated_time = 1000; /* Start time */
+
+    /* AXIOM_BACKEND_MAX is typically 4. Register a failing backend. */
+    static const axiom_backend_t broken_be = AXIOM_BACKEND_INIT(
+        .name = "broken", .caps = AXIOM_BACKEND_CAP_UART,
+        .write = mock_fail_write);
+
+    int ret = axiom_backend_register(&broken_be);
+    CHECK("degradation: register broken success", ret == 0);
+    int active_before = axiom_backend_active_count();
+
+    uint8_t frame[] = {AXIOM_SYNC_BYTE, AXIOM_WIRE_VERSION, 0x01};
+
+    /* 1. Simulate 5 sequential failures to trigger isolation/degradation */
+    for (int i = 0; i < 5; i++) {
+        axiom_backend_dispatch(frame, sizeof(frame));
+    }
+    /* Count should decrease by 1 since broken_be is isolated */
+    CHECK("degradation: active count decreased", axiom_backend_active_count() == active_before - 1);
+
+    /* 2. Simulate time passing but not reaching recovery threshold (1.0s / 1000000us) */
+    g_axiom_port_simulated_time += 500000u; /* +0.5s */
+    axiom_backend_dispatch(frame, sizeof(frame));
+    CHECK("degradation: still isolated at 0.5s", axiom_backend_active_count() == active_before - 1);
+
+    /* 3. Simulate time crossing recovery window (1.0s) and wrapping around 32-bit bound */
+    g_axiom_port_simulated_time = 1000 + 1000005u; /* +1.000005s */
+    axiom_backend_dispatch(frame, sizeof(frame));
+    /* It should try to recover and restore active count */
+    CHECK("degradation: auto-recovered after timeout", axiom_backend_active_count() == active_before);
+}
+
 int main(void) {
     test_register_and_count();
     test_single_dispatch();
@@ -157,9 +200,10 @@ int main(void) {
     test_register_null();
     test_register_no_write();
     test_dispatch_data_integrity();
+    test_backend_degradation_and_recovery();
 
     if (failures == 0) {
-        printf("test_backend_ext: PASSED (8 test groups)\n");
+        printf("test_backend_ext: PASSED (9 test groups)\n");
     } else {
         printf("test_backend_ext: FAILED (%d failures)\n", failures);
     }

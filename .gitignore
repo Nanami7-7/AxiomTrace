@@ -1,119 +1,89 @@
-# ============================================================
 # AxiomTrace .gitignore
-# ============================================================
 
-# --- Build output ---
-build/
-build_*/
-Testing/
-bin/
-obj/
-
-# --- C compiled artifacts ---
-*.o
+# C/C++ Artifacts & Binaries
 *.a
-*.so
-*.lib
-*.dll
-*.obj
-*.d
-
-# --- Embedded firmware artifacts ---
-*.elf
 *.bin
+*.d
+*.dll
+*.elf
+*.exe
 *.hex
+*.lib
 *.map
+*.o
+*.obj
+*.so
 *.uf2
-
-# Versioned binary protocol fixtures used by golden-vector validation
 !tool/golden/frames/*.bin
 
-# --- CMake ---
-CMakeCache.txt
-CMakeFiles/
-cmake-build-*/
-compile_commands.json
-.cmake/
-
-# --- Coverage ---
-*.gcov
+# Coverage
 *.gcda
 *.gcno
-htmlcov/
+*.gcov
 .coverage
+htmlcov/
 coverage/
 
-# --- Python artifacts ---
-__pycache__/
-*.pyc
-*.pyo
-*.pyd
-*.egg-info/
-.eggs/
+# Python & Misc Extensions
 *.egg
-dist/
-.pytest_cache/
-.mypy_cache/
-.ruff_cache/
-.pylint.d/
-
-# --- Python virtual environments ---
-venv/
-.venv/
-env/
-.env
-
-# --- IDE and editor ---
-.vscode/
-.idea/
-*.swp
+*.pyc
+*.pyd
+*.pyo
 *.swo
+*.swp
 *~
-.sublime-project
-*.sublime-workspace
-*.code-workspace
-
-# --- clangd / ccls ---
-.cache/clangd/
-.ccls-cache/
-.ccls
-
-# --- OS ---
-.DS_Store
-Thumbs.db
-Desktop.ini
-
-# --- AI / development tools ---
-.sisyphus/
-
-# --- Archives ---
 *.tar.gz
 *.zip
 *.rar
+*.7z
 
-# --- Node.js (if tool/ subproject uses it) ---
+# Caches, IDEs & OS
+.DS_Store
+Thumbs.db
+Desktop.ini
+.cache/
+.ccls
+.ccls-cache/
+.code-workspace
+*.sublime-workspace
+.sublime-project
+.codebuddy/
+.codex-*/
+.cursor/
+.idea/
+.mypy_cache/
+.pylint.d/
+.pytest_cache/
+.ruff_cache/
+.sisyphus/
+.vscode/
+
+# Build & Environment Directories
+build*/
+cmake-build-*/
+out/
+bin/
+obj/
+dist/
+tool/dist/
+Testing/
+__pycache__/
+.eggs/
+*.egg-info/
+.env
+.venv/
+env/
+venv/
 node_modules/
 
-# --- Project specific generated files ---
+# Project Specific & Generated
+CMakeCache.txt
+CMakeFiles/
+compile_commands.json
+.cmake/
 axiomtrace_amalgamated.h
-
-# --- Test reports and benchmark data ---
+build_baseline/
 test_report/
 test_report*.md
 performance_report*.md
 perf_report*.md
-
-# --- Test binaries (not golden test data) ---
-*.exe
-
-# --- Tool / Python build artifacts ---
-tool/dist/
-tool/*.egg-info/
-tool/src/*.egg-info/
-
-# --- Build baselines ---
-build_baseline/
-
-# --- CTest output ---
-Testing/Temporary/
-Testing/Temporary/***

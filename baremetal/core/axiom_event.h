@@ -42,7 +42,11 @@ AXIOM_CHECK_SIZE(axiom_event_header_t, 8);
 AXIOM_CHECK_ALIGN(axiom_event_header_t, 1);
 
 /* ---------------------------------------------------------------------------
- * Payload type tags (self-describing)
+ * Wire v1 payload tags and wire v2 metadata suffix tags.
+ *
+ * Normal event arguments are schema-driven packed values in wire v2. The
+ * numeric constants remain public for legacy v1 decoding, the reserved v2
+ * AX_PROBE system payload, and metadata suffix fields that remain tagged.
  * --------------------------------------------------------------------------- */
 typedef enum {
     AXIOM_TYPE_BOOL      = 0x00,
@@ -76,10 +80,13 @@ typedef enum {
 #define AXIOM_TYPE_META_IDENTITY 0x0Bu
 
 /* ---------------------------------------------------------------------------
- * Wire format version v1.1
+ * Wire format version v2.0.
+ *
+ * v2 changes normal argument encoding from typed fields to dictionary-driven
+ * packed values. This is intentionally a major-version transition.
  * --------------------------------------------------------------------------- */
-#define AXIOM_WIRE_VERSION_MAJOR 1u
-#define AXIOM_WIRE_VERSION_MINOR 1u
+#define AXIOM_WIRE_VERSION_MAJOR 2u
+#define AXIOM_WIRE_VERSION_MINOR 0u
 #define AXIOM_WIRE_VERSION ((uint8_t)((AXIOM_WIRE_VERSION_MAJOR << 4u) | AXIOM_WIRE_VERSION_MINOR))
 
 /* ---------------------------------------------------------------------------
@@ -89,7 +96,7 @@ typedef enum {
 #define AXIOM_MAX_TIMESTAMP_LEN   5u  /* 0xFE + 4-byte full delta */
 #define AXIOM_CRC_LEN             2u  /* CRC-16 trailer */
 
-/* Total max frame: header + timestamp + type-tag + payload + CRC */
+/* Total max frame: header + timestamp + payload length + payload + CRC. */
 #define AXIOM_MAX_FRAME_LEN \
     (AXIOM_HEADER_LEN + AXIOM_MAX_TIMESTAMP_LEN + 1u + AXIOM_MAX_PAYLOAD_LEN + AXIOM_CRC_LEN)
 

@@ -64,25 +64,28 @@ static void test_location_events(void) {
     uint16_t event_line = (uint16_t)(__LINE__ + 1u);
     AX_EVT(INFO, 0x10, 0x0001, (uint8_t)42);
     axiom_flush();
-    check_location_suffix(event_line, 2u);
+    check_location_suffix(event_line, 1u);
 
     uint16_t fault_line = (uint16_t)(__LINE__ + 1u);
     AX_FAULT(0x10, 0x0002, (uint16_t)7);
     axiom_flush();
-    check_location_suffix(fault_line, 3u);
+    check_location_suffix(fault_line, 2u);
 
     uint16_t kv_line = (uint16_t)(__LINE__ + 1u);
     AX_KV(INFO, 0x10, 0x0003, "value", (uint8_t)3);
     axiom_flush();
-    check_location_suffix(kv_line, 5u);
+    check_location_suffix(kv_line, 3u);
 }
 
 static void test_probe_has_no_location(void) {
     uint8_t payload_len = 0;
+    const uint8_t *payload;
     AX_PROBE("sample", (uint8_t)9);
     axiom_flush();
-    (void)payload_start(&payload_len);
-    CHECK("probe: metadata not appended", payload_len == 5u);
+    payload = payload_start(&payload_len);
+    CHECK("probe: typed system payload has no location", payload_len == 5u);
+    CHECK("probe: hash remains tagged u16", payload[0] == AXIOM_TYPE_U16);
+    CHECK("probe: value remains tagged u8", payload[3] == AXIOM_TYPE_U8);
 }
 
 static void test_metadata_identity(void) {
@@ -106,9 +109,17 @@ static void test_location_overflow(void) {
     uint8_t position;
     axiom_encode_overflow = false;
 #if AXIOM_CFG_LOCATION_MODE == AXIOM_CFG_LOCATION_MODE_FILE_ID
+    position = (uint8_t)(AXIOM_MAX_PAYLOAD_LEN - 6u);
+    axiom_enc_meta_location_file_id(payload, &position, 1u, 2u);
+    CHECK("location: exact fit accepted", position == AXIOM_MAX_PAYLOAD_LEN && !axiom_encode_overflow);
+    axiom_encode_overflow = false;
     position = (uint8_t)(AXIOM_MAX_PAYLOAD_LEN - 5u);
     axiom_enc_meta_location_file_id(payload, &position, 1u, 2u);
 #else
+    position = (uint8_t)(AXIOM_MAX_PAYLOAD_LEN - 8u);
+    axiom_enc_meta_location_hash(payload, &position, 1u, 2u, 3u);
+    CHECK("location: exact fit accepted", position == AXIOM_MAX_PAYLOAD_LEN && !axiom_encode_overflow);
+    axiom_encode_overflow = false;
     position = (uint8_t)(AXIOM_MAX_PAYLOAD_LEN - 7u);
     axiom_enc_meta_location_hash(payload, &position, 1u, 2u, 3u);
 #endif

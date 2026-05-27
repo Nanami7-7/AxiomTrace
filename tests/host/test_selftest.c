@@ -41,21 +41,19 @@ static void run_subtests(void) {
     axiom_enc_u32(enc, &pos, 0xDEADBEEF);
     axiom_enc_bool(enc, &pos, true);
     printf("  Encoder roundtrip pos=%u: ", pos);
-    printf("enc[0]=0x%02X(enc[1]=0x%02X) ", enc[0], enc[1]);
-    printf("enc[2]=0x%02X(enc[3]=0x%02X,enc[4]=0x%02X) ", enc[2], enc[3], enc[4]);
-    printf("enc[5]=0x%02X ", enc[5]);
-    printf("enc[10]=0x%02X,enc[11]=0x%02X\n", enc[10], enc[11]);
+    printf("enc[0]=0x%02X(u8) ", enc[0]);
+    printf("enc[1..2]=0x%02X,0x%02X(u16) ", enc[1], enc[2]);
+    printf("enc[3..6]=0x%02X,0x%02X,0x%02X,0x%02X(u32) ", enc[3], enc[4], enc[5], enc[6]);
+    printf("enc[7]=0x%02X(bool)\n", enc[7]);
 
-    /* Encoder overflow — buffer too small for u16 (needs tag(1)+val(2)=3 bytes).
+    /* Encoder overflow — buffer too small for u16 (needs val(2)=2 bytes).
      * The overflow check uses AXIOM_MAX_PAYLOAD_LEN, not buffer size,
      * so we use a full-size buffer and rely on the overflow flag. */
     uint8_t sb[AXIOM_MAX_PAYLOAD_LEN];
-    uint8_t sp = 0;
-    axiom_enc_u8(sb, &sp, 0x01);
-    axiom_enc_u8(sb, &sp, 0x02);
+    uint8_t sp = AXIOM_MAX_PAYLOAD_LEN - 1u;
     printf("  Encoder overflow pre: sp=%u\n", sp);
     axiom_enc_u16(sb, &sp, 0x1234);
-    printf("  Encoder overflow post: sp=%u (expect <=4)\n", sp);
+    printf("  Encoder overflow post: sp=%u (expect <=%u)\n", sp, AXIOM_MAX_PAYLOAD_LEN - 1u);
 }
 
 int main(void) {

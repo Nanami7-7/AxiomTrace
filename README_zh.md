@@ -24,6 +24,15 @@
 
 ---
 
+## 当前协议与工具链变更
+
+- Wire `v2.0` 将普通事件参数编码为由 dictionary 描述的 packed 值；metadata identity 与可选源码位置仍以带标签的 suffix 表示。保留的 `AX_PROBE` 系统事件因其值类型不受应用事件 schema 约束，继续携带 typed fields；`AX_KV` 的 dictionary 必须按发送顺序声明每组 packed key-hash/value。
+- 主机 decoder 继续解析历史 `v1.x` 自描述 typed payload；`v2` 的语义解码必须使用匹配 metadata identity 的 bundle 或 dictionary。
+- RISC-V port 使用可嵌套的临界区，并在最外层进入/退出时保存和恢复原始 `mstatus.MIE` 状态。
+- JSON 事件定义不依赖额外解析器；使用 YAML 输入时安装可选依赖：`python -m pip install -e "./tool[yaml]"`。
+
+---
+
 ## 架构总览
 
 ```text
@@ -78,7 +87,7 @@ int main(void) {
     /* 结构化事件：O(1)、中断安全、零 printf */
     AX_EVT(INFO, MOTOR, START, (uint16_t)3200);
     AX_LOG(INFO, MOTOR, "Motor started at %d RPM", 3200);
-    AX_PROBE(ADC, SAMPLE, 0x1A3F);
+    AX_PROBE("adc_sample", (uint16_t)0x1A3F);
 
     return 0;
 }
@@ -95,9 +104,12 @@ cd AxiomTrace
 cmake -B build -S . -DAXIOM_BUILD_TESTS=ON
 cmake --build build
 
-# 运行测试
+# 运行全套单元测试与 MCU 可靠性基准压测
 ctest --test-dir build --output-on-failure
 ```
+
+`test_benchmark` 已注册为 CTest 用例；它提供宿主环境中的回归门槛，不替代目标 MCU 上的时序测量与认证验证。
+
 
 ### Python 工具链
 
@@ -133,32 +145,26 @@ axiom-decoder trace.bin --bundle build/axiomtrace-bundle --format text
                                                                        │
                                                             ┌──────────┴──────────┐
                                                             │ Payload (0~255B)    │
-                                                            │ [TLV type-tagged]   │
-                                                            │ [u8:tag] [value:NB] │
+                                                            │ [v2 Packed Values]  │
+                                                            │ [arg0][arg1]...     │
+                                                            │ [Metadata Tags]*    │
                                                             └─────────────────────┘
 ```
 
-### TLV 类型标签
+> **注意**：Wire `v2.0` 的普通参数按照 Event Dictionary 中的类型与顺序紧凑编码，不携带逐字段 type tag。该变化不兼容于 `v1.x`，因此使用新的 wire major version。`v2` 语义解析需要匹配的 bundle/dictionary；decoder 仍支持读取历史 `v1.x` typed payload。
 
-| 标签值 | 类型 | 大小 |
-|:---:|:---|:---:|
-| `0x00` | bool | 1B |
-| `0x01` | u8 | 1B |
-| `0x02` | i8 | 1B |
-| `0x03` | u16 | 2B |
-| `0x04` | i16 | 2B |
-| `0x05` | u32 | 4B |
-| `0x06` | i32 | 4B |
-| `0x07` | f32 | 4B |
-| `0x08` | timestamp | 4B |
-| `0x09` | bytes | 变长 |
-| `0x0A` | location metadata | 5B / 7B |
-| `0x0B` | metadata identity | 8B |
+### 元数据扩展标签（位于 Payload 末尾）
+
+| 标签值 | 类型 | 大小 | 说明 |
+|:---:|:---|:---:|:---|
+| `0x0A` | location metadata | 5B / 7B | 包含源文件行号与 ID/Hash 等定位材料 |
+| `0x0B` | metadata identity | 8B | 元数据身份事件（唯一关联主机端字典） |
 
 ### 编码示例
 
 ```c
 /* 发送一条 INFO 级别的电机启动事件 */
+/* 根据 events.yaml 定义：第一个参数为 uint16_t (2B)，第二个参数为 bool (1B) */
 uint8_t payload[AXIOM_MAX_PAYLOAD_LEN];
 uint8_t pos = 0;
 
@@ -166,7 +172,7 @@ axiom_enc_u16(payload, &pos, 3200);  /* RPM */
 axiom_enc_bool(payload, &pos, true); /* 启用状态 */
 
 AX_EVT_RAW(INFO, MOTOR, MOTOR_START, payload, pos);
-/* 实际存储：仅 2 字节 header + N 字节 payload，无任何格式串 */
+/* v2 Payload 为 3 字节：[0x80, 0x0C] (3200 LE) + [0x01] (true)。 */
 ```
 
 ---
@@ -195,7 +201,7 @@ void axiom_write(axiom_level_t level, uint8_t module_id,
 ```c
 AX_LOG(level, module, fmt, ...)      /* 文本日志（编译期格式检查） */
 AX_EVT(level, module, event, ...)    /* 结构化事件（C11 _Generic） */
-AX_PROBE(module, event, ...)         /* 性能探针（编译期可裁剪） */
+AX_PROBE(tag, value)                 /* 性能探针（编译期可裁剪） */
 AX_FAULT(module, event, ...)         /* 故障冻结（触发 Fault Capsule） */
 ```
 
@@ -266,7 +272,7 @@ AxiomTrace：栈帧 ≈ 50B（仅增量 CRC 和临时变量）
 
 ```c
 #if AXIOM_PROFILE == AXIOM_PROFILE_PROD
-    #define AX_PROBE(module, event, ...)
+    #define AX_PROBE(tag, value)
     /* 编译期移除所有探针，零运行时开销 */
 #endif
 ```

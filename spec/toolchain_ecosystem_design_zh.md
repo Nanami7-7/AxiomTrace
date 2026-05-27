@@ -289,7 +289,7 @@ axiomtrace-bundle/
   "bundle_version": 1,
   "metadata": {
     "id": "7f3a9c2e1b4d6a80",
-    "wire_version": "1.1",
+    "wire_version": "2.0",
     "identity_basis": ["wire_version", "location", "dictionary", "source_map"]
   },
   "firmware": {
@@ -408,10 +408,10 @@ Input (bin / serial / hex)
 [ Header 解析 ]  ──►  8-byte packed struct → 字段提取
     │
     ▼
-[ Payload 反序列化 ]  ──►  按 type tag 逐个解析参数
+[ 字典查询 ]  ──►  以 (module_id, event_id) 检索 v2 packed 参数 schema
     │
     ▼
-[ 字典查询 ]  ──►  以 (module_id, event_id) 检索 dictionary.json
+[ Payload 反序列化 ]  ──►  解析 packed 参数，再解析 tagged metadata suffix
     │
     ▼
 [ 格式化输出 ]
@@ -533,7 +533,7 @@ dictionary: "../../events.yaml"   # 相对路径或绝对路径
 golden:
   header:
     sync: 0xA5
-    version: 0x11          # v1.1
+    version: 0x20          # v2.0
     level: INFO            # 对应数值 1
     module_id: 0x03
     event_id: 0x01
@@ -561,8 +561,8 @@ Validator 对每个 `frame.bin` 执行以下检查：
 |--------|------|----------|
 | **CRC 校验** | 计算 Header + PayloadLen + Payload 的 CRC-16，与帧尾比对 | ERROR |
 | **字节序** | 多字节字段（`event_id`, `seq`, 数值参数）必须为小端 | ERROR |
-| **对齐** | Header 为 packed 8-byte，无填充；Payload 按 type tag 顺序紧密排列 | ERROR |
-| **类型匹配** | Payload 中的 type tag 序列必须与 dictionary 中 `args` 的 `type_tag` 完全一致 | ERROR |
+| **对齐** | Header 为 packed 8-byte，无填充；Payload 按 dictionary 顺序紧密排列 | ERROR |
+| **Schema 匹配** | Wire v2 packed payload 必须按 dictionary `args` 完整解码，余量仅可为已识别 metadata suffix | ERROR |
 | **级别匹配** | Header 中的 `level` 数值必须与 dictionary 中 `event.level` 一致 | WARN |
 | **长度边界** | `payload_len` 不得超过 255；总帧长不得超过后端缓冲区限制 | ERROR |
 | **同步恢复** | 若帧损坏，Decoder 必须能在下一个 `0x00` 分隔符处恢复同步 | WARN |

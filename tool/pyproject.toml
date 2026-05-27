@@ -21,7 +21,10 @@ classifiers = [
     "Environment :: Console",
 ]
 
-dependencies = ["click>=7.0", "PyYAML>=6.0"]
+dependencies = ["click>=7.0"]
+
+[project.optional-dependencies]
+yaml = ["PyYAML>=6.0"]
 
 [project.scripts]
 axiom-decoder = "axiomtrace_tools.cli:decoder_main"

@@ -25,6 +25,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Linkage**: Added `static` qualifier to `s_filter` global in `axiom_event.c` to prevent unintended symbol export.
 
 ### Changed
+- **BREAKING / Wire v2.0**: Normal event arguments are now dictionary-defined packed values; tagged source-location and metadata-identity suffixes remain explicit. The host decoder keeps compatibility parsing for historical typed-payload v1.0/v1.1 frames.
 - **Performance**: Optimized `axiom_flush()` and `deferred_flush()` to use new `axiom_ring_consume()` instead of redundant `axiom_ring_read()`, eliminating one `memcpy` per frame.
 - **API**: Added `axiom_ring_consume()` to ring buffer API — advance tail without data copy.
 - **Documentation**: Corrected ring buffer description from "Lock-free" to "IRQ-safe SPSC with critical-section protection".

@@ -2,13 +2,13 @@
 
 # AxiomTrace Event Model Specification
 
-> 版本：v1.1  |  状态：**FROZEN**  |  对应代码：`baremetal/core/axiom_event.h`
+> Version: v2.0 | Status: **FROZEN** | Code: `baremetal/core/axiom_event.h`
 
 ---
 
 ## 1. Overview
 
-AxiomTrace events are **structured binary records**. Each event consists of a fixed-size header followed by a self-describing typed payload. No format strings or human-readable text are stored in the firmware hot path; readability is restored on the host via the event dictionary.
+AxiomTrace events are **structured binary records**. Each event consists of a fixed-size header followed by a compact payload. Wire `v2.0` encodes normal arguments as dictionary-defined packed values; no format strings or human-readable text are stored in the firmware hot path. Wire `v1.x` typed payloads remain readable by the host decoder for compatibility.
 
 **Core principle**: The Event Record is the only log entity. Text / JSON / Binary are merely render or transport forms.
 
@@ -55,26 +55,23 @@ _Static_assert(_Alignof(axiom_event_header_t) == 1, "header align");
 
 After the header comes the **payload length** (`1 byte`, max 255) followed by the **payload data**.
 
-Payload is a concatenation of typed fields. Each field is **self-describing** via its type tag:
+In wire `v2.0`, normal arguments are packed in dictionary order:
 
-| Type Tag | C Type      | Wire Size | Encoding                          |
-|----------|-------------|-----------|-----------------------------------|
-| 0x00     | `bool`      | 1         | 0 or 1                            |
-| 0x01     | `uint8_t`   | 1         | Raw little-endian                 |
-| 0x02     | `int8_t`    | 1         | Raw two's complement              |
-| 0x03     | `uint16_t`  | 2         | Little-endian                     |
-| 0x04     | `int16_t`   | 2         | Little-endian two's complement    |
-| 0x05     | `uint32_t`  | 4         | Little-endian                     |
-| 0x06     | `int32_t`   | 4         | Little-endian two's complement    |
-| 0x07     | `float`     | 4         | IEEE-754 single little-endian     |
-| 0x08     | `timestamp` | 4         | Compressed relative timestamp (see `axiom_timestamp.c`) |
-| 0x09     | `bytes`     | N         | 1-byte length prefix + raw bytes  |
-| 0x0A     | location metadata | 5 or 7 | Mode plus fixed-width source location fields |
-| 0x0B     | metadata identity | 8       | Bundle metadata ID bytes          |
-| 0x0C-0x7F| reserved    | —         | Reserved for future standard types |
-| 0x80-0xFF| user-defined| —         | Available for project-specific types |
+| Dictionary Type | Value Encoding |
+|-----------------|----------------|
+| `bool`, `u8`, `i8` | 1 byte |
+| `u16`, `i16` | 2 bytes, little-endian |
+| `u32`, `i32`, `f32`, `timestamp` | 4 bytes, little-endian |
+| `bytes` | 1-byte length followed by raw bytes |
 
-`location metadata` does not change the fixed header. It is appended to the typed payload only when enabled:
+The bundle dictionary is required to locate and type these normal argument values. Two metadata suffixes remain explicitly tagged:
+
+| Tag | Encoding After Tag | Purpose |
+|-----|--------------------|---------|
+| `0x0A` | `mode` plus fixed-width location fields | Optional call-site location |
+| `0x0B` | `metadata_id:8` | Select the matching metadata bundle |
+
+`location metadata` does not change the fixed header. It is appended to the packed payload only when enabled:
 
 - `FILE_ID` (`mode = 2`): `[0x0A][mode:u8][file_id:u16][line:u16]`, 6 bytes total.
 - `HASH` (`mode = 1`): `[0x0A][mode:u8][file_hash:u16][line:u16][func_hash:u16]`, 8 bytes total.
@@ -82,10 +79,18 @@ Payload is a concatenation of typed fields. Each field is **self-describing** vi
 
 `metadata identity` is emitted as `[0x0B][metadata_id:8]` in the reserved system event `(module_id = 0, event_id = 2)`. The host uses it to select and validate the matching metadata bundle before semantic decoding.
 
-**Design principles**:
-1. The encoder writes type tags so the decoder can reconstruct arguments **without external schema knowledge**.
-2. The dictionary is the authoritative source of human-readable names and templates, but is **not required** for structural decoding.
-3. New type tags in the remaining `0x0C-0x7F` standard range require spec update, decoder update, golden update, and docs update.
+Reserved system events have fixed protocol schemas and do not depend on an application dictionary:
+
+| System Event | Payload Rule |
+|--------------|--------------|
+| `(0, 0)` `AX_PROBE` | Typed fields `[u16 tag][tag_hash:u16][value tag][value]`, because the probe value type varies at each call site |
+| `(0, 1)` `DROP_SUMMARY` | Packed fixed fields `[lost_count:u32][last_module_id:u8][last_event_id:u16]` |
+| `(0, 2)` metadata identity | Exactly `[0x0B][metadata_id:8]`; trailing bytes are malformed |
+
+**Compatibility principles**:
+1. Wire `v2.0` reduces per-argument overhead by making the matched dictionary/bundle part of semantic decoding.
+2. Without a dictionary, the v2 decoder validates framing/CRC, exposes ordinary payload bytes as raw data, and still decodes the fixed system events above.
+3. Wire `v1.x` remains structurally decodable through its historical per-field type tags.
 
 ---
 
@@ -101,7 +106,7 @@ Payload is a concatenation of typed fields. Each field is **self-describing** vi
 - **Header**: see §2
 - **Timestamp**: Variable length delta-compressed timestamp.
 - **Payload Length**: 1 byte, value `0..255`
-- **Payload**: `payload_len` bytes, self-describing type tags
+- **Payload**: `payload_len` bytes, v2 packed values with optional tagged metadata suffixes
 - **CRC-16**: CCITT-FALSE (`poly = 0x1021`, `init = 0xFFFF`, no reflection, final XOR `0x0000`)
 
 ### 5.1 Direct-to-Ring (D2R) Mechanism
@@ -131,7 +136,7 @@ Each `(module_id, event_id)` pair maps to a dictionary entry:
 }
 ```
 
-The `text` field uses named placeholders with type hints that must match the encoded payload types. Mismatches are detected by the dictionary validator tool.
+The `text` field uses named placeholders with types that define the v2 packed argument layout. The validator rejects malformed payloads and unmatched bundle identities.
 
 **Dictionary sources** (choose one per project):
 1. **X-Macro** (`axiom_events.h`): C macros expanded at compile time; `extract_dict.py` extracts JSON.
@@ -153,7 +158,7 @@ The `text` field uses named placeholders with type hints that must match the enc
 ## 8. Versioning
 
 - `version` byte = `major << 4 | minor`
-- **Major** change = incompatible header or payload structure change; decoder must reject.
-- **Minor** change = backward-compatible addition (new type tag, new flag); decoder may ignore unknown fields.
+- **Major** change = incompatible header or payload interpretation change.
+- **Minor** change = backward-compatible addition within an existing major version.
 
-Current wire format: **v1.1** (`version = 0x11`). Decoders retain structural support for v1.0 frames without location metadata.
+Current emitted wire format: **v2.0** (`version = 0x20`). The host decoder retains typed-payload structural decoding for historical **v1.0/v1.1** frames.

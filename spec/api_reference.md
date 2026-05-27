@@ -61,7 +61,7 @@ AX_EVT(ERROR, COM, TIMEOUT, (uint8_t)bus_id, (uint32_t)ms);
 - `MOTOR`, `START` are module/event names resolved to `module_id` / `event_id` by X-Macro or codegen.
 - Arguments are type-safe via `_Generic`; mismatches cause compile errors.
 - **Direct-to-Ring (D2R)**: Encoding happens directly in the ring buffer, ensuring zero-copy and minimal stack overhead.
-- Binary frame contains only IDs and typed payload — no strings.
+- Binary frame contains only IDs and wire v2 packed payload values - no strings.
 
 **Requirements**:
 
@@ -79,10 +79,9 @@ AX_PROBE("adc_sample", (uint16_t)adc);
 
 **Semantics**:
 
-- High-frequency, low-overhead signal tracing.
-- Uses a separate Probe Ring to avoid flooding the main event log.
-- Minimal header (optional: no CRC, no module_id) for maximum throughput.
-- Recommended backend: SWO/ITM.
+- Emits the reserved system event `(module_id = 0, event_id = 0)` through the standard event path.
+- Under wire `v2.0`, its `tag_hash` and varying value retain per-field type tags so a decoder can interpret probes without an application dictionary.
+- Does not append source-location metadata; profile trimming remains the cost-control mechanism.
 
 **Profile behavior**:
 
@@ -120,7 +119,8 @@ AX_KV(ERROR, COM, TIMEOUT, "bus", (uint8_t)1, "ms", (uint32_t)50);
 
 - Lightweight structured logging with named parameters.
 - Key names are hashed at compile time to 16-bit IDs; keys themselves are not transmitted.
-- Payload format: `[key_hash_1 (2B)] [value_1 (typed)] [key_hash_2 (2B)] [value_2 (typed)] ...`
+- Wire v2 payload format: `[key_hash_1:u16 packed] [value_1 packed] [key_hash_2:u16 packed] [value_2 packed] ...`
+- The event dictionary must declare each `key_hash` as `u16` followed by its value type, in emission order; one event ID must not be emitted with changing key/value shapes.
 - Useful when event semantics are stable but parameter names aid decoder readability.
 
 ---
@@ -275,7 +275,7 @@ Fixed synchronization byte at the start of every binary frame. Used by decoders 
 #define AXIOM_MAX_TIMESTAMP_LEN 5u  /* Variable-length: 1–5 bytes */
 ```
 
-### 11.5 Payload Type Tags (`axiom_type_t`)
+### 11.5 Legacy Payload and Metadata Suffix Tags (`axiom_type_t`)
 
 ```c
 typedef enum {
@@ -295,15 +295,23 @@ typedef enum {
 } axiom_type_t;
 ```
 
-Each tag is a 1-byte type marker prefixed before the value in the binary payload. The original `#define` constants (e.g., `AXIOM_TYPE_U16`) remain available for backward compatibility.
+> [!IMPORTANT]
+> **Wire v2.0 Packed Payload**:
+> Wire `v2.0` is a major-version change: normal data arguments (for example `u8`, `u16`, `u32`) no longer carry a 1-byte type-tag prefix. Their order and sizes come from the identity-matched metadata dictionary. Historical wire `v1.x` frames remain decodable by the host as typed payloads.
+>
+> **Tagged Metadata Suffixes (still present in v2)**:
+> 1. `AXIOM_TYPE_META_LOCATION` (`0x0A`) — appended at the end of payloads as location meta tags.
+> 2. `AXIOM_TYPE_META_IDENTITY` (`0x0B`) — metadata identity tag.
+>
+> They remain compliant at the end of the payload to map semantic names and shapes accurately in the host-side dictionary.
 
 ### 11.6 Encoder Tag Size
 
 ```c
-#define AXIOM_TAG_SIZE 1u  /* All type tags are exactly 1 byte */
+#define AXIOM_TAG_SIZE 0u  /* Normal wire v2 arguments have no per-field tag overhead. */
 ```
 
-Used by the encoder to account for the fixed size of type tag bytes in overflow checks.
+Used by the encoder to account for normal argument overhead in overflow checks. Metadata suffix tags remain explicit and are checked by their dedicated encoders.
 
 ### 11.7 Metadata Identity Event
 

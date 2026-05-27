@@ -12,14 +12,14 @@
 
 - [x] 仓库目录结构按五平面重组。
 - [x] `PLAN.md` / `ROUTE.md` / `RULES.md` 定稿。
-- [ ] `../../spec/event_model.md` 定稿（Event Record 语义、Payload 自描述）。
-- [ ] `../../spec/wire_format.md` 定稿（v1.0 frame 结构）。
+- [ ] `../../spec/event_model.md` 定稿（Event Record 语义与版本化 payload 解释）。
+- [ ] `../../spec/wire_format.md` 定稿（当前 wire frame 结构）。
 - [ ] `../../spec/backend_contract.md` 定稿（`axiom_backend_t` 接口）。
 - [ ] `../../spec/fault_capsule.md` 定稿（capsule 格式与生命周期）。
 - [ ] `../../spec/api_reference.md` 初稿（Frontend 宏 API）。
 - [ ] 无锁 ISR-safe RAM Ring `axiom_ring.c`。
 - [ ] Event Record 组装 `axiom_event.c`（header + payload_len + payload + crc）。
-- [ ] 二进制编码器 `axiom_encode.c`（`_Generic` 类型分发 + 类型标签）。
+- [ ] 二进制编码器 `axiom_encode.c`（`_Generic` 类型分发 + v2 packed 值）。
 - [ ] CRC-16/CCITT-FALSE 查表 `axiom_crc.c`。
 - [ ] 压缩相对时间戳 `axiom_timestamp.c`。
 - [ ] 级别过滤与丢弃统计 `axiom_filter.c`。
@@ -39,7 +39,7 @@
 **目标**：协议能被长期维护。encoder → frame → decoder → expected.json 完全一致。
 
 - [ ] 冻结 binary frame 字段顺序与大小。
-- [ ] 生成首批 golden frames（覆盖全部 type tag、边界 payload）。
+- [ ] 生成首批 golden frames（覆盖 packed schema、metadata suffix 与边界 payload）。
 - [ ] 编写 `expected.json`（decoder 期望输出）。
 - [ ] Python decoder `../../tool/decoder/axiom_decoder.py`（解析 header/payload/crc）。
 - [ ] decoder 非法帧显式拒绝（返回 `FRAME_INVALID`，不崩溃）。
@@ -50,7 +50,7 @@
 **验收标准**：
 - `encoder -> frame -> decoder -> expected.json` 100% 一致。
 - 篡改 crc、payload_len、version 的非法帧被显式拒绝。
-- 新增 type tag 时 `update_golden.py` 能自动生成对应 golden frame。
+- packed schema 或 metadata suffix 变化时，`update_golden.py` 能自动生成对应 golden frame。
 
 ---
 
@@ -142,7 +142,7 @@
 
 **目标**：二进制日志可读、可测、可导出。
 
-- [ ] decoder 完善：支持全部 type tag、capsule 格式、DROP_SUMMARY。
+- [ ] decoder 完善：支持当前 packed frame、历史 typed frame、capsule 格式与 DROP_SUMMARY。
 - [ ] text render：dictionary 模板填充（`"motor current over limit: phase={u8}"`）。
 - [ ] json export：完整事件流导出为 JSON array。
 - [x] 标准元数据包：`manifest.json`、`dictionary.json`、`source_map.json`、`build_info.json`，可选 `firmware.elf`/`.map`。

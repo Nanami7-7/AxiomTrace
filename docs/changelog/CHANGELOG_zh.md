@@ -25,6 +25,7 @@
 - **链接**：为 `axiom_event.c` 中的 `s_filter` 全局变量添加 `static` 限定符，防止意外符号导出。
 
 ### 变更
+- **重大变更 / Wire v2.0**：普通事件参数改为由 dictionary 定义的 packed 值；源码定位与 metadata identity suffix 仍显式带标签。主机 decoder 继续兼容解析历史 v1.0/v1.1 typed-payload frame。
 - **性能**：优化 `axiom_flush()` 和 `deferred_flush()`，使用新增的 `axiom_ring_consume()` 替代冗余的 `axiom_ring_read()`，每帧减少一次 `memcpy`。
 - **API**：新增 `axiom_ring_consume()` 环形缓冲区 API — 仅移动 tail 指针，不拷贝数据。
 - **文档**：修正环形缓冲区描述，从"无锁"改为"IRQ-safe SPSC，带临界区保护"。

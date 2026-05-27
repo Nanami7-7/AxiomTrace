@@ -2,7 +2,7 @@
 
 # AxiomTrace Decoder 协议规范
 
-> 版本：v1.1 | 状态：**构建中（v0.7-toolchain）**
+> Wire 版本：v2.0 | 状态：**构建中**
 
 ---
 
@@ -23,7 +23,7 @@ AxiomTrace decoder 工具链运行在主机端，将 MCU 输出的二进制 Even
 
 ### 2.1 原始二进制流
 
-由完整 v1.1 frame 串接而成；旧 v1.0 frame 仍可进行结构化解码。UART/USB 传输可以额外使用 COBS 和 `0x00` 分隔，decoder 负责按输入模式恢复帧。
+由完整 v2.0 frame 串接而成；历史 v1.0/v1.1 typed-payload frame 仍可进行结构解码。UART/USB 传输可以额外使用 COBS 和 `0x00` 分隔，decoder 负责按输入模式恢复帧。
 
 ```bash
 axiom-decoder trace.bin --bundle build/axiomtrace-bundle --format text
@@ -128,9 +128,10 @@ axiom-bundle generate --events events.yaml --compile-db build/compile_commands.j
 | 错误码 | 描述 | Decoder 行为 |
 |--------|------|--------------|
 | `FRAME_INVALID` | CRC、同步字节或版本错误 | 跳过损坏帧并继续寻找下一个同步点 |
-| `UNKNOWN_EVENT` | dictionary 中不存在 `(module_id,event_id)` | 输出原始 ID 和 payload |
-| `TYPE_MISMATCH` | dictionary 参数类型与 payload type tag 不匹配 | 输出 warning 并保留 raw payload |
+| `UNKNOWN_EVENT_SCHEMA` | v2 dictionary 中不存在 `(module_id,event_id)` | 输出原始 ID 和 payload；语义校验失败 |
 | `TRUNCATED_PAYLOAD` | payload 长度超过剩余输入 | 标记截断并跳过该帧 |
-| `UNKNOWN_TYPE_TAG` | 未知 type tag | 标记 unknown，decoder 不崩溃 |
+| `UNKNOWN_METADATA_SUFFIX` | v2 packed 参数后存在未知 metadata suffix | 标记损坏；语义校验失败 |
+| `INVALID_METADATA_IDENTITY` | 系统 metadata identity payload 不是恰好一个 tag 加 8 字节 ID | 标记损坏；语义校验失败 |
+| `UNKNOWN_TYPE_TAG` | 历史 v1 中存在未知 type tag | 标记 unknown，decoder 不崩溃 |
 
 关键规则：无论输入如何损坏，decoder 都不能崩溃或进入未定义状态。

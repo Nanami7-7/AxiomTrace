@@ -71,7 +71,7 @@ AxiomTrace/
 **交付**：
 - RAM Ring（无锁、IRQ-safe、单生产者单消费者）。
 - Event Record（固定 8B header + 1B payload_len + payload + 2B crc16）。
-- Encoder（`_Generic` 类型安全分发 + 类型标签写入）。
+- Encoder（`_Generic` 类型安全分发 + wire v2 packed 值写入）。
 - CRC-16/CCITT-FALSE（256B ROM 查表）。
 - 压缩相对 Timestamp（delta 编码）。
 - Memory Backend（直接写 RAM Ring 区域）。
@@ -189,7 +189,7 @@ typedef struct {
 - 正常运行默认不写 Flash。
 - 故障触发后才 commit capsule。
 - Flash erase/write 不进入日志热路径。
-- Capsule 数据格式稳定、自描述、可解码。
+- Capsule framing 稳定且可解码；wire v2 事件语义使用 identity 匹配的 bundle。
 
 ---
 
@@ -243,11 +243,11 @@ typedef struct {
 只有 **全部满足** 才发正式 v1.0：
 
 - [ ] stable API（`AX_*` 宏锁定）。
-- [ ] stable wire format（header 结构、type tag 定义冻结）。
+- [ ] stable wire format（header、packed 参数与 metadata suffix 定义冻结）。
 - [ ] stable event model（Event Record 语义不变）。
 - [ ] stable backend contract（`axiom_backend_t` 结构体冻结）。
 - [ ] stable capsule format（capsule 布局冻结）。
-- [ ] stable decoder（能解析全部 type tag 与 capsule）。
+- [ ] stable decoder（能解析当前 packed frame、历史 typed frame 与 capsule）。
 - [ ] stable golden tests（全部通过）。
 - [ ] stable examples（全部可编译、可运行）。
 - [ ] stable benchmark report（热路径周期数基准锁定）。

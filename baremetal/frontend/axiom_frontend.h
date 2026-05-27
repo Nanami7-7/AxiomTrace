@@ -205,15 +205,16 @@ static inline void axiom_emit_metadata_id(const uint8_t metadata_id[AXIOM_METADA
 
 /* ---------------------------------------------------------------------------
  * AX_PROBE — Timing probe (PROD profile = no-op)
- * Writes minimal structured event with a 16-bit tag hash + value.
+ * Reserved system event with typed fields: its varying value is intentionally
+ * decodable without an application dictionary under wire v2.
  * --------------------------------------------------------------------------- */
 #if (AXIOM_PROFILE == AXIOM_PROFILE_DEV) || (AXIOM_PROFILE == AXIOM_PROFILE_FIELD)
 
 #define AX_PROBE(tag, value) \
     do { uint8_t _b[AXIOM_MAX_PAYLOAD_LEN]; uint8_t _p = 0; \
          uint16_t _th = _axiom_fnv1a_16(tag); \
-         axiom_enc_u16(_b, &_p, _th); \
-         _AXIOM_ENCODE_ONE(_b, _p, value); \
+         axiom_enc_tagged_u16(_b, &_p, _th); \
+         _AXIOM_ENCODE_TAGGED_ONE(_b, _p, value); \
          axiom_write(AXIOM_LEVEL_DEBUG, 0, 0, _b, _p); } while(0)
 
 #else /* PROD */

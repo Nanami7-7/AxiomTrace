@@ -2,21 +2,21 @@
   {
     "sync": 165,
     "version": [
-      1,
-      1
+      2,
+      0
     ],
     "level": "INFO",
     "module_id": 3,
     "event_id": 2,
     "seq": 3,
-    "payload_len": 8,
+    "payload_len": 7,
     "payload": [
       {
         "type": "u8",
         "value": 42
       }
     ],
-    "crc": 24796,
+    "crc": 59217,
     "timestamp_delta": 0,
     "timestamp_len": 1,
     "location": {

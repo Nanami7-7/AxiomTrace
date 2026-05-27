@@ -12,14 +12,14 @@
 
 - [x] Repository directory structure reorganized into five planes.
 - [x] `PLAN.md` / `ROUTE.md` / `RULES.md` finalized.
-- [ ] `../../spec/event_model.md` finalized (Event Record semantics, Payload self-description).
-- [ ] `../../spec/wire_format.md` finalized (v1.0 frame structure).
+- [ ] `../../spec/event_model.md` finalized (Event Record semantics and versioned payload interpretation).
+- [ ] `../../spec/wire_format.md` finalized (current wire frame structure).
 - [ ] `../../spec/backend_contract.md` finalized (`axiom_backend_t` interface).
 - [ ] `../../spec/fault_capsule.md` finalized (capsule format and lifecycle).
 - [ ] `../../spec/api_reference.md` initial draft (Frontend macro APIs).
 - [ ] Lock-free ISR-safe RAM Ring `axiom_ring.c`.
 - [ ] Event Record assembly `axiom_event.c` (header + payload_len + payload + crc).
-- [ ] Binary encoder `axiom_encode.c` (`_Generic` type dispatch + type tags).
+- [ ] Binary encoder `axiom_encode.c` (`_Generic` type dispatch + v2 packed values).
 - [ ] CRC-16/CCITT-FALSE lookup table `axiom_crc.c`.
 - [ ] Compressed relative timestamp `axiom_timestamp.c`.
 - [ ] Level filtering and drop statistics `axiom_filter.c`.
@@ -39,7 +39,7 @@
 **Goal**: Protocol can be maintained long-term. encoder → frame → decoder → expected.json match exactly.
 
 - [ ] Frozen binary frame field order and size.
-- [ ] Generate first batch of golden frames (covering all type tags, boundary payloads).
+- [ ] Generate first batch of golden frames (covering packed schemas, metadata suffixes, and boundary payloads).
 - [ ] Write `expected.json` (expected output for decoder).
 - [ ] Python decoder `../../tool/decoder/axiom_decoder.py` (parsing header/payload/crc).
 - [ ] Decoder explicitly rejects invalid frames (returns `FRAME_INVALID`, no crash).
@@ -50,7 +50,7 @@
 **Acceptance Criteria**:
 - `encoder -> frame -> decoder -> expected.json` 100% match.
 - Illegal frames (tampered CRC, payload_len, version) are explicitly rejected.
-- `update_golden.py` auto-generates golden frames when new type tags are added.
+- `update_golden.py` auto-generates golden frames when packed schemas or metadata suffixes change.
 
 ---
 
@@ -142,7 +142,7 @@
 
 **Goal**: Binary logs are readable, testable, and exportable.
 
-- [ ] Decoder refinement: supports all type tags, capsule formats, `DROP_SUMMARY`.
+- [ ] Decoder refinement: supports current packed frames, legacy typed frames, capsules, and `DROP_SUMMARY`.
 - [ ] Text render: dictionary template filling (`"motor current over limit: phase={u8}"`).
 - [ ] JSON export: full event stream exported as JSON array.
 - [x] Standard metadata bundle: `manifest.json`, `dictionary.json`, `source_map.json`, `build_info.json`, optional `firmware.elf`/`.map`.

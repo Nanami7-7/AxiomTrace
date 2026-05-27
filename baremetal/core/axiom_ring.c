@@ -20,12 +20,12 @@
 /* Internal: retrieve the data buffer pointer stored in the reserved field.
  * Returns a writable pointer to the ring buffer's backing storage. */
 static inline uint8_t *ring_buf(axiom_ring_t *ring) {
-    return (uint8_t *)ring->reserved;
+    return (uint8_t *)ring->storage;
 }
 
 /* Helper: cast ring for const contexts (e.g. axiom_ring_peek) */
 static inline const uint8_t *ring_buf_const(const axiom_ring_t *ring) {
-    return (const uint8_t *)ring->reserved;
+    return (const uint8_t *)ring->storage;
 }
 
 void axiom_ring_write_chunk(axiom_ring_t *ring, const uint8_t *data, uint16_t len, uint16_t *crc) {
@@ -52,7 +52,7 @@ void axiom_ring_init(axiom_ring_t *ring, uint8_t *buf, uint32_t size) {
     ring->tail = 0;
     ring->capacity = size;
     ring->mask = size - 1;
-    ring->reserved = (uintptr_t)buf;
+    ring->storage = (uintptr_t)buf;
 }
 
 bool axiom_ring_write(axiom_ring_t *ring, const uint8_t *data, uint16_t len) {

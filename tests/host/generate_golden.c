@@ -11,7 +11,8 @@ static int write_frame(const uint8_t *buf, uint16_t len, void *ctx) {
         "frame_01_minimal.bin",
         "frame_02_u16.bin",
         "frame_03_metadata_identity.bin",
-        "frame_04_location_file_id.bin"
+        "frame_04_location_file_id.bin",
+        "frame_05_system_probe.bin"
     };
     FILE *output;
     (void)ctx;
@@ -47,7 +48,7 @@ int main(int argc, char **argv) {
     if (axiom_backend_register(&backend) != AXIOM_BACKEND_OK) {
         return 3;
     }
-    AX_EVT(INFO, 0x03u, 0x0001u);
+    AX_EVT(INFO, 0x03u, 0x0000u);
     axiom_flush();
     AX_EVT(INFO, 0x03u, 0x0001u, (uint16_t)1000u);
     axiom_flush();
@@ -57,5 +58,7 @@ int main(int argc, char **argv) {
     axiom_enc_meta_location_file_id(payload, &position, 0x1234u, 77u);
     axiom_write(AXIOM_LEVEL_INFO, 0x03u, 0x0002u, payload, position);
     axiom_flush();
-    return s_frame_index == 4u ? 0 : 4;
+    AX_PROBE("sample", (uint8_t)9u);
+    axiom_flush();
+    return s_frame_index == 5u ? 0 : 4;
 }

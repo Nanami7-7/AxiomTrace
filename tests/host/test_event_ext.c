@@ -7,6 +7,9 @@
 #include "axiom_frontend.h"
 #include "axiom_backend.h"
 #include "axiom_filter.h"
+#include "axiom_timestamp.h"
+#include "axiom_port.h"
+
 
 /* ---- Mock backend ---- */
 static uint8_t last_frame[512];
@@ -141,6 +144,35 @@ static void test_flush_empty(void) {
     CHECK("flush_empty: no dispatch", dispatch_count == 0);
 }
 
+/* ---- Test 8: Timestamp VLE compression & overflow / abrupt jumps ---- */
+static void test_timestamp_vle_overflow_and_abrupt_jumps(void) {
+    axiom_timestamp_ctx_t ctx;
+    axiom_timestamp_init(&ctx);
+    uint8_t encoded[8];
+    uint8_t len;
+
+    /* 1. Normal small delta encoding (1 byte) */
+    ctx.last_raw = 1000;
+    g_axiom_port_simulated_time = 1050; /* delta = 50 */
+    len = axiom_timestamp_encode(&ctx, encoded);
+    CHECK("timestamp: delta 50 encoded in 1 byte", len == 1);
+    CHECK("timestamp: 1-byte VLE mask matches", (encoded[0] & 0x80) == 0);
+
+    /* 2. Extreme overflow: 32-bit hardware timer overflow/wrap-around */
+    ctx.last_raw = 0xFFFFFFF0u;
+    g_axiom_port_simulated_time = 0x00000005u; /* actual modular delta = 21 */
+    len = axiom_timestamp_encode(&ctx, encoded);
+    CHECK("timestamp: modular delta 21 encoded in 1 byte", len == 1);
+    CHECK("timestamp: overflow delta value correct", encoded[0] == 21);
+
+    /* 3. Time dilation/abrupt jump (e.g. clock reset / synchronization jump) */
+    ctx.last_raw = 10000u;
+    g_axiom_port_simulated_time = 100u; /* delta = 100 - 10000 = 0xFFFFFF4C */
+    len = axiom_timestamp_encode(&ctx, encoded);
+    CHECK("timestamp: negative time jump falls back to 5 bytes", len == 5);
+    CHECK("timestamp: fallback header is 0xFE", encoded[0] == 0xFEu);
+}
+
 int main(void) {
     test_init_and_empty_write();
     test_seq_increment();
@@ -149,9 +181,10 @@ int main(void) {
     test_filter_mask();
     test_multi_flush();
     test_flush_empty();
+    test_timestamp_vle_overflow_and_abrupt_jumps();
 
     if (failures == 0) {
-        printf("test_event_ext: PASSED (7 test groups)\n");
+        printf("test_event_ext: PASSED (8 test groups)\n");
     } else {
         printf("test_event_ext: FAILED (%d failures)\n", failures);
     }

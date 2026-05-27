@@ -67,4 +67,5 @@ target_link_libraries(generate_golden PRIVATE axiomtrace)
 # ---- Performance benchmark ----
 add_executable(test_benchmark test_benchmark.c)
 target_link_libraries(test_benchmark PRIVATE axiomtrace)
-# Not registered as CTest — run manually: ./test_benchmark
+# Host regression benchmark; target-MCU timing still requires platform measurement.
+add_test(NAME test_benchmark COMMAND test_benchmark)

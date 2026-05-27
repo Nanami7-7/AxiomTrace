@@ -13,7 +13,7 @@ from typing import Any
 
 from axiomtrace_tools.codegen import generate_assets
 from axiomtrace_tools.dictionary import EventDictionary, load_dictionary
-from axiomtrace_tools.metadata_id import hash_file, location_contract, metadata_id_for_data
+from axiomtrace_tools.metadata_id import WIRE_VERSION, hash_file, location_contract, metadata_id_for_data
 from axiomtrace_tools.source_map import generate_source_map, load_source_map
 
 
@@ -146,7 +146,7 @@ def generate_bundle(
         "bundle_version": 1,
         "metadata": {
             "id": metadata_id,
-            "wire_version": "1.1",
+            "wire_version": WIRE_VERSION,
             "identity_basis": ["wire_version", "location", "dictionary", "source_map"],
         },
         "firmware": {
@@ -206,7 +206,7 @@ def _build_info(
         "metadata_id": metadata_id,
         "firmware_name": firmware_name or "firmware",
         "firmware_version": firmware_version or "0.0.0",
-        "wire_version": "1.1",
+        "wire_version": WIRE_VERSION,
         "identity_basis": ["wire_version", "location", "dictionary", "source_map"],
         "diagnostic_artifact_sha256": {
             "elf": hash_file(elf) if elf else None,

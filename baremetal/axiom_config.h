@@ -76,8 +76,8 @@
  * Observability Extensions
  * --------------------------------------------------------------------------- */
 
-/* Source-location metadata modes. Metadata stays in the typed payload so the
- * fixed 8-byte wire header remains backward compatible. */
+/* Source-location metadata modes. Metadata is a tagged suffix in the wire v2
+ * packed payload; the fixed 8-byte frame header is unchanged. */
 #define AXIOM_CFG_LOCATION_MODE_NONE    0
 #define AXIOM_CFG_LOCATION_MODE_HASH    1
 #define AXIOM_CFG_LOCATION_MODE_FILE_ID 2

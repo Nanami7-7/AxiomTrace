@@ -88,6 +88,8 @@ axiom-decoder trace.bin --bundle build/axiomtrace-bundle --format text
 
 Bundle-backed semantic decode requires the trace to emit the generated metadata identity once, using `AXIOM_EMIT_METADATA_ID()` from `axiom_metadata_id_generated.h`. The CMake helper described in the toolchain specification generates and wires this header.
 
+Wire `v2.0` encodes ordinary event arguments as dictionary-defined packed values; metadata identity and optional source-location suffixes remain tagged. The reserved `AX_PROBE` system event retains typed fields because its value type varies without an application event schema. `AX_KV` event dictionaries must declare each packed key-hash/value pair in emission order. Use a metadata bundle for semantic `v2` decoding. The host decoder also retains structural support for historical typed-payload `v1.x` frames. JSON event definitions require no optional parser; YAML input requires `python -m pip install -e "./tool[yaml]"`.
+
 ---
 
 ## 📚 Documentation Index

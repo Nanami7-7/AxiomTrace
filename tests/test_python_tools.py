@@ -39,15 +39,15 @@ from axiomtrace_tools.validator import validate_bundle, validate_golden, validat
 def make_frame(
     payload=b"",
     *,
-    major=1,
-    minor=1,
+    major=WIRE_VERSION_MAJOR,
+    minor=0,
     level=0x01,
     module_id=0x10,
     event_id=0x0001,
     seq=1,
     timestamp_delta=0,
 ):
-    """Create a raw frame with the current v1.1 timestamp layout or legacy v1.0."""
+    """Create a raw frame using current v2 layout or an explicitly selected legacy v1 layout."""
     frame = bytearray()
     frame.append(FRAME_SYNC)
     frame.append((major << 4) | minor)
@@ -55,7 +55,7 @@ def make_frame(
     frame.append(module_id)
     frame.extend(struct.pack("<H", event_id))
     frame.extend(struct.pack("<H", seq))
-    if minor >= 1:
+    if major >= 2 or minor >= 1:
         assert 0 <= timestamp_delta <= 0x7F
         frame.append(timestamp_delta)
     frame.append(len(payload))
@@ -67,7 +67,7 @@ def make_frame(
 
 @pytest.fixture
 def valid_frame():
-    """Create a minimal valid v1.1 frame."""
+    """Create a minimal valid current-wire frame."""
     return make_frame()
 
 
@@ -155,7 +155,7 @@ class TestDecoder:
         assert result is not None
         assert 'error' not in result
         assert result['sync'] == FRAME_SYNC
-        assert result['version'] == (1, 1)
+        assert result['version'] == (2, 0)
         assert result['level'] == 'INFO'
         assert result['module_id'] == 0x10
         assert result['event_id'] == 0x0001
@@ -164,14 +164,14 @@ class TestDecoder:
 
     def test_decode_frame_invalid_version(self):
         """Test decoding frame with wrong version."""
-        result, _ = decode_frame(make_frame(major=2))
+        result, _ = decode_frame(make_frame(major=3))
         assert 'error' in result
         assert result['error'] == 'VERSION_MISMATCH'
 
     def test_decode_frame_truncated(self):
         """Test decoding truncated frame."""
         # Too short to be a valid frame (less than minimum 11 bytes)
-        frame = bytes([FRAME_SYNC, 0x11, 0x01, 0x10, 0x01, 0x00, 0x01, 0x00, 0x00])
+        frame = bytes([FRAME_SYNC, 0x20, 0x01, 0x10, 0x01, 0x00, 0x01, 0x00, 0x00])
         result, offset = decode_frame(frame)
         # decode_frame returns (None, offset) when frame is invalid/truncated
         assert result is None or 'error' in result
@@ -190,15 +190,40 @@ class TestDecoder:
         assert all('error' not in r for r in result)
 
     def test_decode_legacy_v1_0_without_timestamp(self):
-        result, _ = decode_frame(make_frame(minor=0))
+        result, _ = decode_frame(make_frame(major=1, minor=0))
         assert "error" not in result
         assert result["version"] == (1, 0)
         assert "timestamp_delta" not in result
+
+    def test_decode_legacy_v1_1_typed_payload_without_dictionary(self):
+        result, _ = decode_frame(make_frame(bytes([0x01, 42]), major=1, minor=1))
+        assert "error" not in result
+        assert result["version"] == (1, 1)
+        assert result["payload"] == [{"type": "u8", "value": 42}]
+
+    def test_decode_v2_system_probe_retains_typed_payload(self):
+        result, _ = decode_frame(
+            make_frame(bytes([0x03, 0x34, 0x12, 0x01, 42]), module_id=0, event_id=0)
+        )
+        assert result["payload"] == [
+            {"type": "u16", "value": 0x1234},
+            {"type": "u8", "value": 42},
+        ]
+        rendered = json.loads(render_json([result]))[0]
+        assert (rendered["module"], rendered["event"]) == ("SYSTEM", "PROBE")
 
     def test_extract_metadata_identity(self):
         metadata_id = "0123456789abcdef"
         frames = decode_stream(identity_frame(metadata_id))
         assert extract_metadata_id(frames) == metadata_id
+
+    def test_metadata_identity_rejects_trailing_payload(self):
+        metadata_id = "0123456789abcdef"
+        result, _ = decode_frame(
+            make_frame(bytes([0x0B]) + bytes.fromhex(metadata_id) + b"\xFF", module_id=0, event_id=2)
+        )
+        assert result["metadata_id"] == metadata_id
+        assert result["warnings"] == ["INVALID_METADATA_IDENTITY"]
 
     def test_crc16_ccitt_false(self):
         """Test CRC calculation."""
@@ -383,7 +408,7 @@ class TestToolchain:
         bundle = load_bundle(bundle_dir)
         input_file.write_bytes(
             identity_frame(bundle.metadata_id)
-            + make_frame(bytes([0x01, 42]), seq=1)
+            + make_frame(bytes([42]), seq=1)
         )
 
         runner = CliRunner()
@@ -415,7 +440,7 @@ class TestToolchain:
             location_mode="file_id",
         )
         bundle = load_bundle(bundle_dir)
-        payload = bytes([0x01, 42, 0x0A, 0x02, 0x01, 0x00, 0x2A, 0x00])
+        payload = bytes([42, 0x0A, 0x02, 0x01, 0x00, 0x2A, 0x00])
         input_file.write_bytes(identity_frame(bundle.metadata_id) + make_frame(payload, seq=1))
 
         runner = CliRunner()
@@ -434,7 +459,7 @@ class TestToolchain:
         input_file = tmp_path / "input.bin"
         source.write_text(json.dumps(sample_events_source), encoding="utf-8")
         generate_bundle(source, bundle_dir)
-        input_file.write_bytes(identity_frame("0000000000000000") + make_frame(bytes([0x01, 42])))
+        input_file.write_bytes(identity_frame("0000000000000000") + make_frame(bytes([42])))
 
         runner = CliRunner()
         semantic = runner.invoke(cli_main, [str(input_file), "--bundle", str(bundle_dir), "--format", "json"])
@@ -452,7 +477,7 @@ class TestToolchain:
         input_file = tmp_path / "input.bin"
         source.write_text(json.dumps(sample_events_source), encoding="utf-8")
         generate_bundle(source, bundle_dir)
-        input_file.write_bytes(make_frame(bytes([0x01, 42])))
+        input_file.write_bytes(make_frame(bytes([42])))
 
         result = CliRunner().invoke(
             cli_main,
@@ -461,15 +486,18 @@ class TestToolchain:
         assert result.exit_code != 0
         assert "metadata identity event" in result.output
 
-    def test_bundle_validator_rejects_payload_type_mismatch(self, tmp_path, sample_events_source):
+    def test_bundle_validator_rejects_malformed_packed_suffix(self, tmp_path, sample_events_source):
         source = tmp_path / "events.json"
         bundle_dir = tmp_path / "axiomtrace-bundle"
         source.write_text(json.dumps(sample_events_source), encoding="utf-8")
         generate_bundle(source, bundle_dir)
         bundle = load_bundle(bundle_dir)
-        frames = decode_stream(identity_frame(bundle.metadata_id) + make_frame(bytes([0x03, 42, 0])))
+        frames = decode_stream(
+            identity_frame(bundle.metadata_id) + make_frame(bytes([42, 0xFF])),
+            bundle.load_dictionary(),
+        )
 
-        with pytest.raises(ValueError, match="payload type mismatch"):
+        with pytest.raises(ValueError, match="payload decode warning"):
             validate_trace_bundle(frames, bundle)
 
     def test_capsule_report_matches_embedded_metadata_identity(self, tmp_path, sample_events_source):
@@ -478,20 +506,26 @@ class TestToolchain:
         source.write_text(json.dumps(sample_events_source), encoding="utf-8")
         generate_bundle(source, bundle_dir)
         bundle = load_bundle(bundle_dir)
-        report = decode_capsule(make_capsule(identity_frame(bundle.metadata_id)))
+        report = decode_capsule(make_capsule(identity_frame(bundle.metadata_id) + make_frame(bytes([42]))))
 
         rendered = json.loads(
-            render_capsule_report(report, "json", bundle_metadata_id=bundle.metadata_id)
+            render_capsule_report(
+                report,
+                "json",
+                dictionary=bundle.load_dictionary(),
+                bundle_metadata_id=bundle.metadata_id,
+            )
         )
         assert rendered["trace_metadata_id"] == bundle.metadata_id
         assert rendered["metadata_identity_matches_bundle"] is True
         assert rendered["firmware_hash"] == "01234567"
+        assert rendered["events"][1]["args"] == {"value": 42}
 
         with pytest.raises(ValueError, match="does not match bundle"):
             render_capsule_report(report, "json", bundle_metadata_id="0000000000000000")
 
     def test_codegen_accounts_for_location_metadata_overhead(self):
-        args = [{"name": f"a{idx}", "type": "u32"} for idx in range(25)]
+        args = [{"name": f"a{idx}", "type": "u32"} for idx in range(31)]
         source = {
             "dictionary": {
                 "modules": [{
@@ -500,7 +534,7 @@ class TestToolchain:
                     "events": [{
                         "id": 1,
                         "name": "LARGE",
-                        "text": " ".join(f"{{a{idx}:u32}}" for idx in range(25)),
+                        "text": " ".join(f"{{a{idx}:u32}}" for idx in range(31)),
                         "args": args,
                     }],
                 }]
@@ -566,7 +600,7 @@ class TestIntegration:
 
     def test_legacy_decoder_wrapper_uses_current_wire_parser(self, tmp_path):
         repository = Path(__file__).parent.parent.resolve()
-        input_file = tmp_path / "legacy-v11.bin"
+        input_file = tmp_path / "current-v20.bin"
         input_file.write_bytes(make_frame())
         result = subprocess.run(
             [
@@ -581,7 +615,7 @@ class TestIntegration:
             text=True,
         )
         decoded = json.loads(result.stdout)
-        assert decoded[0]["version"] == [1, 1]
+        assert decoded[0]["version"] == [2, 0]
         assert decoded[0]["timestamp_delta"] == 0
 
     def test_tracked_golden_vectors_decode(self):
@@ -599,11 +633,42 @@ class TestIntegration:
 
     def test_decode_with_payload(self):
         """Test decoding frame with payload."""
-        result, _ = decode_frame(make_frame(bytes([0x01, 42]), module_id=0x01))
+        dictionary = {
+            "modules": [
+                {
+                    "id": 0x01,
+                    "name": "TEST",
+                    "events": [
+                        {
+                            "id": 0x0001,
+                            "name": "EVENT",
+                            "args": [{"name": "value", "type": "u8"}],
+                        }
+                    ],
+                }
+            ]
+        }
+        result, _ = decode_frame(make_frame(bytes([42]), module_id=0x01), dictionary=dictionary)
         assert 'error' not in result
         assert len(result['payload']) == 1
         assert result['payload'][0]['type'] == 'u8'
         assert result['payload'][0]['value'] == 42
+
+    def test_decode_packed_bytes_uses_schema_length_prefix(self):
+        dictionary = {
+            "modules": [{
+                "id": 0x01,
+                "events": [{
+                    "id": 0x0002,
+                    "args": [{"name": "value", "type": "bytes"}],
+                }],
+            }]
+        }
+        result, _ = decode_frame(
+            make_frame(bytes([3, 0xAA, 0xBB, 0xCC]), module_id=0x01, event_id=0x0002),
+            dictionary=dictionary,
+        )
+        assert result["payload"] == [{"type": "bytes", "value": "aabbcc"}]
 
     def test_find_dictionary_environment_cwd(self, tmp_path, sample_dictionary):
         """Test dictionary search uses cwd when start_path is None."""

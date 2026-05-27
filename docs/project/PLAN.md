@@ -71,7 +71,7 @@ AxiomTrace/
 **Deliverables**:
 - RAM Ring (Lock-free, IRQ-safe, Single-producer Single-consumer).
 - Event Record (Fixed 8B header + 1B payload_len + payload + 2B crc16).
-- Encoder (`_Generic` type-safe dispatch + type tag writing).
+- Encoder (`_Generic` type-safe dispatch + wire v2 packed value writing).
 - CRC-16/CCITT-FALSE (256B ROM lookup table).
 - Compressed Relative Timestamp (delta encoding).
 - Memory Backend (Directly writing to RAM Ring region).
@@ -189,7 +189,7 @@ typedef struct {
 - No Flash writes by default during normal operation.
 - Commit capsule only after a fault is triggered.
 - Flash erase/write does not enter the log hot path.
-- Capsule data format is stable, self-describing, and decodable.
+- Capsule framing is stable and decodable; wire v2 event semantics use the identity-matched bundle.
 
 ---
 
@@ -243,11 +243,11 @@ typedef struct {
 Official v1.0 will only be released when **ALL** are met:
 
 - [ ] Stable API (`AX_*` macros locked).
-- [ ] Stable wire format (header structure, type tag definitions frozen).
+- [ ] Stable wire format (header, packed arguments, and metadata suffix definitions frozen).
 - [ ] Stable event model (Event Record semantics unchanged).
 - [ ] Stable backend contract (`axiom_backend_t` struct frozen).
 - [ ] Stable capsule format (capsule layout frozen).
-- [ ] Stable decoder (can parse all type tags and capsules).
+- [ ] Stable decoder (can parse current packed frames, legacy typed frames, and capsules).
 - [ ] Stable golden tests (all passing).
 - [ ] Stable examples (all compile and run).
 - [ ] Stable benchmark report (hot path cycle count baseline locked).

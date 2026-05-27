@@ -31,7 +31,7 @@ typedef struct {
     volatile uint32_t tail;
     uint32_t capacity;
     uint32_t mask;
-    uintptr_t reserved;
+    uintptr_t storage;
 } axiom_ring_t;
 
 /* Initialize ring buffer in the provided memory block. 

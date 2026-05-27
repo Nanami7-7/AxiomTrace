@@ -22,7 +22,12 @@
 #define AXIOM_WEAK
 #endif
 
+#if defined(AXIOM_HOST_TESTING)
+uint32_t g_axiom_port_simulated_time = 0u;
+AXIOM_WEAK uint32_t axiom_port_timestamp(void) { return g_axiom_port_simulated_time; }
+#else
 AXIOM_WEAK uint32_t axiom_port_timestamp(void) { return 0u; }
+#endif
 
 AXIOM_WEAK void axiom_port_critical_enter(void) { }
 

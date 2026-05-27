@@ -266,16 +266,31 @@ uint32_t axiom_port_timestamp(void) {
 #### 临界区实现 (mstatus.MIE)
 
 ```c
+static uint32_t g_critical_nesting = 0;
+static uint32_t g_mstatus_state = 0;
+#define MSTATUS_MIE 0x8u
+
 void axiom_port_critical_enter(void) {
     uint32_t mstatus;
-    __asm volatile ("csrr %0, mstatus" : "=r"(mstatus));
-    __asm volatile ("csrs mstatus, %0" : : "r"(mstatus & 0x8));
+    const uint32_t mie = MSTATUS_MIE;
+    __asm volatile ("csrrc %0, mstatus, %1"
+                    : "=r"(mstatus) : "r"(mie) : "memory");
+    if (g_critical_nesting == 0) {
+        g_mstatus_state = mstatus;
+    }
+    g_critical_nesting++;
 }
 
 void axiom_port_critical_exit(void) {
-    uint32_t mstatus;
-    __asm volatile ("csrr %0, mstatus" : "=r"(mstatus));
-    __asm volatile ("csrc mstatus, %0" : : "r"(mstatus & 0x8));
+    if (g_critical_nesting > 0) {
+        g_critical_nesting--;
+        if (g_critical_nesting == 0) {
+            if (g_mstatus_state & MSTATUS_MIE) {
+                const uint32_t mie = MSTATUS_MIE;
+                __asm volatile ("csrs mstatus, %0" : : "r"(mie) : "memory");
+            }
+        }
+    }
 }
 ```
 

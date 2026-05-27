@@ -5,18 +5,22 @@
       2,
       0
     ],
-    "level": "INFO",
-    "module_id": 3,
-    "event_id": 1,
-    "seq": 1,
-    "payload_len": 2,
+    "level": "DEBUG",
+    "module_id": 0,
+    "event_id": 0,
+    "seq": 4,
+    "payload_len": 5,
     "payload": [
       {
         "type": "u16",
-        "value": 1000
+        "value": 64710
+      },
+      {
+        "type": "u8",
+        "value": 9
       }
     ],
-    "crc": 25417,
+    "crc": 48750,
     "timestamp_delta": 0,
     "timestamp_len": 1,
     "timestamp": 0

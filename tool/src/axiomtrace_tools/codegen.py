@@ -13,16 +13,22 @@ from axiomtrace_tools.source_map import generate_source_map
 
 
 def load_event_source(path: str | Path) -> dict[str, Any]:
-    """Load events.yaml/events.json style input."""
+    """Load events.json or events.yaml style input."""
     source_path = Path(path)
     text = source_path.read_text(encoding="utf-8")
-    if source_path.suffix.lower() == ".json":
+    suffix = source_path.suffix.lower()
+    if suffix == ".json":
         return json.loads(text)
-    try:
-        import yaml  # type: ignore
-    except ImportError as exc:
-        raise RuntimeError("PyYAML is required to read YAML event dictionaries") from exc
-    return yaml.safe_load(text) or {}
+    if suffix in (".yaml", ".yml"):
+        try:
+            import yaml
+            return yaml.safe_load(text) or {}
+        except ImportError as exc:
+            raise RuntimeError(
+                "Detected YAML format dictionary. Please install PyYAML by running 'pip install pyyaml' "
+                "or convert your dictionary to standard JSON format."
+            ) from exc
+    raise RuntimeError(f"Unsupported dictionary format (must be .json, .yaml, or .yml): {path}")
 
 
 def normalize_event_source(data: dict[str, Any]) -> list[dict[str, Any]]:
@@ -274,7 +280,7 @@ def _payload_size(args: list[dict[str, Any]]) -> int:
         wire_size = arg.get("wire_size")
         if wire_size is None:
             continue
-        size += 1 + int(wire_size)
+        size += int(wire_size)
     return size
 
 

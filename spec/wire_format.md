@@ -2,7 +2,7 @@
 
 # AxiomTrace Wire Format Specification
 
-> 版本：v1.1  |  状态：**FROZEN**  |  对应代码：`baremetal/core/axiom_event.c`, `baremetal/core/axiom_crc.c`
+> Version: v2.0 | Status: **FROZEN** | Code: `baremetal/core/axiom_event.c`, `baremetal/core/axiom_crc.c`
 
 ---
 
@@ -10,7 +10,7 @@
 
 This document defines how AxiomTrace Event Records are serialized to byte streams for transport over UART, USB, CAN-FD, or memory buffers.
 
-**Frozen as of v0.2-wire**. Any modification requires spec update, golden frame update, decoder update, and full regression test pass.
+Wire `v2.0` is the current emitted format. Any modification requires a spec update, golden frame update, decoder update, and full regression test pass.
 
 ---
 
@@ -43,7 +43,7 @@ The timestamp is included in the CRC-16 calculation (Header + Timestamp + Payloa
 
 ### 2.2 Optional Location and Metadata Identity Fields
 
-Wire v1.1 retains the 8-byte header and introduces host-decoding metadata as typed payload fields:
+Wire `v2.0` retains the 8-byte header and timestamp layout. Ordinary event arguments are packed values whose lengths and types are supplied by the matching dictionary. Host-decoding metadata remains tagged at the end of that packed payload:
 
 | Tag | Encoding after tag | Purpose |
 |-----|--------------------|---------|
@@ -51,6 +51,8 @@ Wire v1.1 retains the 8-byte header and introduces host-decoding metadata as typ
 | `0x0B` | `metadata_id:8` | Selects the exact host metadata bundle |
 
 `0x0A` adds 8 bytes total in `HASH` mode or 6 bytes total in `FILE_ID` mode, including its tag. `0x0B` adds 9 bytes total and is normally emitted in the system metadata identity event `(module_id = 0, event_id = 2)`.
+
+Reserved system payloads are exceptions to application dictionary decoding: `AX_PROBE` `(0,0)` retains typed `tag_hash`/value fields, `DROP_SUMMARY` `(0,1)` has fixed packed `u32/u8/u16` fields, and metadata identity `(0,2)` must contain exactly its nine-byte tagged identifier.
 
 ### 2.3 Byte Order
 
@@ -119,7 +121,7 @@ For UART and USB CDC, the entire Frame Body is **COBS-encoded** to eliminate `0x
 A frame is valid if and only if:
 
 1. `sync == 0xA5`
-2. `version` major nibble is supported (currently `0x1`)
+2. `version` major nibble is supported (current emitter uses `0x2`; historical `0x1` is supported)
 3. `level` upper nibble is `0`
 4. Timestamp is decodable (first byte after header identifies length 1/2/3/5)
 5. `payload_len` matches actual payload bytes read before CRC
@@ -136,11 +138,7 @@ On any validation failure, the decoder must:
 
 ### 6.3 Unknown Type Tag
 
-If the decoder encounters a type tag in the remaining reserved range `0x0C-0x7F` that it does not recognize:
-
-1. Skip the field based on the type tag's known size (if known)
-2. If size is unknown, skip to the next field boundary heuristically or mark the payload as `PARTIAL_DECODE`
-3. Do not crash
+For wire `v2`, a decoder without a matching dictionary reports ordinary payload values as raw bytes because field boundaries cannot be inferred. With a dictionary, bytes after the expected packed arguments must be recognized metadata suffixes (`0x0A` or `0x0B`); an unknown suffix is a malformed payload warning. For historical wire `v1.x`, the decoder continues to recognize per-field type tags and reports unknown tags without crashing.
 
 ---
 
@@ -149,9 +147,9 @@ If the decoder encounters a type tag in the remaining reserved range `0x0C-0x7F`
 The `version` byte in the header encodes `major << 4 | minor`.
 
 - Decoders **must reject** unsupported **major** versions.
-- **Minor** version additions are safe to ignore (new type tags, new reserved fields).
+- **Minor** version additions must remain compatible within a major-version payload interpretation.
 
-Current version: **0x11** (v1.1). The host decoder remains able to decode legacy v1.0 frame bodies.
+Current emitted version: **0x20** (v2.0). The host decoder remains able to decode historical typed-payload `v1.0` and `v1.1` frame bodies.
 
 ---
 
@@ -166,4 +164,4 @@ The following named constants are defined in `baremetal/core/axiom_event.h` to r
 | `AXIOM_CRC_LEN` | `2u` | Trailing CRC-16/CCITT-FALSE bytes |
 | `AXIOM_MAX_TIMESTAMP_LEN` | `5u` | Maximum variable-length timestamp encoding |
 | `AXIOM_MAX_PAYLOAD_LEN` | `128u` | Maximum payload bytes per event |
-| `AXIOM_TAG_SIZE` | `1u` | Fixed size of each payload type tag byte |
+| `AXIOM_TAG_SIZE` | `0u` | Per-argument type-tag overhead in wire v2 packed payloads |

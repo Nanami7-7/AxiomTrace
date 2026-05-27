@@ -47,7 +47,7 @@ The project already provides `baremetal/include/axiom_static_assert.h`:
 | `AXIOM_CHECK_FIELD_OFFSET(type, field, expected)` | Freezing field offsets | `axiom_event_header_t` field offsets must match wire format (spec/event_model.md) |
 | `AXIOM_CHECK_RANGE(val, min, max)` | Range checking for config values | `AXIOM_RING_BUFFER_SIZE` must be a power of two; `AXIOM_MAX_PAYLOAD_LEN <= 255` |
 | `AXIOM_CHECK_POWER_OF_TWO(val)` | Power of two check | Ring buffer size, capsule buffer size |
-| `AXIOM_CHECK_SAME_TYPE(a, b)` | Type consistency | Ensure `_Generic` branches correspond one-to-one with payload type tags |
+| `AXIOM_CHECK_SAME_TYPE(a, b)` | Type consistency | Ensure `_Generic` branches correspond to dictionary-defined wire v2 value encodings |
 | `AXIOM_CHECK_ARRAY_SIZE(arr, expected)` | Freezing array length | CRC lookup table must be 256 items; backend registry capacity |
 | `AXIOM_CHECK_POINTER_SIZE(expected)` | Pointer size validation | Ensure 32-bit MCU assumptions hold (excludes 8/16-bit) |
 | `AXIOM_CHECK_BIT_WIDTH(type, bits)` | Integer bit-width validation | `uint32_t` must be exactly 32 bits (`sizeof(type) * CHAR_BIT == bits`) |

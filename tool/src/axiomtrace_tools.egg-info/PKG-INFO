@@ -13,6 +13,7 @@ Classifier: Environment :: Console
 Requires-Python: >=3.12
 Description-Content-Type: text/markdown
 Requires-Dist: click>=7.0
-Requires-Dist: PyYAML>=6.0
+Provides-Extra: yaml
+Requires-Dist: PyYAML>=6.0; extra == "yaml"
 
 AxiomTrace host-side decoder and metadata bundle tools. See the project toolchain ecosystem specification for stable workflow and contracts.

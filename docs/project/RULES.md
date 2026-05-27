@@ -74,8 +74,8 @@ The following behaviors are **strictly prohibited** in `axiom_write()` and all I
 | Text is Just Rendering | Text output is rendered by the host decoder using dictionary templates. |
 | JSON is Just Export | JSON is converted from binary by host tools. |
 | Binary is Storage/Transport Form | Binary frame is the only data form crossing the firmware-host boundary. |
-| Self-describing Payload | Each payload field must have a type tag (`0x01=u8, 0x02=i8...`). Decoder parses structure without external schema; dictionary handles semantic mapping (ID → Name/Template). |
-| Forward Compatibility | Minor version increments only append new type tags or flags; existing field semantics remain unchanged. Major version changes must synchronize decoder, golden frames, specs, and docs. |
+| Versioned Payload Interpretation | Wire v2 normal arguments are packed according to the identity-matched dictionary; metadata suffixes remain tagged. The decoder retains structural decoding for historical wire v1 typed payloads. |
+| Forward Compatibility | Minor version increments preserve the payload interpretation within the major version. Major version changes must synchronize decoder, golden frames, specs, and docs. |
 
 ---
 
@@ -97,7 +97,7 @@ The following behaviors are **strictly prohibited** in `axiom_write()` and all I
 | Rule | Description |
 | :--- | :--- |
 | Zero-Intrusive Backend Extension | New backends only need to implement `axiom_backend_t` and call `axiom_backend_register()`. No modification to `core/` or `frontend/` files. |
-| Extensible Payload Types | `0x0A` and `0x0B` are reserved for location and metadata identity. Use the remaining `0x0C~0x7F` range for new standard type tags. Must update encoder, decoder, spec, golden tests, and docs simultaneously. Decoders should skip unknown tags and mark as `UNKNOWN_TYPE` instead of crashing. |
+| Extensible Payload Metadata | In wire v2, `0x0A` and `0x0B` identify location and metadata identity suffixes after dictionary-defined packed arguments. Any new suffix requires synchronized encoder, decoder, spec, golden, and documentation updates; unknown suffixes must be rejected safely. |
 | Prunable Profiles | `DEV` / `FIELD` / `PROD` profiles controlled by macros. New profiles added in `frontend/` must not alter existing profile semantics. |
 | Weak Port Symbols | All port functions provide `__attribute__((weak))` defaults. New ports (e.g., new MCU series) only override necessary functions without modifying library code. |
 | Extensible Toolchain | Decoder uses pluggable dictionary loading (JSON/YAML/X-Macro). New export formats (e.g., CSV, PCAP) implemented via new render modules. |
@@ -145,7 +145,7 @@ Golden Frame Update (Update golden/*.bin and expected.json if wire format change
     ↓
 Implementation (Follow all RULES.md)
     ↓
-Decoder Update (Update Python decoder if protocol or type tags change)
+Decoder Update (Update Python decoder if protocol, packed schema, or metadata suffixes change)
     ↓
 Tests (C host unit tests + Python decoder regression tests)
     ↓
@@ -201,11 +201,11 @@ Merge
 Official `v1.0` tag allowed **ONLY** when all are met:
 
 - [ ] Stable API (`AX_*` macros locked).
-- [ ] Stable wire format (header structure, type tag definition frozen).
+- [ ] Stable wire format (header, packed-argument, and metadata-suffix contracts frozen).
 - [ ] Stable event model (Event Record semantics unchanged).
 - [ ] Stable backend contract (`axiom_backend_t` struct frozen).
 - [ ] Stable capsule format (capsule layout frozen).
-- [ ] Stable decoder (Python decoder can parse all type tags and capsules).
+- [ ] Stable decoder (Python decoder can parse current packed frames, legacy typed frames, and capsules).
 - [ ] Stable golden tests (all passing, no flakiness).
 - [ ] Stable examples (all compile and run as expected).
 - [ ] Stable benchmark report (hot path cycle count baseline locked).
@@ -244,7 +244,7 @@ Authors must self-assess this checklist before submitting new code:
 - [ ] No RTOS/Linux implementation branches (port layer isolation, core has no OS dependency).
 - [ ] Hot path has no malloc, no printf, no Flash erase, no blocking.
 - [ ] New backend did not modify core code.
-- [ ] New type tags synchronized with decoder and spec.
+- [ ] New packed layouts or metadata suffixes synchronized with decoder and spec.
 - [ ] New APIs synchronized with docs, examples, and tests.
 - [ ] No silent dropping (drop counter + `DROP_SUMMARY` present).
 - [ ] Examples compile independently (no reliance on undocumented internal symbols).

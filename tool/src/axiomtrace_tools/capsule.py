@@ -35,7 +35,8 @@ def decode_capsule(data: bytes) -> dict[str, Any]:
         raise ValueError("capsule snapshot is truncated")
     snapshot = data[position:position + snapshot_len]
     position += snapshot_len
-    frames = decode_stream(data[position:-4])
+    frame_stream = data[position:-4]
+    frames = decode_stream(frame_stream)
     return {
         "format": "v1.0-draft",
         "version": version,
@@ -48,6 +49,7 @@ def decode_capsule(data: bytes) -> dict[str, Any]:
         "snapshot_id": snapshot_id,
         "snapshot": _snapshot_fields(snapshot_id, snapshot),
         "frames": frames,
+        "_frame_stream": frame_stream,
         "crc32": expected_crc,
     }
 
@@ -64,20 +66,24 @@ def render_capsule_report(
     source_map: dict[str, Any] | None = None,
 ) -> str:
     """Render a decoded capsule to JSON, Markdown, or compact HTML."""
-    trace_metadata_id = extract_metadata_id(report["frames"])
+    frames = report["frames"]
+    if dictionary is not None and report.get("_frame_stream") is not None:
+        frames = decode_stream(report["_frame_stream"], dictionary)
+    trace_metadata_id = extract_metadata_id(frames)
     if bundle_metadata_id:
         if not trace_metadata_id:
             raise ValueError("semantic capsule report requires a metadata identity event")
         if trace_metadata_id != bundle_metadata_id:
             raise ValueError("capsule metadata identity does not match bundle")
-    semantic_json = json.loads(render_json(report["frames"], dictionary, bundle_metadata_id, source_map))
+    semantic_json = json.loads(render_json(frames, dictionary, bundle_metadata_id, source_map))
     result = {**report, "events": semantic_json}
     result.pop("frames", None)
+    result.pop("_frame_stream", None)
     result["trace_metadata_id"] = trace_metadata_id
     result["metadata_identity_matches_bundle"] = True if bundle_metadata_id else None
     if output_format == "json":
         return json.dumps(result, indent=2)
-    events_text = render_text(report["frames"], dictionary, bundle_metadata_id, source_map)
+    events_text = render_text(frames, dictionary, bundle_metadata_id, source_map)
     markdown = "\n".join(
         [
             "# AxiomTrace Fault Capsule Report",

@@ -7,10 +7,13 @@ import struct
 from pathlib import Path
 from typing import Any
 
+from axiomtrace_tools.dictionary import EventDictionary, WIRE_SIZE_BY_NAME
+
 FRAME_SYNC = 0xA5
-WIRE_VERSION_MAJOR = 1
-WIRE_VERSION_MINOR = 1
+WIRE_VERSION_MAJOR = 2
+WIRE_VERSION_MINOR = 0
 WIRE_VERSION = (WIRE_VERSION_MAJOR << 4) | WIRE_VERSION_MINOR
+SUPPORTED_WIRE_VERSION_MAJORS = {1, WIRE_VERSION_MAJOR}
 
 TYPE_TAGS = {
     0x00: ("bool", 1),
@@ -89,7 +92,11 @@ def _error(name: str, **fields: Any) -> dict[str, Any]:
     return {"error": name, **fields}
 
 
-def decode_frame(raw: bytes, offset: int = 0) -> tuple[dict[str, Any] | None, int]:
+def decode_frame(
+    raw: bytes,
+    offset: int = 0,
+    dictionary: EventDictionary | dict[str, Any] | None = None,
+) -> tuple[dict[str, Any] | None, int]:
     """Decode a single raw frame starting at or after offset."""
     while offset < len(raw) and raw[offset] != FRAME_SYNC:
         offset += 1
@@ -105,14 +112,14 @@ def decode_frame(raw: bytes, offset: int = 0) -> tuple[dict[str, Any] | None, in
     level_byte = raw[offset + 2]
     level = level_byte & 0x0F
     reserved = level_byte >> 4
-    if major != WIRE_VERSION_MAJOR:
+    if major not in SUPPORTED_WIRE_VERSION_MAJORS:
         return _error("VERSION_MISMATCH", major=major, minor=minor), offset + 1
     if reserved != 0:
         return _error("RESERVED_NONZERO"), offset + 1
     if level >= 5:
         return _error("INVALID_LEVEL"), offset + 1
 
-    if minor == 0:
+    if major == 1 and minor == 0:
         timestamp_delta = None
         timestamp_len = 0
         payload_len_offset = offset + 8
@@ -135,7 +142,16 @@ def decode_frame(raw: bytes, offset: int = 0) -> tuple[dict[str, Any] | None, in
     if crc_expected != crc_actual:
         return _error("CRC_MISMATCH", expected=crc_expected, actual=crc_actual), offset + 1
 
-    payload, location, metadata_id, warnings = _decode_payload(raw[payload_start:payload_start + payload_len])
+    module_id = raw[offset + 3]
+    event_id = struct.unpack_from("<H", raw, offset + 4)[0]
+
+    payload, location, metadata_id, warnings = _decode_payload(
+        raw[payload_start:payload_start + payload_len],
+        major,
+        dictionary,
+        module_id,
+        event_id,
+    )
     result: dict[str, Any] = {
         "sync": FRAME_SYNC,
         "version": (major, minor),
@@ -159,12 +175,34 @@ def decode_frame(raw: bytes, offset: int = 0) -> tuple[dict[str, Any] | None, in
     return result, frame_end
 
 
-def _decode_payload(payload_raw: bytes) -> tuple[list[dict[str, Any]], dict[str, Any] | None, str | None, list[str]]:
+def _decode_payload(
+    payload_raw: bytes,
+    wire_major: int,
+    dictionary: EventDictionary | dict[str, Any] | None,
+    module_id: int,
+    event_id: int,
+) -> tuple[list[dict[str, Any]], dict[str, Any] | None, str | None, list[str]]:
+    if module_id == 0 and event_id == 0:
+        return _decode_typed_payload(payload_raw)
+
+    if module_id == 0 and event_id == 2:
+        if len(payload_raw) >= 9 and payload_raw[0] == TYPE_META_IDENTITY:
+            warnings = [] if len(payload_raw) == 9 else ["INVALID_METADATA_IDENTITY"]
+            return [], None, payload_raw[1:9].hex(), warnings
+        return [], None, None, ["INVALID_METADATA_IDENTITY"]
+
+    if wire_major == 1:
+        return _decode_typed_payload(payload_raw)
+    return _decode_packed_payload(payload_raw, dictionary, module_id, event_id)
+
+
+def _decode_typed_payload(payload_raw: bytes) -> tuple[list[dict[str, Any]], dict[str, Any] | None, str | None, list[str]]:
     payload: list[dict[str, Any]] = []
     location: dict[str, Any] | None = None
     metadata_id: str | None = None
     warnings: list[str] = []
     position = 0
+
     while position < len(payload_raw):
         tag = payload_raw[position]
         position += 1
@@ -185,7 +223,6 @@ def _decode_payload(payload_raw: bytes) -> tuple[list[dict[str, Any]], dict[str,
             payload.append({"type": "unknown", "tag": tag})
             warnings.append("UNKNOWN_TYPE_TAG")
             break
-
         type_name, size = TYPE_TAGS[tag]
         if type_name == "bytes":
             if position >= len(payload_raw):
@@ -193,17 +230,81 @@ def _decode_payload(payload_raw: bytes) -> tuple[list[dict[str, Any]], dict[str,
                 break
             size = payload_raw[position]
             position += 1
-            if position + size > len(payload_raw):
-                warnings.append("TRUNCATED_PAYLOAD")
-                break
-            value: Any = payload_raw[position:position + size].hex()
-        else:
-            if size is None or position + size > len(payload_raw):
-                warnings.append("TRUNCATED_PAYLOAD")
-                break
-            value = _decode_value(type_name, payload_raw[position:position + size])
-        position += int(size)
+        if size is None or position + size > len(payload_raw):
+            warnings.append("TRUNCATED_PAYLOAD")
+            break
+        value = _decode_value(type_name, payload_raw[position:position + size])
+        position += size
         payload.append({"type": type_name, "value": value})
+
+    return payload, location, metadata_id, warnings
+
+
+def _decode_packed_payload(
+    payload_raw: bytes,
+    dictionary: EventDictionary | dict[str, Any] | None,
+    module_id: int,
+    event_id: int,
+) -> tuple[list[dict[str, Any]], dict[str, Any] | None, str | None, list[str]]:
+    payload: list[dict[str, Any]] = []
+    warnings: list[str] = []
+    position = 0
+
+    if (module_id, event_id) == (0, 1):
+        args = [{"type": "u32"}, {"type": "u8"}, {"type": "u16"}]
+    else:
+        event_dictionary = dictionary if isinstance(dictionary, EventDictionary) else EventDictionary(dictionary) if dictionary else None
+        metadata = event_dictionary.find_event(module_id, event_id) if event_dictionary else None
+        if metadata is None:
+            if payload_raw:
+                payload.append({"type": "raw", "value": payload_raw.hex()})
+            if dictionary is not None:
+                warnings.append("UNKNOWN_EVENT_SCHEMA")
+            return payload, None, None, warnings
+        args = metadata.args
+
+    for arg in args:
+        type_name = str(arg.get("type", "unknown"))
+        if type_name == "bytes":
+            if position >= len(payload_raw):
+                warnings.append("TRUNCATED_PAYLOAD")
+                return payload, None, None, warnings
+            size = payload_raw[position]
+            position += 1
+        else:
+            size = arg.get("wire_size", WIRE_SIZE_BY_NAME.get(type_name))
+            if size is None:
+                warnings.append("UNSUPPORTED_PACKED_TYPE")
+                return payload, None, None, warnings
+            size = int(size)
+        if position + size > len(payload_raw):
+            warnings.append("TRUNCATED_PAYLOAD")
+            return payload, None, None, warnings
+        value = _decode_value(type_name, payload_raw[position:position + size])
+        position += size
+        payload.append({"type": type_name, "value": value})
+
+    location: dict[str, Any] | None = None
+    metadata_id: str | None = None
+    while position < len(payload_raw):
+        tag = payload_raw[position]
+        position += 1
+        if tag == TYPE_META_LOCATION:
+            location, position, warning = _decode_location(payload_raw, position)
+            if warning:
+                warnings.append(warning)
+                break
+            continue
+        if tag == TYPE_META_IDENTITY:
+            if position + 8 > len(payload_raw):
+                warnings.append("TRUNCATED_METADATA_ID")
+                break
+            metadata_id = payload_raw[position:position + 8].hex()
+            position += 8
+            continue
+        warnings.append("UNKNOWN_METADATA_SUFFIX")
+        break
+
     return payload, location, metadata_id, warnings
 
 
@@ -243,7 +344,7 @@ def _decode_value(type_name: str, data: bytes) -> Any:
         return struct.unpack("<H", data)[0]
     if type_name == "i16":
         return struct.unpack("<h", data)[0]
-    if type_name in {"u32", "timestamp"}:
+    if type_name in {"u32", "ts", "timestamp"}:
         return struct.unpack("<I", data)[0]
     if type_name == "i32":
         return struct.unpack("<i", data)[0]
@@ -252,13 +353,16 @@ def _decode_value(type_name: str, data: bytes) -> Any:
     return data.hex()
 
 
-def decode_stream(raw: bytes) -> list[dict[str, Any]]:
+def decode_stream(
+    raw: bytes,
+    dictionary: EventDictionary | dict[str, Any] | None = None,
+) -> list[dict[str, Any]]:
     """Decode frames from a raw stream, recovering at the next sync byte."""
     frames: list[dict[str, Any]] = []
     elapsed = 0
     offset = 0
     while offset < len(raw):
-        frame, next_offset = decode_frame(raw, offset)
+        frame, next_offset = decode_frame(raw, offset, dictionary)
         if frame is None:
             break
         if "error" not in frame:

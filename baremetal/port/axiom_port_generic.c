@@ -22,7 +22,12 @@
 #define AXIOM_WEAK
 #endif
 
+#if defined(AXIOM_HOST_TESTING)
+uint32_t g_axiom_port_simulated_time = 0u;
+AXIOM_WEAK uint32_t axiom_port_timestamp(void) { return g_axiom_port_simulated_time; }
+#else
 AXIOM_WEAK uint32_t axiom_port_timestamp(void) { return 0u; }
+#endif
 
 /* NOTE: Default no-op implementation. Override for production builds
  * to provide proper interrupt masking (e.g., __disable_irq/__enable_irq

@@ -17,6 +17,7 @@ FRAME_NAMES = [
     "frame_02_u16",
     "frame_03_metadata_identity",
     "frame_04_location_file_id",
+    "frame_05_system_probe",
 ]
 
 
@@ -28,6 +29,9 @@ def run() -> int:
 
     sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
     from axiomtrace_tools.decoder import decode_stream
+    from axiomtrace_tools.dictionary import load_dictionary
+
+    dictionary = load_dictionary(Path(__file__).parent / "dictionary.json")
 
     with tempfile.TemporaryDirectory() as temporary:
         emitted_dir = Path(temporary)
@@ -35,7 +39,7 @@ def run() -> int:
         generated: dict[str, tuple[bytes, str]] = {}
         for name in FRAME_NAMES:
             frame = (emitted_dir / f"{name}.bin").read_bytes()
-            decoded = decode_stream(frame)
+            decoded = decode_stream(frame, dictionary)
             if not decoded or any("error" in entry for entry in decoded):
                 raise RuntimeError(f"encoder emitted an undecodable golden frame: {name}")
             generated[name] = (frame, json.dumps(decoded, indent=2) + "\n")

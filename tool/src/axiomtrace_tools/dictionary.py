@@ -66,7 +66,7 @@ def event_key(module_id: int, event_id: int) -> str:
 
 
 class EventDictionary:
-    """Normalized event dictionary supporting legacy and v1 schemas."""
+    """Normalized metadata dictionary supporting legacy and current schemas."""
 
     def __init__(self, data: dict[str, Any], path: Path | None = None):
         self.data = data

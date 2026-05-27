@@ -187,7 +187,7 @@ Every v1 bundle contains `manifest.json`, `dictionary.json`, `source_map.json`, 
   "bundle_version": 1,
   "metadata": {
     "id": "7f3a9c2e1b4d6a80",
-    "wire_version": "1.1",
+    "wire_version": "2.0",
     "identity_basis": ["wire_version", "location", "dictionary", "source_map"]
   },
   "firmware": {
@@ -304,10 +304,10 @@ Input (bin / serial / hex)
 [ Header Parsing ] ──► 8-byte packed struct → Field extraction
     │
     ▼
-[ Payload Deserialization ] ──► Parse arguments one by one by type tag
+[ Dictionary Lookup ] ──► Retrieve the v2 packed argument schema by (module_id, event_id)
     │
     ▼
-[ Dictionary Lookup ] ──► Retrieve metadata from dictionary.json by (module_id, event_id)
+[ Payload Deserialization ] ──► Parse packed arguments, then tagged metadata suffixes
     │
     ▼
 [ Formatted Output ]
@@ -330,7 +330,7 @@ Validator performs **Golden Frame Validation** by comparing byte-level binary fr
 - **CRC Validation**: Recompute CRC-16 and compare with frame tail.
 - **Endianness**: Verify multi-byte fields are little-endian.
 - **Alignment**: Ensure Header is 8-byte packed and Payload is tightly arranged.
-- **Type Matching**: Payload type tags must match dictionary `args`.
+- **Schema Matching**: Wire v2 packed payloads must decode completely under dictionary `args`; only recognized metadata suffixes may remain.
 - **Level Matching**: Header `level` must match dictionary `event.level`.
 
 ---
