@@ -259,7 +259,7 @@ void axiom_port_critical_exit(void) {
 
 ## 许可证
 
-与 AxiomTrace 主项目相同，详见 [AxiomTrace LICENSE](../../LICENSE)。
+与 AxiomTrace 主项目相同，详见 [AxiomTrace LICENSE](../../../LICENSE)。
 
 ## 参考资料
 

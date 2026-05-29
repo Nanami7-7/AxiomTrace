@@ -16,7 +16,7 @@
 | 痛点 | 传统方案 | AxiomTrace 方案 |
 |:---|:---|:---|
 | `printf` 格式串占用 Flash | 每个 `%d` / `%s` 占 4~12 字节 | **固件只存 `(module_id, event_id)` 两个整数**，格式化在主机端完成 |
-| 中断中调用日志导致栈溢出 | printf 栈帧可达 1KB+ | **D2R（Direct-to-Ring）** 技术，栈使用恒定在 ~50 字节 |
+| 中断中调用日志导致栈溢出 | printf 栈帧可达 1KB+ | **短临界区二进制编码**，无格式化、无动态分配，栈使用有明确上界 |
 | 日志缓冲区满后丢帧 | 阻塞或无限追加 | **盲覆盖（Blind Overwrite）** O(1) 策略，自动丢弃最旧帧 |
 | CRC 校验计算耗时 | 每帧从头算 CRC | **增量 CRC（Incremental CRC）**，边写边算，零额外开销 |
 | 环形缓冲区搜索帧边界 | O(N) 扫描 | **位掩码帧边界**，O(1) 定位同步字节 |
@@ -52,7 +52,7 @@
 │  ┌──────────────────────────┴───────────────────────────────────┐ │
 │  │            核心平面 (Core Plane)                              │ │
 │  │  ┌─────────┐  ┌──────────┐  ┌────────┐  ┌──────────────┐   │ │
-│  │  │ D2R 编码 │→│ 增量 CRC │→│ 模块滤波│→│ 位掩码环形缓冲 │   │ │
+│  │  │ Packed 编码 │→│ CRC 校验 │→│ 模块滤波│→│ 短临界区入环 │   │ │
 │  │  └─────────┘  └──────────┘  └────────┘  └──────────────┘   │ │
 │  └──────────────────────────┬───────────────────────────────────┘ │
 │                             │                                     │
@@ -85,8 +85,8 @@ int main(void) {
     axiom_init();  /* 初始化环形缓冲区、时间戳、过滤器 */
 
     /* 结构化事件：O(1)、中断安全、零 printf */
-    AX_EVT(INFO, MOTOR, START, (uint16_t)3200);
-    AX_LOG(INFO, MOTOR, "Motor started at %d RPM", 3200);
+    AX_EVT(INFO, 0x03u, 0x0001u, (uint16_t)3200);
+    AX_LOG("Motor started");
     AX_PROBE("adc_sample", (uint16_t)0x1A3F);
 
     return 0;
@@ -171,7 +171,7 @@ uint8_t pos = 0;
 axiom_enc_u16(payload, &pos, 3200);  /* RPM */
 axiom_enc_bool(payload, &pos, true); /* 启用状态 */
 
-AX_EVT_RAW(INFO, MOTOR, MOTOR_START, payload, pos);
+axiom_write(AXIOM_LEVEL_INFO, 0x03u, 0x0001u, payload, pos);
 /* v2 Payload 为 3 字节：[0x80, 0x0C] (3200 LE) + [0x01] (true)。 */
 ```
 
@@ -199,7 +199,7 @@ void axiom_write(axiom_level_t level, uint8_t module_id,
 ### 前端宏（类型安全）
 
 ```c
-AX_LOG(level, module, fmt, ...)      /* 文本日志（编译期格式检查） */
+AX_LOG(msg)                          /* 开发期文本日志，不进入二进制协议 */
 AX_EVT(level, module, event, ...)    /* 结构化事件（C11 _Generic） */
 AX_PROBE(tag, value)                 /* 性能探针（编译期可裁剪） */
 AX_FAULT(module, event, ...)         /* 故障冻结（触发 Fault Capsule） */
@@ -246,13 +246,13 @@ bool axiom_selftest(void);
 - 格式串不会泄露到 ROM
 - 主机端可以随时切换语言/格式
 
-### 2. D2R 直接入环（Direct-to-Ring）
+### 2. 短临界区编码
 
-传统记录器会在栈上组装完整帧，然后一次性拷贝到环形缓冲区。AxiomTrace 采用 **直接入环** 策略：每个字段（header、timestamp、payload、CRC）逐一写入环形缓冲区，通过增量 CRC 避免任何栈上缓冲区。
+传统记录器会在热路径中格式化字符串或等待后端发送。AxiomTrace 固件侧只编码紧凑二进制值；默认 `AXIOM_SHORT_CS=1` 时，Core 在临界区外预编码完整帧，并在临界区内执行一次 ring write，从而降低中断关断时间。
 
 ```
-传统方案：栈帧 = AXIOM_MAX_FRAME_LEN + CRC + header ≈ 300B
-AxiomTrace：栈帧 ≈ 50B（仅增量 CRC 和临时变量）
+传统 printf：格式化栈帧大且不可预测
+AxiomTrace：栈使用由 AXIOM_MAX_FRAME_LEN 上界约束，且热路径无 printf/malloc
 ```
 
 ### 3. 盲覆盖（Blind Overwrite）
@@ -304,6 +304,22 @@ AxiomTrace：栈帧 ≈ 50B（仅增量 CRC 和临时变量）
 | `AXIOM_BACKEND_FAIL_THRESHOLD` | `5` | 连续失败多少次后降级 |
 | `AXIOM_BACKEND_RECOVERY_US` | `1000000` | 降级恢复时间（微秒） |
 
+### MCU 资源预设
+
+用 `AXIOM_PRESET` 一次性切换资源档位，避免在每个工程里零散覆写宏：
+
+```bash
+cmake -B build-tiny -S . -G Ninja -DAXIOM_PRESET=tiny -DAXIOM_BUILD_TESTS=OFF
+```
+
+| 预设 | 目标场景 | 关键行为 |
+|:---|:---|:---|
+| `custom` | 工程自定义裁剪 | 不做预设覆写；使用单个 `AXIOM_*` 宏自行组合 |
+| `tiny` | 极小 MCU / 严格 ISR 栈预算 | PROD profile、256B ring、32B payload、关闭 capsule、关闭 time sync、使用分段写路径节省栈 |
+| `prod` | 量产固件 | PROD profile、1KB ring、64B payload、裁掉 debug logs/probes、默认关闭 capsule |
+| `field` | 现场服务版本 | FIELD profile、2KB ring、启用较小 capsule 窗口 |
+| `dev` | 默认主机/开发版本 | 完整诊断、4KB ring、启用 capsule |
+
 ---
 
 ## 主机端元数据包
@@ -332,7 +348,7 @@ axiomtrace-bundle/
 |:---|:---:|:---|
 | Flash 占用 | < 2 KB | 核心逻辑 + CRC 查表 + 编码器 |
 | RAM 占用 | 4.2 KB | 环形缓冲区 4KB + 滤波器 + 时间戳上下文 |
-| 栈使用 | ~50 B | D2R 直接入环，无栈上缓冲区 |
+| 栈使用 | 有界 | 默认短临界区路径使用 `AXIOM_MAX_FRAME_LEN` 级别的栈缓冲 |
 | 最大帧长 | 12B + N | 8 header + 1 ts + 1 len + N payload + 2 CRC |
 
 ---
@@ -351,21 +367,20 @@ axiomtrace-bundle/
 | 浮点运算（热路径） | 无 FPU 的 MCU 上软件浮点极慢 |
 | 字符串比较/搜索 | 运行时字符串解析禁止 |
 
-**允许**：D2R 编码、盲覆盖 O(1) 策略、增量 CRC、`_Generic` 类型分发、单次临界区写入。
+**允许**：packed 二进制编码、盲覆盖 O(1) 策略、CRC 校验、`_Generic` 类型分发、短临界区写入。
 
 ---
 
 ## 故障冻结舱（Fault Capsule）
 
-当发生 `AX_FAULT` 事件时，系统自动冻结故障前/后窗口并提交至非易失性存储：
+当发生 `AX_FAULT` 事件时，Core 会发出 `AXIOM_LEVEL_FAULT` 事件、调用平台 `axiom_port_fault_hook()`，并冻结 RAM 中的故障前/后事件窗口。Flash 写入不会进入正常热路径，只有用户代码显式调用 `axiom_capsule_commit()` 时才会发生：
 
 ```c
-AX_FAULT(MOTOR, OVERCURRENT, (uint16_t)current_ma);
-/* 自动触发：
- *   1. 冻结故障前 N 帧历史记录
- *   2. 冻结故障后 M 帧快照
- *   3. 打包为 Fault Capsule 写入 Flash
- *   4. 主机端可通过 axiom-decoder 解码 Capsule 文件
+AX_FAULT(0x03u, 0x00FFu, (uint16_t)current_ma);
+/* 热路径行为：
+ *   1. 写入 fault-level Event Record
+ *   2. 调用 axiom_port_fault_hook()
+ *   3. 冻结 RAM capsule 窗口；Flash commit 由用户代码显式触发
  */
 ```
 
@@ -439,7 +454,7 @@ AxiomTrace/
 |:---|:---|
 | [API 参考](spec/api_reference_zh.md) | 前端宏与核心控制 API 完整说明 |
 | [有线格式](spec/wire_format_zh.md) | 二进制序列化与帧结构详细规范 |
-| [事件模型](spec/event_model_zh.md) | 报头布局、时间戳与 D2R 机制深度解析 |
+| [事件模型](spec/event_model_zh.md) | 报头布局、时间戳与事件语义 |
 | [字典规范](spec/event_dictionary_zh.md) | YAML Schema 与枚举映射方案 |
 | [工具链生态设计](spec/toolchain_ecosystem_design_zh.md) | 解码器、元数据包、codegen、验证器与主机端工作流规范 |
 | [故障胶囊](spec/fault_capsule_zh.md) | 故障冻结、提交与非易失性存储规范 |

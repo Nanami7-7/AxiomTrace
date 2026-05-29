@@ -13,7 +13,7 @@
 3. [通用实现 (Generic)](#通用实现-generic)
 4. [ARM Cortex-M 实现](#arm-cortex-m-实现)
 5. [RISC-V 实现](#risc-v-实现)
-6. [主机/模拟实现](#主机模拟实现)
+6. [主机/模拟实现](#主机-模拟实现)
 7. [自定义平台移植](#自定义平台移植)
 
 ---
@@ -452,7 +452,7 @@ axiom_port_critical_exit();
 ## 相关文档
 
 - [移植指南](./porting_guide.md)
-- [AxiomTrace README](../README.md)
+- [AxiomTrace README](../../README.md)
 
 ---
 

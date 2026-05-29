@@ -11,7 +11,7 @@
 ## Table of Contents
 
 1. [Three-Layer Static Analysis System](#1-three-layer-static-analysis-system)
-2. [CI/CD Pipeline](#2-cicd-pipeline)
+2. [CI/CD Pipeline](#2-ci-cd-pipeline)
 3. [Test Pyramid](#3-test-pyramid)
 4. [Code Quality Standards](#4-code-quality-standards)
 5. [Documentation Standards](#5-documentation-standards)

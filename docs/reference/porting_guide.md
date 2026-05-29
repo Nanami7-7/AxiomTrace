@@ -339,13 +339,14 @@ extern uint8_t axiom_port_fault_snapshot(uint8_t *buf, uint8_t max_len);
 - R0-R3, R12, LR, PSR, PC
 - CONTROL, PRIMASK, BASEPRI
 
-### axiom_port_flash_erase() / axiom_port_flash_write()
+### axiom_port_flash_erase() / axiom_port_flash_write() / axiom_port_flash_read()
 
 Flash 操作 (用于 Fault Capsule)。
 
 ```c
 extern int axiom_port_flash_erase(uint32_t addr, uint32_t len);
 extern int axiom_port_flash_write(uint32_t addr, const uint8_t *data, uint32_t len);
+extern int axiom_port_flash_read(uint32_t addr, uint8_t *out, uint32_t len);
 ```
 
 **返回**: 0 成功, -1 失败
@@ -353,10 +354,28 @@ extern int axiom_port_flash_write(uint32_t addr, const uint8_t *data, uint32_t l
 **要求**:
 - 非 ISR 调用
 - 擦除必须按页/扇区
+- `AXIOM_CAPSULE_ENABLED=1` 时必须实现 read/write/erase 才能跨重启保留 capsule
+- `tiny` / `prod` preset 默认关闭 capsule；需要故障舱时显式打开并配置 Flash 区域
 
 ---
 
 ## 最佳实践
+
+### 0. 先选资源预设
+
+移植新 MCU 时优先从预设开始，再做少量单项覆盖：
+
+| 预设 | 适用场景 | 建议 |
+|:---|:---|:---|
+| `custom` | 已有工程规范或精确资源预算 | 使用单项 `AXIOM_*` 宏组合，不接受预设覆写 |
+| `tiny` | 低频、极小 SRAM、严格 ISR 栈预算 | 首个 bring-up 默认用它，确认链路后再打开更多功能 |
+| `prod` | 量产默认 | 保留结构化事件，裁掉 debug 文本和 probe |
+| `field` | 现场服务/售后诊断 | 保留 probe 和较小 capsule 窗口 |
+| `dev` | 主机、评估板、开发调试 | 功能完整，适合验证，不代表最低资源占用 |
+
+```bash
+cmake -B build-tiny -S . -G Ninja -DAXIOM_PRESET=tiny
+```
 
 ### 1. 使用弱符号
 
@@ -451,7 +470,7 @@ assert(t2 > t1);  // 应始终成立
 
 ## 相关文档
 
-- [AxiomTrace README](../README.md)
+- [AxiomTrace README](../../README.md)
 - [平台参考实现](./platform_reference.md)
 
 ---

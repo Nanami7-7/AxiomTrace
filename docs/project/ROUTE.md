@@ -2,7 +2,7 @@
 
 # AxiomTrace Development Route
 
-> Version: v1.0 | Status: **In Execution** | Update Date: 2026-04-29
+> Version: v1.0 | Status: **In Execution** | Update Date: 2026-05-28
 
 ---
 
@@ -12,20 +12,20 @@
 
 - [x] Repository directory structure reorganized into five planes.
 - [x] `PLAN.md` / `ROUTE.md` / `RULES.md` finalized.
-- [ ] `../../spec/event_model.md` finalized (Event Record semantics and versioned payload interpretation).
-- [ ] `../../spec/wire_format.md` finalized (current wire frame structure).
-- [ ] `../../spec/backend_contract.md` finalized (`axiom_backend_t` interface).
+- [x] `../../spec/event_model.md` finalized (Event Record semantics and versioned payload interpretation).
+- [x] `../../spec/wire_format.md` finalized (current wire frame structure).
+- [x] `../../spec/backend_contract.md` finalized (`axiom_backend_t` interface).
 - [ ] `../../spec/fault_capsule.md` finalized (capsule format and lifecycle).
-- [ ] `../../spec/api_reference.md` initial draft (Frontend macro APIs).
-- [ ] Lock-free ISR-safe RAM Ring `axiom_ring.c`.
-- [ ] Event Record assembly `axiom_event.c` (header + payload_len + payload + crc).
-- [ ] Binary encoder `axiom_encode.c` (`_Generic` type dispatch + v2 packed values).
-- [ ] CRC-16/CCITT-FALSE lookup table `axiom_crc.c`.
-- [ ] Compressed relative timestamp `axiom_timestamp.c`.
-- [ ] Level filtering and drop statistics `axiom_filter.c`.
-- [ ] Memory Backend `axiom_backend_memory.c`.
-- [ ] Host Unit Tests: `test_ring.c`, `test_encode.c`, `test_crc.c`, `test_event.c`, `test_filter.c`.
-- [ ] CMake build system adapted to new directories.
+- [x] `../../spec/api_reference.md` initial draft (Frontend macro APIs).
+- [x] Lock-free ISR-safe RAM Ring `axiom_ring.c`.
+- [x] Event Record assembly `axiom_event.c` (header + payload_len + payload + crc).
+- [x] Binary encoder `axiom_encode.h` (`_Generic` type dispatch + v2 packed values).
+- [x] CRC-16/CCITT-FALSE lookup table `axiom_crc.c`.
+- [x] Compressed relative timestamp `axiom_timestamp.c`.
+- [x] Level filtering and drop statistics `axiom_filter.c`.
+- [x] Memory Backend `axiom_backend_memory.c`.
+- [x] Host Unit Tests: ring, encoder, CRC, event, filter, backend, location, profile, dynamic call-chain, and benchmark coverage.
+- [x] CMake build system adapted to new directories.
 
 **Acceptance Criteria**:
 - All `ctest` passing.
@@ -38,14 +38,14 @@
 
 **Goal**: Protocol can be maintained long-term. encoder → frame → decoder → expected.json match exactly.
 
-- [ ] Frozen binary frame field order and size.
-- [ ] Generate first batch of golden frames (covering packed schemas, metadata suffixes, and boundary payloads).
-- [ ] Write `expected.json` (expected output for decoder).
-- [ ] Python decoder `../../tool/decoder/axiom_decoder.py` (parsing header/payload/crc).
-- [ ] Decoder explicitly rejects invalid frames (returns `FRAME_INVALID`, no crash).
-- [ ] `../../tool/golden/update_golden.py` (encoder generates bin + expected.json).
-- [ ] Host regression test: `test_decoder.py` full comparison against golden frames.
-- [ ] Documentation update: `../../spec/wire_format.md` marked as **FROZEN**.
+- [x] Frozen binary frame field order and size.
+- [x] Generate first batch of golden frames (covering packed schemas, metadata suffixes, and boundary payloads).
+- [x] Write `expected.json` (expected output for decoder).
+- [x] Python decoder `../../tool/decoder/axiom_decoder.py` (parsing header/payload/crc).
+- [x] Decoder explicitly rejects invalid frames with structured errors and no crash.
+- [x] `../../tool/golden/update_golden.py` (encoder generates bin + expected.json).
+- [x] Host regression test: `tests/test_python_tools.py` full comparison against golden frames.
+- [x] Documentation update: `../../spec/wire_format.md` marked as **FROZEN**.
 
 **Acceptance Criteria**:
 - `encoder -> frame -> decoder -> expected.json` 100% match.
@@ -58,16 +58,16 @@
 
 **Goal**: Truly easy for users to start. Log the first event in 5 minutes.
 
-- [ ] `AX_LOG(msg)` macro implementation (developer-readable text; output via port `byte_out` at runtime; expanded to empty in `PROD` profile).
-- [ ] `AX_EVT(level, mod, evt, args...)` macro implementation (structured events, `_Generic` encoded).
-- [ ] `AX_PROBE(tag, value)` macro implementation (high frequency, low disturbance, prunable).
-- [ ] `AX_FAULT(mod, evt, args...)` macro implementation (fault tracing, triggers capsule hook).
-- [ ] `AX_KV(level, mod, evt, "k", v, ...)` macro implementation (lightweight KV pairs).
-- [ ] `DEV / FIELD / PROD` Profile compile-time pruning macros.
-- [ ] `axiom_frontend.h` unified entry (auto-includes all Frontend macros).
-- [ ] Example: `example_minimal.c` (start with 3 lines of code).
-- [ ] Example: `example_full.c` (multi-API combo + filter + backend).
-- [ ] Host tests: Macro expansion behavior verification under each Profile.
+- [x] `AX_LOG(msg)` macro implementation (developer-readable text; output via `axiom_port_string_out()` at runtime; expanded to empty in `PROD` profile).
+- [x] `AX_EVT(level, mod, evt, args...)` macro implementation (structured events, `_Generic` encoded).
+- [x] `AX_PROBE(tag, value)` macro implementation (high frequency, low disturbance, prunable).
+- [x] `AX_FAULT(mod, evt, args...)` macro implementation (fault tracing, triggers fault hook).
+- [x] `AX_KV(level, mod, evt, "k", v, ...)` macro implementation (lightweight KV pairs).
+- [x] `DEV / FIELD / PROD` Profile compile-time pruning macros.
+- [x] `axiom_frontend.h` unified entry (auto-includes all Frontend macros).
+- [x] Example: `example_minimal.c` (start with 3 lines of code).
+- [x] Example: `example_full.c` (multi-API combo + filter + backend).
+- [x] Host tests: Macro expansion behavior verification under each Profile.
 
 **Acceptance Criteria**:
 - `example_minimal.c` compiles and runs on host `gcc` with zero config, outputting expected results.
@@ -80,16 +80,16 @@
 
 **Goal**: Full peripheral compatibility without being chip-bound. Adding a backend is zero-intrusive to the core.
 
-- [ ] `axiom_backend.c` registry and dispatcher implementation.
-- [ ] `axiom_backend_t` struct and `axiom_backend_register()` API.
-- [ ] Memory Backend refinement (direct export of ring buffer area).
-- [ ] UART Backend Template (COBS encoding + 0x00 delimiter, user fills UART transmit function).
+- [x] `axiom_backend.c` registry and dispatcher implementation.
+- [x] `axiom_backend_t` struct and `axiom_backend_register()` API.
+- [x] Memory Backend refinement (direct export of ring buffer area).
+- [x] UART Backend Template (COBS encoding + 0x00 delimiter, user fills UART transmit function).
 - [ ] USB CDC Backend Template (bulk IN endpoint, user fills USB transmit function).
-- [ ] RTT Backend Template (SEGGER RTT up-channel, user fills SEGGER RTT function).
+- [x] RTT Backend Template (SEGGER RTT up-channel, user fills SEGGER RTT function).
 - [ ] SWO/ITM Backend Template (32-bit stimulus word stream, user fills ITM function).
 - [ ] CAN-FD Backend Template (frame splitting and ID mapping, user fills CAN transmit function).
-- [ ] Backend drop callback and rate-limiting mechanism.
-- [ ] Host tests: `test_backend.c` (registration, dispatch, drop, panic_write).
+- [x] Backend drop callback and rate-limiting/degradation mechanism.
+- [x] Host tests: `test_backend_ext.c` and `test_dynamic_call_chain.c` (registration, dispatch, drop, busy backend, degradation, recovery, panic_write).
 
 **Acceptance Criteria**:
 - Adding a new backend only requires: implementing 3 functions + calling `axiom_backend_register()`, no changes to `core/`.
@@ -142,20 +142,22 @@
 
 **Goal**: Binary logs are readable, testable, and exportable.
 
-- [ ] Decoder refinement: supports current packed frames, legacy typed frames, capsules, and `DROP_SUMMARY`.
-- [ ] Text render: dictionary template filling (`"motor current over limit: phase={u8}"`).
-- [ ] JSON export: full event stream exported as JSON array.
+- [x] Decoder refinement: supports current packed frames, legacy typed frames, capsules, and `DROP_SUMMARY`.
+- [x] Text render: dictionary template filling (`"motor current over limit: phase={u8}"`).
+- [x] JSON export: full event stream exported as JSON array.
 - [x] Standard metadata bundle: `manifest.json`, `dictionary.json`, `source_map.json`, `build_info.json`, optional `firmware.elf`/`.map`.
 - [x] `axiom-bundle generate`: creates the standard bundle from event definitions, ELF, and compile database.
 - [x] CMake integration: `axiomtrace_add_bundle(TARGET ... EVENTS ... OUTPUT_DIR ...)`.
 - [x] Decoder bundle mode: `--bundle`, `--bundle-store`, metadata-id matching, and raw fallback.
-- [ ] Capsule report: HTML/Markdown fault analysis report.
+- [x] Capsule report: host-side JSON/Markdown/HTML fault analysis report for the draft capsule format.
 - [x] Dictionary validator: verify payload types match dictionary templates.
-- [ ] `../../tool/scripts/amalgamate.py`: merges core+frontend+port into single-file `axiomtrace.h`.
-- [ ] `../../tool/scripts/extract_dict.py`: extracts `dictionary.json` from C source/X-Macros.
-- [ ] Benchmark tool: `../../tool/benchmark/host_benchmark.c` measures encode/CRC/ring write cycles.
-- [ ] Golden regression: CI auto-runs `update_golden.py` + `test_decoder.py`.
-- [ ] Documentation governance: README indexes only; detailed contracts live in canonical specs; no unlinked ad-hoc Markdown.
+- [x] `../../tool/scripts/amalgamate.py`: merges core+frontend+port into a single-file header; GNU11 include smoke test passes.
+- [ ] Amalgamated output passes the complete host test matrix as a release artifact.
+- [x] `../../tool/scripts/extract_dict.py`: extracts `dictionary.json` from C source/X-Macros.
+- [x] Benchmark tool: `tests/host/test_benchmark.c` and `../../tool/benchmark/host_benchmark.c` measure encode/CRC/ring write timing.
+- [x] Golden regression: local `update_golden.py --check` and Python golden tests.
+- [ ] CI gate: auto-run `update_golden.py --check` + Python decoder regression tests on every relevant change.
+- [x] Documentation governance: README indexes only; detailed contracts live in canonical specs; no unlinked ad-hoc Markdown.
 
 **Acceptance Criteria**:
 - `binary -> text` passes all golden frames.
@@ -176,7 +178,7 @@
 - [ ] Generic port (host simulation) refinement as the default CI environment.
 - [ ] Integration validation in at least 2 real MCU projects (different vendors).
 - [ ] Integration docs: `../reference/porting_guide.md`.
-- [ ] Cross-compiler validation: GCC, Clang, IAR (optional).
+- [x] Host cross-compiler validation: GCC + Clang. IAR remains optional and target-specific.
 
 **Acceptance Criteria**:
 - Same `core/` + `frontend/` code compiles across platforms just by swapping `port/`.

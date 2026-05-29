@@ -97,8 +97,9 @@ static inline void axiom_enc_i16(uint8_t *buf, uint8_t *pos, int16_t val) {
 #endif
         return;
     }
-    buf[(*pos)++] = (uint8_t)(val & 0xFFu);
-    buf[(*pos)++] = (uint8_t)((uint16_t)val >> 8);
+    uint16_t u = (uint16_t)val;
+    buf[(*pos)++] = (uint8_t)(u & 0xFFu);
+    buf[(*pos)++] = (uint8_t)(u >> 8);
 }
 
 static inline void axiom_enc_u32(uint8_t *buf, uint8_t *pos, uint32_t val) {

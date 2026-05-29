@@ -16,7 +16,7 @@
 4. [Decoder Tool Design](#4-decoder-tool-design)
 5. [Validator Tool Design](#5-validator-tool-design)
 6. [Benchmark Tool Design](#6-benchmark-tool-design)
-7. [RTOS / Linux Integration Documentation Framework](#7-rtos--linux-integration-documentation-framework)
+7. [RTOS / Linux Integration Documentation Framework](#7-rtos-linux-integration-documentation-framework)
 8. [One-Click Workflow Experience Summary](#8-one-click-workflow-experience-summary)
 
 ---

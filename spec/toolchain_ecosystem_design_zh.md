@@ -16,7 +16,7 @@
 4. [Decoder 工具设计](#4-decoder-工具设计)
 5. [Validator 工具设计](#5-validator-工具设计)
 6. [Benchmark 工具设计](#6-benchmark-工具设计)
-7. [RTOS / Linux 接入文档框架](#7-rtos--linux-接入文档框架)
+7. [RTOS / Linux 接入文档框架](#7-rtos-linux-接入文档框架)
 8. [一键式工作流体验总结](#8-一键式工作流体验总结)
 
 ---

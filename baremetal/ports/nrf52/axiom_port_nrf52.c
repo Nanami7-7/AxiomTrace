@@ -108,6 +108,10 @@ void axiom_port_fault_hook(uint8_t module_id, uint16_t event_id,
     /* Could be extended to write to flash or backup registers */
 }
 
+uint8_t axiom_port_reset_reason(void) {
+    return 0u;
+}
+
 /* ============================================================================
  * Fault Snapshot - ARM Cortex-M4 register capture
  * ============================================================================ */
@@ -156,6 +160,13 @@ int axiom_port_flash_erase(uint32_t addr, uint32_t len) {
 int axiom_port_flash_write(uint32_t addr, const uint8_t *data, uint32_t len) {
     (void)addr;
     (void)data;
+    (void)len;
+    return -1;  /* Not implemented - requires NVMC peripheral */
+}
+
+int axiom_port_flash_read(uint32_t addr, uint8_t *out, uint32_t len) {
+    (void)addr;
+    (void)out;
     (void)len;
     return -1;  /* Not implemented - requires NVMC peripheral */
 }

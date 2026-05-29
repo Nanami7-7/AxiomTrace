@@ -2,7 +2,7 @@
 
 # AxiomTrace RULES.md
 
-> 版本：v1.0 | 状态：**强制执行** | 更新日期：2026-04-29
+> 版本：v1.0 | 状态：**强制执行** | 更新日期：2026-05-28
 
 ---
 
@@ -41,7 +41,7 @@ AxiomTrace 是一个 **MCU 裸机可观测微内核**。我们的坚定目标：
 | 字符串比较/查找 | 禁止运行时解析字符串。 | 拒绝合入。 |
 
 **允许项**：
-- Direct-to-Ring (D2R) 编码（直接流式写入环形缓冲区分段）。
+- Packed 帧编码与短临界区写入。
 - 盲覆盖（Blind Overwrite）策略，确保环满时具备 O(1) 确定性延迟。
 - 增量式 CRC（流式计算，无需重复读取内存）。
 - 写 RAM Ring（单次临界区）。
@@ -169,21 +169,25 @@ PR 评审（至少 1 人评审，检查是否违反 RULES.md）
 ### 9.1 日常维护
 
 - **每轮迭代开始**：检查 `ROUTE.md` 当前阶段目标，确认无范围蔓延。
-- **每次 commit**：本地运行 `ctest` (host tests) 通过后再 push。
-- **每次协议微调**：运行 `../../tool/golden/update_golden.py` 并提交新的 golden frames。
+- **每次 commit**：本地运行 host `ctest` 与 `python -m pytest -q` 通过后再 push。
+- **每次协议微调**：先运行 `python tool/golden/update_golden.py --check`；只有 wire 契约确实变更时才提交重新生成的 golden frames。
 - **每周**：检查 `tests/` 覆盖率，未覆盖的新增代码必须补测试。
 
 ### 9.2 版本发布流程
 
 1. 从 `ROUTE.md` 确认当前阶段所有任务已完成。
-2. 运行全量测试：`ctest --output-on-failure` + `python ../../tool/tests/test_decoder.py`。
-3. 运行 benchmark：`../../tool/benchmark/host_benchmark` 并更新报告。
-4. 检查无 P0/P1 问题（见 §10）。
-5. 更新 `../changelog/CHANGELOG.md`。
-6. 更新 `PLAN.md` 状态。
-7. 打 git tag：`git tag v0.x-stage`。
-8. 运行 amalgamate 脚本生成单文件库，验证通过测试。
-9. 发布 Release Note（含 binary、单文件库、decoder、docs）。
+2. 运行 host C 矩阵：Clang 与 GCC 分别构建，并对每个构建目录运行 `ctest --test-dir <build-dir> --output-on-failure`。
+3. 运行 Python/tooling 矩阵：`python -m pytest -q`、`python -m compileall -q tool/src tests`、`PYTHONPATH=tool/src python -m axiomtrace_tools.cli validate --golden tool/golden`。
+4. 运行 golden 校验：`python tool/golden/update_golden.py --check`。
+5. 对 `custom`、`tiny`、`prod`、`field`、`dev` 运行 preset smoke build，使用 `AXIOM_BUILD_TESTS=OFF` 验证每个资源档位都能编译。
+6. 运行集成脚本：Windows 下使用 Git Bash 执行 `./tests/test_integration.sh`。
+7. 运行 benchmark：从已验证构建目录执行 `tests/host/test_benchmark`，若基线变化则更新报告。
+8. 检查无 P0/P1 问题（见 §10）。
+9. 更新 `../changelog/CHANGELOG.md`。
+10. 更新 `PLAN.md` 状态。
+11. 打 git tag：`git tag v0.x-stage`。
+12. 运行 amalgamate 脚本生成单文件库，验证通过测试。
+13. 发布 Release Note（含 binary、单文件库、decoder、docs）。
 
 ### 9.3 问题分级与响应
 

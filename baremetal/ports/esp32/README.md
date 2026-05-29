@@ -215,17 +215,14 @@ AxiomTrace 使用 COBS (Consistent Overhead Byte Stuffing) 编码:
 
 ## 主机端解码
 
-### 使用 esptool 配合 axiomtrace-decoder
+### 捕获后使用 axiom-decoder
 
 ```bash
-# 方法1: 直接从 UART 读取
-python -m axiomtrace.decoder --uart /dev/ttyUSB1 --baudrate 921600
+# 当前 CLI 解码文件输入；先用串口工具捕获 trace.bin。
+axiom-decoder trace.bin --bundle build/axiomtrace-bundle --format text
 
-# 方法2: 从文件读取
-python -m axiomtrace.decoder --file trace.bin --cobs
-
-# 方法3: 实时查看器
-python -m axiomtrace.viewer --uart /dev/ttyUSB1 --baudrate 921600
+# 未准备 bundle 时可先查看结构化 raw 输出。
+axiom-decoder trace.bin --format raw
 ```
 
 ### 使用 minicom 或 screen
@@ -245,7 +242,7 @@ minicom -D /dev/ttyUSB1 -b 921600
 socat -u /dev/ttyUSB1,b921600,raw,echo=0 FILE:/tmp/trace.bin,create,append
 
 # 然后用 decoder 解码
-python -m axiomtrace.decoder --file /tmp/trace.bin --cobs
+axiom-decoder /tmp/trace.bin --bundle build/axiomtrace-bundle --format text
 ```
 
 ## 性能考量

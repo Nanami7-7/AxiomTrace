@@ -17,16 +17,18 @@ FILES = [
     ROOT / "core" / "axiom_ring.h",
     ROOT / "core" / "axiom_timestamp.h",
     ROOT / "core" / "axiom_filter.h",
+    ROOT / "core" / "axiom_capsule.h",
     ROOT / "frontend" / "axiom_frontend.h",
     ROOT / "backend" / "axiom_backend.h",
 ]
 
 SOURCE_FILES = [
-    ROOT / "port" / "axiom_port_generic.c",
+    ROOT / "ports" / "generic" / "axiom_port_generic.c",
     ROOT / "core" / "axiom_crc.c",
     ROOT / "core" / "axiom_ring.c",
     ROOT / "core" / "axiom_timestamp.c",
     ROOT / "core" / "axiom_filter.c",
+    ROOT / "core" / "axiom_capsule.c",
     ROOT / "core" / "axiom_event.c",
     ROOT / "backend" / "axiom_backend.c",
 ]

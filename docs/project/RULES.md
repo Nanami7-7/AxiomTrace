@@ -2,7 +2,7 @@
 
 # AxiomTrace RULES.md
 
-> Version: v1.0 | Status: **Enforced** | Update Date: 2026-04-29
+> Version: v1.0 | Status: **Enforced** | Update Date: 2026-05-28
 
 ---
 
@@ -41,7 +41,7 @@ The following behaviors are **strictly prohibited** in `axiom_write()` and all I
 | String compare/search | Runtime string parsing is prohibited. | Rejection of PR. |
 
 **Allowed Items**:
-- Direct-to-Ring (D2R) encoding (streaming directly into ring buffer segments).
+- Packed frame encoding with a short critical section.
 - Blind Overwrite strategy for O(1) deterministic latency when the ring is full.
 - Incremental CRC (streaming calculation without re-reading memory).
 - Writing to RAM Ring (single critical section).
@@ -169,21 +169,25 @@ Merge
 ### 9.1 Daily Maintenance
 
 - **Iteration Start**: Check `ROUTE.md` goals, ensure no scope creep.
-- **Each Commit**: Run `ctest` (host tests) locally before pushing.
-- **Protocol Tweaks**: Run `../../tool/golden/update_golden.py` and commit new golden frames.
+- **Each Commit**: Run host `ctest` plus `python -m pytest -q` locally before pushing.
+- **Protocol Tweaks**: Run `python tool/golden/update_golden.py --check` first; commit regenerated golden frames only when the wire contract intentionally changes.
 - **Weekly**: Check `tests/` coverage; add tests for any uncovered new code.
 
 ### 9.2 Release Workflow
 
 1. Confirm all `ROUTE.md` tasks for the stage are complete.
-2. Run full tests: `ctest --output-on-failure` + `python ../../tool/tests/test_decoder.py`.
-3. Run benchmark: `../../tool/benchmark/host_benchmark` and update the report.
-4. Check for no P0/P1 issues (see §10).
-5. Update `../changelog/CHANGELOG.md`.
-6. Update `PLAN.md` status.
-7. Tag git: `git tag v0.x-stage`.
-8. Run amalgamation script and verify the single-file library passes tests.
-9. Publish Release Note (including binaries, single-file library, decoder, and docs).
+2. Run host C matrix: Clang and GCC builds, then `ctest --test-dir <build-dir> --output-on-failure` for each.
+3. Run Python/tooling matrix: `python -m pytest -q`, `python -m compileall -q tool/src tests`, and `PYTHONPATH=tool/src python -m axiomtrace_tools.cli validate --golden tool/golden`.
+4. Run golden verification: `python tool/golden/update_golden.py --check`.
+5. Run preset smoke builds for `custom`, `tiny`, `prod`, `field`, and `dev` with `AXIOM_BUILD_TESTS=OFF`.
+6. Run integration: on Windows use Git Bash for `./tests/test_integration.sh`.
+7. Run benchmark: `tests/host/test_benchmark` from a verified build directory and update the report if the baseline changes.
+8. Check for no P0/P1 issues (see §10).
+9. Update `../changelog/CHANGELOG.md`.
+10. Update `PLAN.md` status.
+11. Tag git: `git tag v0.x-stage`.
+12. Run amalgamation script and verify the single-file library passes tests.
+13. Publish Release Note (including binaries, single-file library, decoder, and docs).
 
 ### 9.3 Issue Grading and Response
 

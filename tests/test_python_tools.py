@@ -80,14 +80,26 @@ def identity_frame(metadata_id: str) -> bytes:
     )
 
 
-def make_capsule(frames: bytes, firmware_hash: bytes = b"\x01\x23\x45\x67") -> bytes:
+def make_capsule(
+    frames: bytes,
+    firmware_hash: bytes = b"\x01\x23\x45\x67",
+    *,
+    reset_reason: int = 1,
+    fault_type: int = 2,
+    drop_count: int = 0,
+    pre_window_count: int = 0,
+    post_window_count: int = 1,
+    snapshot_id: int = 1,
+    snapshot: bytes = b"",
+) -> bytes:
     capsule = bytearray(b"AXCP")
     capsule.append(1)
     capsule.extend(b"\0\0")
-    capsule.extend(bytes([1, 2]))
+    capsule.extend(bytes([reset_reason, fault_type]))
     capsule.extend(firmware_hash)
-    capsule.extend(struct.pack("<I", 0))
-    capsule.extend(bytes([0, 0, 1, 0]))
+    capsule.extend(struct.pack("<I", drop_count))
+    capsule.extend(bytes([pre_window_count, post_window_count, snapshot_id, len(snapshot)]))
+    capsule.extend(snapshot)
     capsule.extend(frames)
     capsule_len = len(capsule) + 4
     struct.pack_into("<H", capsule, 5, capsule_len)
@@ -188,6 +200,32 @@ class TestDecoder:
         result = decode_stream(stream)
         assert len(result) == 2
         assert all('error' not in r for r in result)
+
+    def test_decode_stream_resynchronizes_after_corrupt_frame(self, valid_frame):
+        corrupt = bytearray(valid_frame)
+        corrupt[-1] ^= 0xFF
+
+        result = decode_stream(b"\x00garbage" + bytes(corrupt) + b"\x13\x37" + valid_frame)
+
+        assert any(frame.get("error") == "CRC_MISMATCH" for frame in result)
+        assert result[-1]["module_id"] == 0x10
+        assert result[-1]["event_id"] == 0x0001
+        assert "error" not in result[-1]
+
+    @pytest.mark.parametrize(
+        "payload",
+        [
+            b"",
+            b"\xA5",
+            b"\xA5\x20\xF1",
+            b"\xA5\x30\x01\x10\x01\x00\x01\x00\x00\x00",
+            bytes(range(64)),
+            b"\xA5" + b"\x20" * 255,
+        ],
+    )
+    def test_decode_malformed_inputs_never_raise(self, payload):
+        result = decode_stream(payload)
+        assert isinstance(result, list)
 
     def test_decode_legacy_v1_0_without_timestamp(self):
         result, _ = decode_frame(make_frame(major=1, minor=0))
@@ -523,6 +561,42 @@ class TestToolchain:
 
         with pytest.raises(ValueError, match="does not match bundle"):
             render_capsule_report(report, "json", bundle_metadata_id="0000000000000000")
+
+    def test_capsule_decode_matches_firmware_header_layout(self):
+        snapshot = struct.pack("<IIII", 0x1000, 0x2000, 0x3000, 0x4000)
+        capsule = make_capsule(
+            make_frame(bytes([42])),
+            firmware_hash=b"\xAA\xBB\xCC\xDD",
+            reset_reason=7,
+            fault_type=0x44,
+            drop_count=9,
+            pre_window_count=3,
+            post_window_count=2,
+            snapshot_id=1,
+            snapshot=snapshot,
+        )
+
+        report = decode_capsule(capsule)
+
+        assert report["firmware_hash"] == "aabbccdd"
+        assert report["reset_reason"] == 7
+        assert report["fault_type"] == 0x44
+        assert report["drop_count"] == 9
+        assert report["pre_window_count"] == 3
+        assert report["post_window_count"] == 2
+        assert report["snapshot"]["pc"] == 0x1000
+        assert report["snapshot"]["lr"] == 0x2000
+        assert len(report["frames"]) == 1
+
+    def test_capsule_decode_rejects_corrupt_or_truncated_images(self):
+        valid = bytearray(make_capsule(make_frame(bytes([42]))))
+        corrupt = bytearray(valid)
+        corrupt[-5] ^= 0x5A
+
+        with pytest.raises(ValueError, match="CRC mismatch"):
+            decode_capsule(bytes(corrupt))
+        with pytest.raises(ValueError, match="truncated"):
+            decode_capsule(bytes(valid[:12]))
 
     def test_codegen_accounts_for_location_metadata_overhead(self):
         args = [{"name": f"a{idx}", "type": "u32"} for idx in range(31)]

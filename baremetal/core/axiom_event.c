@@ -5,6 +5,7 @@
 #include "axiom_filter.h"
 #include "axiom_timestamp.h"
 #include "axiom_backend.h"
+#include "axiom_capsule.h"
 #include "axiom_frontend.h"
 #include "axiom_port.h"
 #include <string.h>
@@ -63,6 +64,7 @@ void axiom_init(void) {
     s_seq = 0;
     axiom_filter_init(&s_filter);
     axiom_timestamp_init(&s_ts_ctx);
+    axiom_capsule_init();
 }
 
 void axiom_flush(void) {
@@ -200,10 +202,13 @@ void axiom_write(axiom_level_t level, uint8_t module_id, uint16_t event_id,
 
     axiom_port_critical_exit();
 
+    axiom_capsule_observe_frame(local_buf, pos, level);
+
     /* Emit DROP_SUMMARY outside critical section.
      * Recursive axiom_write() is safe: it has its own critical section.
      * Using cached_* locals avoids touching s_filter after CS exit. */
     if (has_drop) {
+        axiom_capsule_record_drops(cached_lost);
         axiom_write_drop_summary(cached_lost, cached_mod, cached_evt);
     }
 }
@@ -258,16 +263,36 @@ void axiom_write(axiom_level_t level, uint8_t module_id, uint16_t event_id,
     header[7] = (uint8_t)(s_seq >> 8);
     s_seq++;
 
+#if AXIOM_CAPSULE_ENABLED
+    uint8_t capsule_frame[AXIOM_MAX_FRAME_LEN];
+    uint16_t capsule_pos = 0;
+    memcpy(capsule_frame + capsule_pos, header, sizeof(header));
+    capsule_pos = (uint16_t)(capsule_pos + sizeof(header));
+    memcpy(capsule_frame + capsule_pos, ts_buf, ts_len);
+    capsule_pos = (uint16_t)(capsule_pos + ts_len);
+#endif
+
     axiom_ring_write_chunk(&s_ring, header, 8, &crc);
     axiom_ring_write_chunk(&s_ring, ts_buf, ts_len, &crc);
     axiom_ring_write_chunk(&s_ring, &payload_len, 1, &crc);
+#if AXIOM_CAPSULE_ENABLED
+    capsule_frame[capsule_pos++] = payload_len;
+#endif
     if (payload_len > 0 && payload) {
         axiom_ring_write_chunk(&s_ring, payload, payload_len, &crc);
+#if AXIOM_CAPSULE_ENABLED
+        memcpy(capsule_frame + capsule_pos, payload, payload_len);
+        capsule_pos = (uint16_t)(capsule_pos + payload_len);
+#endif
     }
     uint8_t crc_buf[2];
     crc_buf[0] = (uint8_t)(crc & 0xFFu);
     crc_buf[1] = (uint8_t)(crc >> 8);
     axiom_ring_write_chunk(&s_ring, crc_buf, 2, NULL);
+#if AXIOM_CAPSULE_ENABLED
+    capsule_frame[capsule_pos++] = crc_buf[0];
+    capsule_frame[capsule_pos++] = crc_buf[1];
+#endif
 
     const bool     has_drop    = s_filter.drop_pending;
     uint32_t       cached_lost = 0;
@@ -285,7 +310,12 @@ void axiom_write(axiom_level_t level, uint8_t module_id, uint16_t event_id,
 
     axiom_port_critical_exit();
 
+#if AXIOM_CAPSULE_ENABLED
+    axiom_capsule_observe_frame(capsule_frame, capsule_pos, level);
+#endif
+
     if (has_drop) {
+        axiom_capsule_record_drops(cached_lost);
         axiom_write_drop_summary(cached_lost, cached_mod, cached_evt);
     }
 }

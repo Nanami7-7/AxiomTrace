@@ -20,11 +20,12 @@ AxiomTrace/
 │   │   └── CHANGELOG.md / CHANGELOG_zh.md
 │   ├── reference/                     # Technical references
 │   │   ├── DIR_STRUCTURE.md           # This file — directory index
+│   │   ├── benchmark.md               # Host benchmark baseline and release gate
 │   │   ├── platform_reference.md      # Platform-specific reference
 │   │   └── porting_guide.md           # Porting guide for new platforms
 │
 ├── spec/                              # Formal specifications (bilingual where public)
-│   ├── event_model.md                 # Event record semantics, header layout, D2R
+│   ├── event_model.md                 # Event record semantics, header layout, frame assembly
 │   ├── wire_format.md                 # Binary serialization: framing, COBS, CRC
 │   ├── backend_contract.md            # Backend interface contract
 │   ├── api_reference.md               # Frontend macros, core API, config macros
@@ -45,7 +46,8 @@ AxiomTrace/
 │   │   ├── axiom_encode.h             # Binary encoder with _Generic type dispatch
 │   │   ├── axiom_crc.h/.c             # CRC-16/CCITT-FALSE lookup table
 │   │   ├── axiom_timestamp.h/.c       # Delta-compressed timestamp encoding
-│   │   └── axiom_filter.h/.c          # Level mask filter, drop statistics, DROP_SUMMARY
+│   │   ├── axiom_filter.h/.c          # Level mask filter, drop statistics, DROP_SUMMARY
+│   │   └── axiom_capsule.h/.c         # Fault capsule capture and flash commit
 │   ├── frontend/                      # [Frontend Plane] User-facing macros
 │   │   └── axiom_frontend.h           # AX_LOG/EVT/PROBE/FAULT/KV + profile control
 │   ├── backend/                       # [Backend Plane] Backend contract and implementations
@@ -103,7 +105,11 @@ AxiomTrace/
 │   │   ├── test_ring.c                # Ring buffer overwrite/coverage/ISR safety
 │   │   ├── test_crc.c                 # CRC-16 correctness and error detection
 │   │   ├── test_event.c               # Frame assembly and parse consistency
-│   │   └── test_filter.c              # Level filtering, drop stats, DROP_SUMMARY
+│   │   ├── test_filter.c              # Level filtering, drop stats, DROP_SUMMARY
+│   │   ├── test_capsule.c             # Fault capsule capture/commit/power-loss simulation
+│   │   ├── test_dynamic_call_chain.c  # Frontend→core→ring→backend dynamic scenarios
+│   │   ├── test_profiles.c            # DEV/FIELD/PROD frontend pruning compatibility
+│   │   └── test_benchmark.c           # Host performance regression benchmark
 │   ├── test_python_tools.py           # Python decoder golden regression test
 │   └── test_integration.sh            # Shell integration test (build, run, verify)
 │

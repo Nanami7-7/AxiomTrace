@@ -20,7 +20,13 @@ static int write_frame(const uint8_t *buf, uint16_t len, void *ctx) {
         return -1;
     }
     (void)snprintf(path, sizeof(path), "%s/%s", s_output_dir, names[s_frame_index]);
+#if defined(_MSC_VER)
+    if (fopen_s(&output, path, "wb") != 0) {
+        output = NULL;
+    }
+#else
     output = fopen(path, "wb");
+#endif
     if (output == NULL) {
         return -1;
     }

@@ -8,7 +8,152 @@ on:
   workflow_dispatch:
 
 jobs:
-  build-and-test:
+  host-c:
+    name: Host C (${{ matrix.compiler }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - compiler: clang
+            selftest: OFF
+          - compiler: gcc
+            selftest: ON
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install C dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y cmake ninja-build clang gcc
+
+      - name: Configure
+        run: >
+          cmake -S . -B build-${{ matrix.compiler }}
+          -G Ninja
+          -DAXIOM_BUILD_TESTS=ON
+          -DAXIOM_BUILD_EXAMPLES=ON
+          -DAXIOM_SELFTEST=${{ matrix.selftest }}
+          -DCMAKE_C_COMPILER=${{ matrix.compiler }}
+
+      - name: Build
+        run: cmake --build build-${{ matrix.compiler }} --parallel
+
+      - name: Run host tests
+        run: ctest --test-dir build-${{ matrix.compiler }} --output-on-failure
+
+  python-tooling:
+    name: Python Tooling
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y cmake ninja-build clang
+          python -m pip install --upgrade pip
+          python -m pip install pytest click
+
+      - name: Build golden encoder
+        run: >
+          cmake -S . -B build
+          -G Ninja
+          -DAXIOM_BUILD_TESTS=ON
+          -DAXIOM_BUILD_EXAMPLES=ON
+          -DCMAKE_C_COMPILER=clang
+          && cmake --build build --parallel
+
+      - name: Python tests
+        run: python -m pytest -q
+
+      - name: Compile Python sources
+        run: python -m compileall -q tool/src tests
+
+      - name: Golden check
+        run: python tool/golden/update_golden.py --check
+
+      - name: CLI golden validation
+        run: PYTHONPATH=tool/src python -m axiomtrace_tools.cli validate --golden tool/golden
+
+      - name: Integration script
+        run: bash ./tests/test_integration.sh
+
+  preset-smoke:
+    name: Preset Smoke (${{ matrix.preset }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        preset: [custom, tiny, prod, field, dev]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install C dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y cmake ninja-build clang
+
+      - name: Configure preset
+        run: >
+          cmake -S . -B build-preset-${{ matrix.preset }}
+          -G Ninja
+          -DAXIOM_PRESET=${{ matrix.preset }}
+          -DAXIOM_BUILD_TESTS=OFF
+          -DAXIOM_BUILD_EXAMPLES=ON
+          -DCMAKE_C_COMPILER=clang
+
+      - name: Build preset
+        run: cmake --build build-preset-${{ matrix.preset }} --parallel
+
+  release-artifact:
+    name: Release Artifact
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y gcc
+
+      - name: Generate single-file header
+        run: python tool/scripts/amalgamate.py
+
+      - name: Verify generated header is current
+        run: git diff --exit-code axiomtrace_amalgamated.h
+
+      - name: GNU11 smoke compile
+        run: |
+          cat > /tmp/axiomtrace_smoke.c <<'EOF'
+          #include "axiomtrace_amalgamated.h"
+          int main(void) {
+              axiom_init();
+              AX_EVT(INFO, 0x01u, 0x0001u);
+              AX_EVT(INFO, 0x01u, 0x0002u, (uint8_t)1u);
+              AX_FAULT(0x02u, 0x0003u);
+              (void)axiom_capsule_commit();
+              axiom_flush();
+              return 0;
+          }
+          EOF
+          gcc -std=gnu11 -Wall -Wextra -Werror -I. /tmp/axiomtrace_smoke.c -c -o /tmp/axiomtrace_smoke.o
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: axiomtrace_amalgamated
+          path: axiomtrace_amalgamated.h
+
+  benchmark:
+    name: Benchmark Output
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -16,13 +161,15 @@ jobs:
       - name: Install dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y cmake clang
+          sudo apt-get install -y cmake ninja-build gcc
 
-      - name: Configure
-        run: cmake -B build -DAXIOM_BUILD_TESTS=ON -DCMAKE_C_COMPILER=clang
+      - name: Build benchmark
+        run: >
+          cmake -S . -B build-benchmark
+          -G Ninja
+          -DAXIOM_BUILD_TESTS=ON
+          -DCMAKE_C_COMPILER=gcc
+          && cmake --build build-benchmark --parallel
 
-      - name: Build
-        run: cmake --build build --parallel
-
-      - name: Run host tests
-        run: ctest --test-dir build --output-on-failure
+      - name: Run benchmark
+        run: ./build-benchmark/tests/host/test_benchmark

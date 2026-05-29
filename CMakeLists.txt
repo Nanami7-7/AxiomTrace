@@ -11,9 +11,12 @@ set(CMAKE_C_EXTENSIONS ON)
 option(AXIOM_BUILD_TESTS "Build host unit tests" ON)
 option(AXIOM_BUILD_BENCHMARKS "Build benchmarks" OFF)
 option(AXIOM_BUILD_EXAMPLES "Build examples" ON)
+set(AXIOM_PRESET "dev" CACHE STRING "Resource preset: custom, tiny, prod, field, dev")
+set_property(CACHE AXIOM_PRESET PROPERTY STRINGS custom tiny prod field dev)
 
 list(APPEND CMAKE_MODULE_PATH "${PROJECT_SOURCE_DIR}/cmake")
 include(AxiomTraceTools OPTIONAL)
+include(AxiomTracePresets)
 
 # ---------------------------------------------------------------------------
 # Platform/Port options (three-layer architecture)
@@ -96,6 +99,14 @@ if(CMAKE_C_COMPILER_ID MATCHES "GNU|Clang")
         -pedantic
     )
 endif()
+if(CMAKE_C_COMPILER_ID MATCHES "Clang")
+    # AX_EVT/AX_FAULT intentionally support zero payload arguments on C11
+    # compilers via the GCC/Clang variadic comma-elision extension.
+    add_compile_options(
+        -Wno-gnu-zero-variadic-macro-arguments
+        -Wno-variadic-macro-arguments-omitted
+    )
+endif()
 
 # ---------------------------------------------------------------------------
 # Static analysis integration (disabled during v1.0 refactor)
@@ -117,6 +128,7 @@ set(AXIOM_CORE_HEADERS
     ${PROJECT_SOURCE_DIR}/baremetal/core/axiom_ring.h
     ${PROJECT_SOURCE_DIR}/baremetal/core/axiom_timestamp.h
     ${PROJECT_SOURCE_DIR}/baremetal/core/axiom_filter.h
+    ${PROJECT_SOURCE_DIR}/baremetal/core/axiom_capsule.h
     ${PROJECT_SOURCE_DIR}/baremetal/core/axiom_selftest.h
     ${PROJECT_SOURCE_DIR}/baremetal/frontend/axiom_frontend.h
     ${PROJECT_SOURCE_DIR}/baremetal/backend/axiom_backend.h
@@ -128,6 +140,7 @@ set(AXIOM_CORE_SOURCES
     ${PROJECT_SOURCE_DIR}/baremetal/core/axiom_ring.c
     ${PROJECT_SOURCE_DIR}/baremetal/core/axiom_timestamp.c
     ${PROJECT_SOURCE_DIR}/baremetal/core/axiom_filter.c
+    ${PROJECT_SOURCE_DIR}/baremetal/core/axiom_capsule.c
     ${PROJECT_SOURCE_DIR}/baremetal/core/axiom_selftest.c
     ${PROJECT_SOURCE_DIR}/baremetal/backend/axiom_backend.c
 )
@@ -156,6 +169,34 @@ target_include_directories(axiomtrace PRIVATE ${PROJECT_SOURCE_DIR}/baremetal/po
 # ---------------------------------------------------------------------------
 option(AXIOM_SELFTEST "Enable runtime self-test at boot" OFF)
 option(AXIOM_DEBUG "Enable debug assertions and diagnostics" OFF)
+
+string(TOLOWER "${AXIOM_PRESET}" AXIOM_PRESET_NORMALIZED)
+
+# Validate preset
+if(NOT AXIOM_PRESET_NORMALIZED MATCHES "^(custom|tiny|prod|field|dev)$")
+    message(FATAL_ERROR "Invalid AXIOM_PRESET='${AXIOM_PRESET}'. Valid values: custom, tiny, prod, field, dev")
+endif()
+
+# Map preset name to numeric value (for backward compatibility with axiom_config.h)
+if(AXIOM_PRESET_NORMALIZED STREQUAL "custom")
+    set(AXIOM_PRESET_VALUE 0)
+elseif(AXIOM_PRESET_NORMALIZED STREQUAL "tiny")
+    set(AXIOM_PRESET_VALUE 1)
+elseif(AXIOM_PRESET_NORMALIZED STREQUAL "prod")
+    set(AXIOM_PRESET_VALUE 2)
+elseif(AXIOM_PRESET_NORMALIZED STREQUAL "field")
+    set(AXIOM_PRESET_VALUE 3)
+elseif(AXIOM_PRESET_NORMALIZED STREQUAL "dev")
+    set(AXIOM_PRESET_VALUE 4)
+endif()
+
+message(STATUS "AXIOM_PRESET: ${AXIOM_PRESET_NORMALIZED}")
+
+# Apply preset values via centralized preset system
+axiom_apply_preset(axiomtrace ${AXIOM_PRESET_NORMALIZED})
+
+# Always set the preset numeric value (for axiom_config.h validation)
+target_compile_definitions(axiomtrace PUBLIC AXIOM_PRESET=${AXIOM_PRESET_VALUE})
 
 if(AXIOM_SELFTEST)
     target_compile_definitions(axiomtrace PUBLIC AXIOM_SELFTEST=1)

@@ -107,7 +107,7 @@ void DMA2_Stream7_IRQHandler(void) {
 
 1. 安装 [ST-Link 驱动](https://www.st.com/en/development-tools/st-link-windows.html)
 2. 在设备管理器中确认 COM 端口号
-3. 使用串口工具连接 (如 PuTTY, teraterm, 或 axiomtrace-decoder)
+3. 使用串口工具连接并保存原始二进制输出（如 PuTTY、Tera Term 或 `socat`）
 
 ## GPIO 说明
 
@@ -170,16 +170,16 @@ AxiomTrace 使用 COBS (Consistent Overhead Byte Stuffing) 编码:
 
 ## 主机端解码
 
-使用 Python 解码器接收数据:
+先用串口工具捕获原始二进制流，再用当前 Python CLI 解码：
 
 ```bash
-python -m axiomtrace.decoder --uart /dev/ttyUSB0 --baudrate 921600
+axiom-decoder trace.bin --bundle build/axiomtrace-bundle --format text
 ```
 
-或使用实时查看器:
+如果还没有匹配的 bundle，可先做结构化 raw 解码：
 
 ```bash
-python -m axiomtrace.viewer --uart /dev/ttyUSB0 --baudrate 921600
+axiom-decoder trace.bin --format raw
 ```
 
 ## 性能考量

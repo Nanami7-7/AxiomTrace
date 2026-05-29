@@ -14,7 +14,7 @@ AxiomTrace is a high-performance, deterministic observability core designed for 
 int main(void) {
     axiom_init();
     /* Structured event: O(1), ISR-safe, 0-malloc, 0-printf */
-    AX_EVT(INFO, MOTOR, START, (uint16_t)3200); 
+    AX_EVT(INFO, 0x03u, 0x0001u, (uint16_t)3200);
     return 0;
 }
 ```
@@ -24,8 +24,8 @@ int main(void) {
 ### ⚡ Deterministic O(1) Performance
 AxiomTrace guarantees that every log call executes in constant time. By using a **Blind Overwrite** policy and a bitwise-mask ring buffer, it avoids expensive frame boundary searches during interrupts.
 
-### 🧬 Direct-to-Ring (D2R) Technology
-Unlike traditional loggers that assemble frames on the stack, AxiomTrace writes data **directly into the ring buffer segments**. Coupled with **Incremental CRC**, it eliminates redundant memory copies and massive stack frame allocations.
+### 🧬 Short Critical Section Encoding
+Unlike traditional loggers that format text in the hot path, AxiomTrace packs bounded binary values and writes a complete frame to the ring in one critical section. The default `AXIOM_SHORT_CS=1` path trades a bounded stack buffer for lower interrupt latency.
 
 ### 🌐 Dual-Track Time Synchronization
 Supports high-resolution relative counters for precise timing analysis, while allowing periodic Unix timestamp injection for real-world wall-clock alignment on the host side.
@@ -39,7 +39,7 @@ Keep your firmware binary lean by storing only raw IDs and integers. Use the **H
 
 - **Protocol-Entity Architecture**: Text/JSON/Binary are just views; the Event Record is the only truth.
 - **Pluggable Backends**: UART, USB, RTT, SWO, or Flash Capsule — add new ones without touching the core. Use `AXIOM_BACKEND_INIT(...)` for forward-compatible struct initialization.
-- **Fault Capsule**: Automatically freezes pre/post windows during critical faults and commits to non-volatile storage.
+- **Fault Capsule**: `AX_FAULT` emits a fault-level Event Record, calls the platform fault hook, freezes the RAM pre/post window, and writes Flash only when user code explicitly calls `axiom_capsule_commit()`.
 - **Profile-based Pruning**: `PROD` profile automatically removes debug probes and logs at compile-time.
 - **Library Versioning**: Compile-time version check via `AXIOMTRACE_VERSION_CHECK(major, minor, patch)`.
 - **Configurable Module Limits**: `AXIOM_MODULE_MAX` (default 32) controls the module filter bitmask width.
@@ -52,7 +52,7 @@ Keep your firmware binary lean by storing only raw IDs and integers. Use the **H
 ```text
 AxiomTrace/
   Frontend Plane   AX_LOG / AX_EVT / AX_PROBE / AX_FAULT / AX_KV
-  Core Plane       Direct-to-Ring (D2R) → Incremental CRC → Filter → Bit-Mask Ring
+  Core Plane       Packed Encode → CRC → Filter → Short Critical Ring Write
   Backend Plane    UART / RTT / USB / SWO / Flash Capsule / CAN-FD
   Tool Plane       Metadata Bundle / Python Decoder / Text Render / JSON Export / Golden Test
 ```
@@ -90,6 +90,22 @@ Bundle-backed semantic decode requires the trace to emit the generated metadata 
 
 Wire `v2.0` encodes ordinary event arguments as dictionary-defined packed values; metadata identity and optional source-location suffixes remain tagged. The reserved `AX_PROBE` system event retains typed fields because its value type varies without an application event schema. `AX_KV` event dictionaries must declare each packed key-hash/value pair in emission order. Use a metadata bundle for semantic `v2` decoding. The host decoder also retains structural support for historical typed-payload `v1.x` frames. JSON event definitions require no optional parser; YAML input requires `python -m pip install -e "./tool[yaml]"`.
 
+### MCU resource presets
+
+Use `AXIOM_PRESET` to move between resource classes without hand-tuning every macro:
+
+```bash
+cmake -B build-tiny -S . -G Ninja -DAXIOM_PRESET=tiny -DAXIOM_BUILD_TESTS=OFF
+```
+
+| Preset | Intended target | Key behavior |
+| :--- | :--- | :--- |
+| `custom` | project-owned tuning | no preset overrides; use individual `AXIOM_*` macros |
+| `tiny` | very small MCU / strict ISR stack | PROD profile, 256B ring, 32B payload, no capsule, no time sync, per-phase write path |
+| `prod` | production firmware | PROD profile, 1KB ring, 64B payload, no debug logs/probes, capsule off by default |
+| `field` | service builds | FIELD profile, 2KB ring, capsule window enabled with smaller buffers |
+| `dev` | default host/dev build | full diagnostics, 4KB ring, capsule enabled |
+
 ---
 
 ## 📚 Documentation Index
@@ -99,7 +115,7 @@ Wire `v2.0` encodes ordinary event arguments as dictionary-defined packed values
 | [Directory Structure](docs/reference/DIR_STRUCTURE.md) | Complete file tree with plane annotations |
 | [API Reference](spec/api_reference.md) | Frontend macros and Core control APIs |
 | [Wire Format](spec/wire_format.md) | Binary serialization and framing (COBS) |
-| [Event Model](spec/event_model.md) | Header layout, timestamp, and D2R mechanics |
+| [Event Model](spec/event_model.md) | Header layout, timestamp, and event semantics |
 | [Dictionary Spec](spec/event_dictionary.md) | YAML schema and Enum mapping |
 | [Toolchain Ecosystem](spec/toolchain_ecosystem_design.md) | Decoder, bundle, codegen, validation, and host-side workflow standards |
 | [Rules & Policy](docs/project/RULES.md) | Engineering standards and hot-path mandates |

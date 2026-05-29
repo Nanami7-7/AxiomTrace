@@ -109,13 +109,13 @@ Reserved system events have fixed protocol schemas and do not depend on an appli
 - **Payload**: `payload_len` bytes, v2 packed values with optional tagged metadata suffixes
 - **CRC-16**: CCITT-FALSE (`poly = 0x1021`, `init = 0xFFFF`, no reflection, final XOR `0x0000`)
 
-### 5.1 Direct-to-Ring (D2R) Mechanism
+### 5.1 Short Critical Section Frame Assembly
 
-AxiomTrace uses the **Direct-to-Ring (D2R)** mechanism to minimize RAM overhead and latency:
+AxiomTrace uses bounded binary frame assembly to minimize hot-path latency:
 
-1. **Zero Stack Buffering**: Instead of assembling the entire frame in a temporary stack buffer, the encoder acquires space in the ring buffer and writes fields directly to it.
-2. **Incremental CRC**: The CRC-16 is computed incrementally as each byte is written. This eliminates the need for a second pass over the frame and avoids storing the full frame on the stack.
-3. **Atomic Commit**: The ring buffer "head" is only updated after the full frame (including CRC) is successfully written, ensuring that partial or interrupted writes do not corrupt the stream.
+1. **Packed Payload Encoding**: Frontend macros encode only dictionary-defined binary values; no format strings are written to the firmware event stream.
+2. **Short Critical Section**: With `AXIOM_SHORT_CS=1` (default), `axiom_write()` pre-encodes the complete frame outside the critical section, then commits it to the ring in one write while shared state is protected.
+3. **CRC-Protected Frame**: CRC-16 covers the header, timestamp, payload length, and payload. The fallback `AXIOM_SHORT_CS=0` path keeps incremental CRC while reducing stack usage.
 
 For byte-stream transports (UART, USB CDC), the entire frame may be COBS-encoded with a `0x00` delimiter. See `spec/wire_format.md` for transport variations.
 
@@ -151,7 +151,7 @@ The `text` field uses named placeholders with types that define the v2 packed ar
 - Maximum number of modules: **256** (`module_id` is `uint8_t`).
 - Maximum events per module: **65536** (`event_id` is `uint16_t`, practically limited by ROM).
 - Header, Timestamp and payload are always CRC-protected.
-- **Stack Efficiency**: By using D2R, the stack usage is reduced to a few dozen bytes, regardless of the `AXIOM_MAX_PAYLOAD_LEN` setting. No large local arrays are required.
+- **Stack Bound**: Default short-critical-section mode uses a bounded frame buffer (`AXIOM_MAX_FRAME_LEN`) to reduce interrupt latency. Set `AXIOM_SHORT_CS=0` on extremely stack-constrained targets.
 
 ---
 

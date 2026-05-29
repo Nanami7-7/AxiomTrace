@@ -132,6 +132,8 @@ static bool run_test(const char *name, bool (*test_fn)(void)) {
         axiom_port_string_out("[selftest] FAIL: ");
         axiom_port_string_out(name);
         axiom_port_string_out("\n");
+#else
+        (void)name;
 #endif
         return false;
     }

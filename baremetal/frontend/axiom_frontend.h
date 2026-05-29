@@ -13,9 +13,15 @@ extern "C" {
 /* ---------------------------------------------------------------------------
  * Profile control
  * --------------------------------------------------------------------------- */
+#ifndef AXIOM_PROFILE_DEV
 #define AXIOM_PROFILE_DEV    0
+#endif
+#ifndef AXIOM_PROFILE_FIELD
 #define AXIOM_PROFILE_FIELD  1
+#endif
+#ifndef AXIOM_PROFILE_PROD
 #define AXIOM_PROFILE_PROD   2
+#endif
 
 #ifndef AXIOM_PROFILE
 #define AXIOM_PROFILE AXIOM_PROFILE_DEV

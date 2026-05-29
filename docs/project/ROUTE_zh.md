@@ -2,7 +2,7 @@
 
 # AxiomTrace 开发路线图
 
-> 版本：v1.0 | 状态：**执行中** | 更新日期：2026-04-29
+> 版本：v1.0 | 状态：**执行中** | 更新日期：2026-05-28
 
 ---
 
@@ -12,20 +12,20 @@
 
 - [x] 仓库目录结构按五平面重组。
 - [x] `PLAN.md` / `ROUTE.md` / `RULES.md` 定稿。
-- [ ] `../../spec/event_model.md` 定稿（Event Record 语义与版本化 payload 解释）。
-- [ ] `../../spec/wire_format.md` 定稿（当前 wire frame 结构）。
-- [ ] `../../spec/backend_contract.md` 定稿（`axiom_backend_t` 接口）。
+- [x] `../../spec/event_model.md` 定稿（Event Record 语义与版本化 payload 解释）。
+- [x] `../../spec/wire_format.md` 定稿（当前 wire frame 结构）。
+- [x] `../../spec/backend_contract.md` 定稿（`axiom_backend_t` 接口）。
 - [ ] `../../spec/fault_capsule.md` 定稿（capsule 格式与生命周期）。
-- [ ] `../../spec/api_reference.md` 初稿（Frontend 宏 API）。
-- [ ] 无锁 ISR-safe RAM Ring `axiom_ring.c`。
-- [ ] Event Record 组装 `axiom_event.c`（header + payload_len + payload + crc）。
-- [ ] 二进制编码器 `axiom_encode.c`（`_Generic` 类型分发 + v2 packed 值）。
-- [ ] CRC-16/CCITT-FALSE 查表 `axiom_crc.c`。
-- [ ] 压缩相对时间戳 `axiom_timestamp.c`。
-- [ ] 级别过滤与丢弃统计 `axiom_filter.c`。
-- [ ] Memory Backend `axiom_backend_memory.c`。
-- [ ] Host Unit Tests：`test_ring.c`、`test_encode.c`、`test_crc.c`、`test_event.c`、`test_filter.c`。
-- [ ] CMake 构建系统适配新目录。
+- [x] `../../spec/api_reference.md` 初稿（Frontend 宏 API）。
+- [x] 无锁 ISR-safe RAM Ring `axiom_ring.c`。
+- [x] Event Record 组装 `axiom_event.c`（header + payload_len + payload + crc）。
+- [x] 二进制编码器 `axiom_encode.h`（`_Generic` 类型分发 + v2 packed 值）。
+- [x] CRC-16/CCITT-FALSE 查表 `axiom_crc.c`。
+- [x] 压缩相对时间戳 `axiom_timestamp.c`。
+- [x] 级别过滤与丢弃统计 `axiom_filter.c`。
+- [x] Memory Backend `axiom_backend_memory.c`。
+- [x] Host Unit Tests：ring、encoder、CRC、event、filter、backend、location、profile、dynamic call-chain 与 benchmark 覆盖。
+- [x] CMake 构建系统适配新目录。
 
 **验收标准**：
 - `ctest` 全部通过。
@@ -38,14 +38,14 @@
 
 **目标**：协议能被长期维护。encoder → frame → decoder → expected.json 完全一致。
 
-- [ ] 冻结 binary frame 字段顺序与大小。
-- [ ] 生成首批 golden frames（覆盖 packed schema、metadata suffix 与边界 payload）。
-- [ ] 编写 `expected.json`（decoder 期望输出）。
-- [ ] Python decoder `../../tool/decoder/axiom_decoder.py`（解析 header/payload/crc）。
-- [ ] decoder 非法帧显式拒绝（返回 `FRAME_INVALID`，不崩溃）。
-- [ ] `../../tool/golden/update_golden.py`（encoder 生成 bin + expected.json）。
-- [ ] Host regression test：`test_decoder.py` 对 golden frames 全量比对。
-- [ ] 文档更新：`../../spec/wire_format.md` 标记为 **FROZEN**。
+- [x] 冻结 binary frame 字段顺序与大小。
+- [x] 生成首批 golden frames（覆盖 packed schema、metadata suffix 与边界 payload）。
+- [x] 编写 `expected.json`（decoder 期望输出）。
+- [x] Python decoder `../../tool/decoder/axiom_decoder.py`（解析 header/payload/crc）。
+- [x] decoder 非法帧以结构化错误显式拒绝且不崩溃。
+- [x] `../../tool/golden/update_golden.py`（encoder 生成 bin + expected.json）。
+- [x] Host regression test：`tests/test_python_tools.py` 对 golden frames 全量比对。
+- [x] 文档更新：`../../spec/wire_format.md` 标记为 **FROZEN**。
 
 **验收标准**：
 - `encoder -> frame -> decoder -> expected.json` 100% 一致。
@@ -58,16 +58,16 @@
 
 **目标**：用户真正好上手。5 分钟打出第一条日志。
 
-- [ ] `AX_LOG(msg)` 宏实现（开发可读文本，运行时通过 port 的 `byte_out` 输出文本；PROD profile 展开为空）。
-- [ ] `AX_EVT(level, mod, evt, args...)` 宏实现（结构化事件，`_Generic` 编码）。
-- [ ] `AX_PROBE(tag, value)` 宏实现（高频低扰动探查，可选裁剪）。
-- [ ] `AX_FAULT(mod, evt, args...)` 宏实现（故障追溯，触发 capsule hook）。
-- [ ] `AX_KV(level, mod, evt, "k", v, ...)` 宏实现（轻量键值对）。
-- [ ] `DEV / FIELD / PROD` Profile 编译期裁切宏。
-- [ ] `axiom_frontend.h` 统一入口（自动包含所有 Frontend 宏）。
-- [ ] Example：`example_minimal.c`（3 行代码起步）。
-- [ ] Example：`example_full.c`（多 API 组合 + filter + backend）。
-- [ ] Host tests：各 Profile 下宏展开行为验证。
+- [x] `AX_LOG(msg)` 宏实现（开发可读文本，运行时通过 `axiom_port_string_out()` 输出文本；PROD profile 展开为空）。
+- [x] `AX_EVT(level, mod, evt, args...)` 宏实现（结构化事件，`_Generic` 编码）。
+- [x] `AX_PROBE(tag, value)` 宏实现（高频低扰动探查，可选裁剪）。
+- [x] `AX_FAULT(mod, evt, args...)` 宏实现（故障追溯，触发 fault hook）。
+- [x] `AX_KV(level, mod, evt, "k", v, ...)` 宏实现（轻量键值对）。
+- [x] `DEV / FIELD / PROD` Profile 编译期裁切宏。
+- [x] `axiom_frontend.h` 统一入口（自动包含所有 Frontend 宏）。
+- [x] Example：`example_minimal.c`（3 行代码起步）。
+- [x] Example：`example_full.c`（多 API 组合 + filter + backend）。
+- [x] Host tests：各 Profile 下宏展开行为验证。
 
 **验收标准**：
 - `example_minimal.c` 在主机 `gcc` 下零配置编译通过并输出预期结果。
@@ -80,16 +80,16 @@
 
 **目标**：外设全兼容，但不绑芯片。新增 backend 零侵入 core。
 
-- [ ] `axiom_backend.c` 注册表与分发器实现。
-- [ ] `axiom_backend_t` 结构体与 `axiom_backend_register()` API。
-- [ ] Memory Backend 完善（ring buffer 区域直接导出）。
-- [ ] UART Backend Template（COBS 编码 + 0x00 delimiter，用户填 UART 发送函数）。
+- [x] `axiom_backend.c` 注册表与分发器实现。
+- [x] `axiom_backend_t` 结构体与 `axiom_backend_register()` API。
+- [x] Memory Backend 完善（ring buffer 区域直接导出）。
+- [x] UART Backend Template（COBS 编码 + 0x00 delimiter，用户填 UART 发送函数）。
 - [ ] USB CDC Backend Template（bulk IN endpoint，用户填 USB 发送函数）。
-- [ ] RTT Backend Template（SEGGER RTT up-channel，用户填 SEGGER RTT 函数）。
+- [x] RTT Backend Template（SEGGER RTT up-channel，用户填 SEGGER RTT 函数）。
 - [ ] SWO/ITM Backend Template（32-bit stimulus word 流，用户填 ITM 函数）。
 - [ ] CAN-FD Backend Template（帧拆分与 ID 映射，用户填 CAN 发送函数）。
-- [ ] Backend drop callback 与限速机制。
-- [ ] Host tests：`test_backend.c`（注册、dispatch、drop、panic_write）。
+- [x] Backend drop callback 与限速/降级机制。
+- [x] Host tests：`test_backend_ext.c` 与 `test_dynamic_call_chain.c`（注册、dispatch、drop、busy backend、降级、恢复、panic_write）。
 
 **验收标准**：
 - 新增一个 backend 只需：实现 3 个函数 + 调用 `axiom_backend_register()`，不修改 `core/`。
@@ -142,20 +142,22 @@
 
 **目标**：二进制日志可读、可测、可导出。
 
-- [ ] decoder 完善：支持当前 packed frame、历史 typed frame、capsule 格式与 DROP_SUMMARY。
-- [ ] text render：dictionary 模板填充（`"motor current over limit: phase={u8}"`）。
-- [ ] json export：完整事件流导出为 JSON array。
+- [x] decoder 完善：支持当前 packed frame、历史 typed frame、capsule 格式与 DROP_SUMMARY。
+- [x] text render：dictionary 模板填充（`"motor current over limit: phase={u8}"`）。
+- [x] json export：完整事件流导出为 JSON array。
 - [x] 标准元数据包：`manifest.json`、`dictionary.json`、`source_map.json`、`build_info.json`，可选 `firmware.elf`/`.map`。
 - [x] `axiom-bundle generate`：根据事件定义、ELF、compile database 生成标准 bundle。
 - [x] CMake 集成：`axiomtrace_add_bundle(TARGET ... EVENTS ... OUTPUT_DIR ...)`。
 - [x] Decoder bundle 模式：`--bundle`、`--bundle-store`、元数据身份匹配和 raw fallback。
-- [ ] capsule report：HTML/Markdown 格式故障分析报告。
+- [x] capsule report：面向 draft capsule 格式的主机侧 JSON/Markdown/HTML 故障分析报告。
 - [x] dictionary validator：校验 payload 类型与 dictionary 模板匹配。
-- [ ] `../../tool/scripts/amalgamate.py`：将 core+frontend+port 合并为单文件 `axiomtrace.h`。
-- [ ] `../../tool/scripts/extract_dict.py`：从 C 源码/X-Macro 提取 `dictionary.json`。
-- [ ] benchmark 工具：`../../tool/benchmark/host_benchmark.c` 测量编码/CRC/ring write 周期。
-- [ ] golden 回归：CI 自动运行 `update_golden.py` + `test_decoder.py`。
-- [ ] 文档治理：README 只做索引；详细契约归主规范文档；禁止未链接的临时 Markdown。
+- [x] `../../tool/scripts/amalgamate.py`：将 core+frontend+port 合并为单文件头；GNU11 include 烟测通过。
+- [ ] amalgamated 产物作为发布制品通过完整 host test 矩阵。
+- [x] `../../tool/scripts/extract_dict.py`：从 C 源码/X-Macro 提取 `dictionary.json`。
+- [x] benchmark 工具：`tests/host/test_benchmark.c` 与 `../../tool/benchmark/host_benchmark.c` 测量编码/CRC/ring write 周期。
+- [x] golden 回归：本地 `update_golden.py --check` 与 Python golden tests。
+- [ ] CI gate：相关变更自动运行 `update_golden.py --check` + Python decoder regression tests。
+- [x] 文档治理：README 只做索引；详细契约归主规范文档；禁止未链接的临时 Markdown。
 
 **验收标准**：
 - `binary -> text` 通过全部 golden frames。
@@ -176,7 +178,7 @@
 - [ ] Generic port（主机模拟）完善，作为 CI 默认运行环境。
 - [ ] 在至少 2 个真实 MCU 项目（不同厂商）中集成验证。
 - [ ] 集成文档：`../reference/porting_guide.md`。
-- [ ] 跨编译器验证：GCC、Clang、IAR（可选）。
+- [x] Host 跨编译器验证：GCC + Clang。IAR 仍为可选且依赖目标工程。
 
 **验收标准**：
 - 同一套 `core/` + `frontend/` 代码，只换 `port/` 即可在不同平台编译通过。

@@ -19,13 +19,25 @@ FRAME_NAMES = [
     "frame_04_location_file_id",
     "frame_05_system_probe",
 ]
+REPOSITORY_ROOT = Path(__file__).resolve().parents[2]
+ENCODER_NAMES = {"generate_golden", "generate_golden.exe"}
 
 
 def run() -> int:
     parser = argparse.ArgumentParser()
-    parser.add_argument("--encoder", required=True, type=Path, help="Path to the built generate_golden executable.")
+    parser.add_argument(
+        "--encoder",
+        type=Path,
+        default=None,
+        help="Path to the built generate_golden executable. If omitted, common build directories are searched.",
+    )
     parser.add_argument("--check", action="store_true", help="Fail rather than rewriting stale tracked vectors.")
     args = parser.parse_args()
+    try:
+        encoder = _resolve_encoder(args.encoder)
+    except FileNotFoundError as exc:
+        print(f"error: {exc}", file=sys.stderr)
+        return 2
 
     sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
     from axiomtrace_tools.decoder import decode_stream
@@ -35,7 +47,7 @@ def run() -> int:
 
     with tempfile.TemporaryDirectory() as temporary:
         emitted_dir = Path(temporary)
-        subprocess.run([str(args.encoder), str(emitted_dir)], check=True)
+        subprocess.run([str(encoder), str(emitted_dir)], check=True)
         generated: dict[str, tuple[bytes, str]] = {}
         for name in FRAME_NAMES:
             frame = (emitted_dir / f"{name}.bin").read_bytes()
@@ -65,6 +77,29 @@ def run() -> int:
             print(f"  {path}", file=sys.stderr)
         return 1
     return 0
+
+
+def _resolve_encoder(explicit: Path | None) -> Path:
+    if explicit is not None:
+        encoder = explicit.resolve()
+        if encoder.is_file():
+            return encoder
+        raise FileNotFoundError(f"generate_golden executable not found: {encoder}")
+
+    candidates = [
+        path
+        for path in REPOSITORY_ROOT.glob("build*/tests/host/generate_golden*")
+        if path.is_file() and path.name in ENCODER_NAMES
+    ]
+    if not candidates:
+        raise FileNotFoundError(
+            "generate_golden executable not found. Build tests first or pass "
+            "--encoder build/tests/host/generate_golden[.exe]."
+        )
+    candidates.sort(key=lambda path: path.stat().st_mtime, reverse=True)
+    selected = candidates[0].resolve()
+    print(f"Using encoder: {selected}", file=sys.stderr)
+    return selected
 
 
 if __name__ == "__main__":

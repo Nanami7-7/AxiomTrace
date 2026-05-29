@@ -23,6 +23,7 @@
 #include "axiom_ring.h"
 #include "axiom_timestamp.h"
 #include "axiom_filter.h"
+#include "axiom_capsule.h"
 #include "axiom_frontend.h"
 #include "axiom_backend.h"
 #include "axiom_selftest.h"

@@ -80,7 +80,7 @@ typedef enum {
     AXIOM_BACKEND_OK        =  0,   /* Success */
     AXIOM_BACKEND_ERR_NULL  = -1,   /* NULL pointer parameter */
     AXIOM_BACKEND_ERR_FULL  = -2,   /* Registration table full */
-    AXIOM_BACKEND_ERR_STRUCT = -3   /* Corrupt struct (invalid .version or size) */
+    AXIOM_BACKEND_ERR_STRUCT = -3   /* Struct size is too small for this library */
 } axiom_backend_err_t;
 ```
 
@@ -124,11 +124,13 @@ AxiomTrace provides **templates** for common backends. A template is a `.c` file
 |------------------------------|-----------|-------------------|
 | `axiom_backend_memory.c`     | RAM       | None (uses Core ring directly) |
 | `axiom_backend_uart.c`       | UART      | `uart_write(const uint8_t *buf, uint16_t len, void *ctx)` |
-| `axiom_backend_usb.c`        | USB CDC   | `usb_cdc_write(const uint8_t *buf, uint16_t len, void *ctx)` |
+| `axiom_backend_usb.c`        | USB CDC   | Planned for v1.x; not a v1.0 release blocker |
 | `axiom_backend_rtt.c`        | RTT       | `SEGGER_RTT_WriteBlock()` or wrapper |
-| `axiom_backend_swo.c`        | SWO/ITM   | `ITM_SendChar()` or stimulus port write |
-| `axiom_backend_canfd.c`      | CAN-FD    | `canfd_send(uint32_t id, const uint8_t *buf, uint8_t len, void *ctx)` |
-| `axiom_capsule_flash.c`      | Flash     | `flash_erase_sector()` / `flash_program()` (port layer) |
+| `axiom_backend_swo.c`        | SWO/ITM   | Planned for v1.x; not a v1.0 release blocker |
+| `axiom_backend_canfd.c`      | CAN-FD    | Planned for v1.x; not a v1.0 release blocker |
+| `axiom_capsule.c`            | Flash capsule | `axiom_port_flash_erase()` / `axiom_port_flash_write()` / `axiom_port_flash_read()` |
+
+v1.0 release-supported transports are Memory, UART, RTT, and the generic host port. USB CDC, SWO/ITM, and CAN-FD remain documented extension targets for v1.x.
 
 **Usage**: Add the template `.c` file to your build system. Implement the required user functions. Register the backend.
 
