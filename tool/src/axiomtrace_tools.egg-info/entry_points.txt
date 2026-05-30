@@ -1,5 +1,0 @@
-[console_scripts]
-axiom-bundle = axiomtrace_tools.cli:bundle_main
-axiom-codegen = axiomtrace_tools.cli:codegen_main
-axiom-decoder = axiomtrace_tools.cli:decoder_main
-axiom-validate = axiomtrace_tools.cli:validate_main

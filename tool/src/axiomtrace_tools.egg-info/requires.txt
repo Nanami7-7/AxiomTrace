@@ -1,4 +1,0 @@
-click>=7.0
-
-[yaml]
-PyYAML>=6.0

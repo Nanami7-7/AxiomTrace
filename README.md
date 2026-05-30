@@ -38,7 +38,7 @@ Keep your firmware binary lean by storing only raw IDs and integers. Use the **H
 ## 🛠️ Key Features
 
 - **Protocol-Entity Architecture**: Text/JSON/Binary are just views; the Event Record is the only truth.
-- **Pluggable Backends**: UART, USB, RTT, SWO, or Flash Capsule — add new ones without touching the core. Use `AXIOM_BACKEND_INIT(...)` for forward-compatible struct initialization.
+- **Pluggable Backends**: UART, RTT, Flash Capsule, USB (planned), SWO (planned) — add new ones without touching the core. Use `AXIOM_BACKEND_INIT(...)` for forward-compatible struct initialization.
 - **Fault Capsule**: `AX_FAULT` emits a fault-level Event Record, calls the platform fault hook, freezes the RAM pre/post window, and writes Flash only when user code explicitly calls `axiom_capsule_commit()`.
 - **Profile-based Pruning**: `PROD` profile automatically removes debug probes and logs at compile-time.
 - **Library Versioning**: Compile-time version check via `AXIOMTRACE_VERSION_CHECK(major, minor, patch)`.
@@ -53,7 +53,7 @@ Keep your firmware binary lean by storing only raw IDs and integers. Use the **H
 AxiomTrace/
   Frontend Plane   AX_LOG / AX_EVT / AX_PROBE / AX_FAULT / AX_KV
   Core Plane       Packed Encode → CRC → Filter → Short Critical Ring Write
-  Backend Plane    UART / RTT / USB / SWO / Flash Capsule / CAN-FD
+  Backend Plane    UART / RTT / USB (planned) / SWO (planned) / Flash Capsule / CAN-FD (planned)
   Tool Plane       Metadata Bundle / Python Decoder / Text Render / JSON Export / Golden Test
 ```
 

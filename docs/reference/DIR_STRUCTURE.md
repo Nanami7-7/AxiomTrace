@@ -79,7 +79,7 @@ AxiomTrace/
 │   ├── pyproject.toml                 # Python project config
 │   ├── scripts/                       # Utility scripts
 │   │   ├── amalgamate.py              # Single-file library generator
-│   │   └── (extract_dict.py)          # Dictionary extraction from X-Macro
+│   │   └── extract_dict.py            # Dictionary extraction from X-Macro
 │   ├── decoder/                       # Deprecated compatibility entrypoint
 │   │   └── axiom_decoder.py           # Structural CLI wrapper around package decoder
 │   ├── golden/                        # Golden frame regression tests
@@ -109,7 +109,11 @@ AxiomTrace/
 │   │   ├── test_capsule.c             # Fault capsule capture/commit/power-loss simulation
 │   │   ├── test_dynamic_call_chain.c  # Frontend→core→ring→backend dynamic scenarios
 │   │   ├── test_profiles.c            # DEV/FIELD/PROD frontend pruning compatibility
+│   │   ├── test_config_presets.c      # AXIOM_PRESET compile-time validation
+│   │   ├── test_location.c            # Source-location metadata encoding
 │   │   └── test_benchmark.c           # Host performance regression benchmark
+│   ├── cmake/                         # CMake test infrastructure
+│   │   └── bundle_fixture/            # Minimal bundle integration fixture
 │   ├── test_python_tools.py           # Python decoder golden regression test
 │   └── test_integration.sh            # Shell integration test (build, run, verify)
 │
@@ -117,16 +121,6 @@ AxiomTrace/
 │   ├── CMakeLists.txt                 # External project CMake config
 │   ├── ports/                         # Example port configurations
 │   └── example_precompiled/           # Pre-compiled single-file example
-│
-├── MSPM0G3507_Project/                # TI MSPM0G3507 reference project
-│   ├── app/                           # Application layer (tasks, config)
-│   ├── bsp/                           # Board Support Package
-│   ├── hal/                           # Hardware Abstraction Layer
-│   ├── osal/                          # OS Abstraction Layer
-│   ├── freertos/                      # FreeRTOS config
-│   ├── cmsis/                         # CMSIS system startup
-│   ├── startup/                       # Startup code
-│   └── linker/                        # Linker script
 │
 ├── .github/                           # CI/CD
 │   └── workflows/ci.yml               # GitHub Actions: build, test, lint
