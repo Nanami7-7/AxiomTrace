@@ -15,7 +15,7 @@
 - [x] `../../spec/event_model.md` 定稿（Event Record 语义与版本化 payload 解释）。
 - [x] `../../spec/wire_format.md` 定稿（当前 wire frame 结构）。
 - [x] `../../spec/backend_contract.md` 定稿（`axiom_backend_t` 接口）。
-- [ ] `../../spec/fault_capsule.md` 定稿（capsule 格式与生命周期）。
+- [x] `../../spec/fault_capsule.md` 定稿（capsule 格式与生命周期）。
 - [x] `../../spec/api_reference.md` 初稿（Frontend 宏 API）。
 - [x] 无锁 ISR-safe RAM Ring `axiom_ring.c`。
 - [x] Event Record 组装 `axiom_event.c`（header + payload_len + payload + crc）。
@@ -119,17 +119,17 @@
 
 **目标**：故障可追溯，形成核心差异化。
 
-- [ ] Dual-zone ring 设计（Normal Ring + Capsule Ring）。
-- [ ] `AX_FAULT()` 触发 freeze：拷贝 pre-window 事件到 Capsule Ring。
-- [ ] post-window 事件继续写入 Capsule Ring 直至满或窗口结束。
-- [ ] 寄存器快照：`pc`、`lr`、`sp`、`xpsr`（通过 port 层获取）。
-- [ ] reset reason 记录（通过 port 层获取）。
-- [ ] firmware hash（编译期注入 `__attribute__((section))` 字符串，CRC 校验）。
-- [ ] capsule CRC（覆盖 capsule 全部内容）。
-- [ ] `axiom_capsule_commit()`：将 Capsule Ring 内容写入 Flash（非 ISR）。
-- [ ] `axiom_capsule_present()` / `axiom_capsule_read()` / `axiom_capsule_clear()`。
-- [ ] Flash 掉电恢复测试（擦除中断、写入中断后数据完整性）。
-- [ ] Host tests：`test_capsule.c`（freeze、pre/post 窗口、crc、read/clear）。
+- [x] Dual-zone ring 设计（Normal Ring + Capsule Ring）。
+- [x] `AX_FAULT()` 触发 freeze：拷贝 pre-window 事件到 Capsule Ring。
+- [x] post-window 事件继续写入 Capsule Ring 直至满或窗口结束。
+- [x] 寄存器快照：`pc`、`lr`、`sp`、`xpsr`（通过 port 层获取）。
+- [x] reset reason 记录（通过 port 层获取）。
+- [x] firmware hash（编译期注入 `__attribute__((section))` 字符串，CRC 校验）。
+- [x] capsule CRC（覆盖 capsule 全部内容）。
+- [x] `axiom_capsule_commit()`：将 Capsule Ring 内容写入 Flash（非 ISR）。
+- [x] `axiom_capsule_present()` / `axiom_capsule_read()` / `axiom_capsule_clear()`。
+- [x] Flash 掉电恢复测试（擦除中断、写入中断后数据完整性）。
+- [x] Host tests：`test_capsule.c`（freeze、pre/post 窗口、crc、read/clear）。
 
 **验收标准**：
 - 正常运行 0 Flash 写入。
@@ -156,7 +156,7 @@
 - [x] `../../tool/scripts/extract_dict.py`：从 C 源码/X-Macro 提取 `dictionary.json`。
 - [x] benchmark 工具：`tests/host/test_benchmark.c` 与 `../../tool/benchmark/host_benchmark.c` 测量编码/CRC/ring write 周期。
 - [x] golden 回归：本地 `update_golden.py --check` 与 Python golden tests。
-- [ ] CI gate：相关变更自动运行 `update_golden.py --check` + Python decoder regression tests。
+- [x] CI gate：相关变更自动运行 `update_golden.py --check` + Python decoder regression tests。
 - [x] 文档治理：README 只做索引；详细契约归主规范文档；禁止未链接的临时 Markdown。
 
 **验收标准**：

@@ -15,7 +15,7 @@
 - [x] `../../spec/event_model.md` finalized (Event Record semantics and versioned payload interpretation).
 - [x] `../../spec/wire_format.md` finalized (current wire frame structure).
 - [x] `../../spec/backend_contract.md` finalized (`axiom_backend_t` interface).
-- [ ] `../../spec/fault_capsule.md` finalized (capsule format and lifecycle).
+- [x] `../../spec/fault_capsule.md` finalized (capsule format and lifecycle).
 - [x] `../../spec/api_reference.md` initial draft (Frontend macro APIs).
 - [x] Lock-free ISR-safe RAM Ring `axiom_ring.c`.
 - [x] Event Record assembly `axiom_event.c` (header + payload_len + payload + crc).
@@ -119,17 +119,17 @@
 
 **Goal**: Fault traceability, forming core differentiation.
 
-- [ ] Dual-zone ring design (Normal Ring + Capsule Ring).
-- [ ] `AX_FAULT()` triggers freeze: copies pre-window events to Capsule Ring.
-- [ ] Post-window events continue into Capsule Ring until full or window ends.
-- [ ] Register snapshot: `pc`, `lr`, `sp`, `xpsr` (via port layer).
-- [ ] Reset reason logging (via port layer).
-- [ ] Firmware hash (compile-time injected `__attribute__((section))` string, CRC verified).
-- [ ] Capsule CRC (covering all capsule contents).
-- [ ] `axiom_capsule_commit()`: write Capsule Ring contents to Flash (non-ISR).
-- [ ] `axiom_capsule_present()` / `axiom_capsule_read()` / `axiom_capsule_clear()`.
-- [ ] Flash power-loss recovery tests (integrity after erase/write interruption).
-- [ ] Host tests: `test_capsule.c` (freeze, pre/post windows, crc, read/clear).
+- [x] Dual-zone ring design (Normal Ring + Capsule Ring).
+- [x] `AX_FAULT()` triggers freeze: copies pre-window events to Capsule Ring.
+- [x] Post-window events continue into Capsule Ring until full or window ends.
+- [x] Register snapshot: `pc`, `lr`, `sp`, `xpsr` (via port layer).
+- [x] Reset reason logging (via port layer).
+- [x] Firmware hash (compile-time injected `__attribute__((section))` string, CRC verified).
+- [x] Capsule CRC (covering all capsule contents).
+- [x] `axiom_capsule_commit()`: write Capsule Ring contents to Flash (non-ISR).
+- [x] `axiom_capsule_present()` / `axiom_capsule_read()` / `axiom_capsule_clear()`.
+- [x] Flash power-loss recovery tests (integrity after erase/write interruption).
+- [x] Host tests: `test_capsule.c` (freeze, pre/post windows, crc, read/clear).
 
 **Acceptance Criteria**:
 - Zero Flash writes during normal operation.
@@ -156,7 +156,7 @@
 - [x] `../../tool/scripts/extract_dict.py`: extracts `dictionary.json` from C source/X-Macros.
 - [x] Benchmark tool: `tests/host/test_benchmark.c` and `../../tool/benchmark/host_benchmark.c` measure encode/CRC/ring write timing.
 - [x] Golden regression: local `update_golden.py --check` and Python golden tests.
-- [ ] CI gate: auto-run `update_golden.py --check` + Python decoder regression tests on every relevant change.
+- [x] CI gate: auto-run `update_golden.py --check` + Python decoder regression tests on every relevant change.
 - [x] Documentation governance: README indexes only; detailed contracts live in canonical specs; no unlinked ad-hoc Markdown.
 
 **Acceptance Criteria**:
