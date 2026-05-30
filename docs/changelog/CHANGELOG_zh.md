@@ -9,6 +9,11 @@
 
 ## [未发布]
 
+### 变更
+- （暂无）
+
+## [0.7.0] - 2026-05-30
+
 ### 修复
 - **并发**：修复 `axiom_filter_drop()` 竞态条件 — 在 `axiom_write()` 的两个代码路径（`AXIOM_SHORT_CS=0` 和 `AXIOM_SHORT_CS=1`）中将调用移入临界区，保护 `drop_count` 的 read-modify-write 免受并发 ISR 抢占。
 - **正确性**：修复 `axiom_selftest.c` 编码器测试索引偏移 — `test_encoder_roundtrip()` 中的验证索引与实际编码布局不匹配。
@@ -60,19 +65,3 @@
 - v2.0 `axiom_storage_t` 统一存储抽象（由 Backend Contract 替代）。
 - v2.0 `AXIOM_LOG("fmt", ...)` 类 printf 运行时字符串哈希（由结构化 Event Record 宏替代）。
 - v2.0 链接器段自动注册后端系统（由显式 `axiom_backend_register()` 替代）。
-
-## [0.1.0] - 待定
-
-### 新增
-- 核心层：IRQ-safe SPSC RAM Ring 缓冲区（临界区保护），支持编译期配置大小和策略（丢弃/覆盖）。
-- 核心层：二进制 Event Record 编码器，支持 C11 `_Generic` 类型安全 payload 编码和自描述类型标签。
-- 核心层：CRC-16/CCITT-FALSE，带 256 字节 ROM 查表。
-- 核心层：压缩相对时间戳（delta 编码）。
-- 核心层：运行时级别/模块过滤和丢弃统计，支持生成 DROP_SUMMARY。
-- 前端层：支持 DEV/FIELD/PROD Profile 编译期裁剪的 `AX_LOG`、`AX_EVT`、`AX_PROBE`、`AX_FAULT`、`AX_KV` 宏。
-- 后端层：统一的 `axiom_backend_t` 合约，包含 `write/ready/flush/panic_write/on_drop`。
-- 后端层：Memory、UART、USB CDC、RTT、SWO/ITM、CAN-FD 后端模板。
-- Fault Capsule：故障前窗口冻结、故障后窗口捕获、寄存器快照、固件哈希、Capsule CRC、Flash commit。
-- 工具层：Python 解码器、文本渲染器、JSON 导出器、故障报告器、Golden 帧管理器、基准测试工具。
-- 主机单元测试和 Python 回归测试。
-- 单文件库生成器 (`../../tool/scripts/amalgamate.py`)。
