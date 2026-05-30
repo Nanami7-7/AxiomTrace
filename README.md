@@ -1,6 +1,6 @@
 > [English](README.md) | [简体中文](README_zh.md)
 
-# AxiomTrace v0.1 — Industrial Observability Microkernel
+# AxiomTrace v0.7.0 — Industrial Observability Microkernel
 
 AxiomTrace is a high-performance, deterministic observability core designed for bare-metal MCU environments. It transforms the way embedded logs are handled by pushing complexity to the host and keeping the firmware hot path pure, fast, and O(1).
 

@@ -2,7 +2,7 @@
 
 # AxiomTrace Backend Contract Specification
 
-> Version: v0.1 | Status: **FROZEN** | Ref: `baremetal/backend/axiom_backend.h`
+> Version: v0.7.0 | Status: **FROZEN** | Ref: `baremetal/backend/axiom_backend.h`
 
 ---
 

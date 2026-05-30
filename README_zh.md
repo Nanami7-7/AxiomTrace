@@ -1,6 +1,6 @@
 > [English](README.md) | **简体中文**
 
-# AxiomTrace
+# AxiomTrace v0.7.0 — 工业级可观测性微内核
 
 > **为 MCU 裸机环境设计的工业级可观测性微内核**
 >

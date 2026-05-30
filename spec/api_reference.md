@@ -2,7 +2,7 @@
 
 # AxiomTrace API Reference
 
-> Version: v0.1 | Status: **Frozen (v0.1-frontend finalized)**
+> Version: v0.7.0 | Status: **Frozen (v0.1-frontend finalized)**
 
 ---
 

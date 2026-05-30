@@ -2,7 +2,7 @@
 
 # AxiomTrace 后端契约规范
 
-> 版本：v0.1 | 状态：**已冻结** | 参考代码：`baremetal/backend/axiom_backend.h`
+> 版本：v0.7.0 | 状态：**已冻结** | 参考代码：`baremetal/backend/axiom_backend.h`
 
 ---
 
