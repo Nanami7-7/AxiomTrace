@@ -1,0 +1,43 @@
+#!/usr/bin/env bash
+# Pre-push hook: run fast local CI before pushing.
+#
+# Usage (git hook):
+#     Place in .githooks/pre-push or symlink/copy there.
+#     git config core.hooksPath .githooks
+#
+# What it does:
+#     1. Checks for SKIP_PRE_PUSH environment variable to skip the hook.
+#     2. Checks for rebase in progress (GIT_REFLOG_ACTION) to skip the hook.
+#     3. Runs `bash scripts/ci.sh --fast` for quick local CI.
+#     4. Exits with 0 if CI passes, 1 if CI fails.
+#
+# Exit code: 0 = push allowed, 1 = push blocked.
+#
+# Escape hatch: SKIP_PRE_PUSH=1 git push
+
+set -euo pipefail
+
+# ---- Environment checks ----
+
+# Skip if SKIP_PRE_PUSH is set (any value)
+if [[ "${SKIP_PRE_PUSH:-0}" != "0" ]]; then
+    echo "pre-push: SKIP_PRE_PUSH set, skipping CI."
+    exit 0
+fi
+
+# Skip if we are in the middle of a rebase
+if [[ -n "${GIT_REFLOG_ACTION:-}" ]]; then
+    echo "pre-push: rebase in progress, skipping CI."
+    exit 0
+fi
+
+# ---- Run fast CI ----
+
+echo "pre-push: running fast CI..."
+if bash scripts/ci.sh --fast; then
+    echo "pre-push: CI passed."
+    exit 0
+else
+    echo "pre-push: CI failed. Push blocked."
+    exit 1
+fi
