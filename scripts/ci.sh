@@ -89,12 +89,13 @@ Fast Mode Steps (1-9):
   8.  Amalgamate verify
   9.  Doc link check
 
-Full Mode Steps (1-14, includes fast mode):
+Full Mode Steps (1-15, includes fast mode):
   10. GCC configure
   11. GCC build
   12. GCC CTest
   13. Preset smoke tests (custom/tiny/prod/field/dev)
   14. Integration test
+  15. GNU11 smoke compile
 EOF
 }
 
@@ -290,6 +291,22 @@ run_full_mode() {
     # Step 14: Integration test
     run_step "Integration test" \
         "bash ./tests/test_integration.sh"
+
+    # Step 15: GNU11 smoke compile
+    run_step "GNU11 smoke compile" \
+        "cat > /tmp/axiomtrace_smoke.c <<'SMOKE_EOF'
+#include \"axiomtrace_amalgamated.h\"
+int main(void) {
+    axiom_init();
+    AX_EVT(INFO, 0x01u, 0x0001u);
+    AX_EVT(INFO, 0x01u, 0x0002u, (uint8_t)1u);
+    AX_FAULT(0x02u, 0x0003u);
+    (void)axiom_capsule_commit();
+    axiom_flush();
+    return 0;
+}
+SMOKE_EOF
+gcc -std=gnu11 -Wall -Wextra -Werror -I. /tmp/axiomtrace_smoke.c -c -o /tmp/axiomtrace_smoke.o"
 }
 
 # -----------------------------------------------------------------------------

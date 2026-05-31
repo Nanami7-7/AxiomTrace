@@ -9,38 +9,30 @@ on:
 
 jobs:
   host-c:
-    name: Host C (${{ matrix.compiler }})
+    name: Host C (gcc + selftest)
     runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - compiler: clang
-            selftest: OFF
-          - compiler: gcc
-            selftest: ON
     steps:
       - uses: actions/checkout@v4
 
       - name: Install C dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y cmake ninja-build clang gcc
+          sudo apt-get install -y cmake ninja-build gcc
 
       - name: Configure
         run: >
-          cmake -S . -B build-${{ matrix.compiler }}
+          cmake -S . -B build
           -G Ninja
           -DAXIOM_BUILD_TESTS=ON
           -DAXIOM_BUILD_EXAMPLES=ON
-          -DAXIOM_SELFTEST=${{ matrix.selftest }}
-          -DCMAKE_C_COMPILER=${{ matrix.compiler }}
+          -DAXIOM_SELFTEST=ON
+          -DCMAKE_C_COMPILER=gcc
 
       - name: Build
-        run: cmake --build build-${{ matrix.compiler }} --parallel
+        run: cmake --build build --parallel
 
       - name: Run host tests
-        run: ctest --test-dir build-${{ matrix.compiler }} --output-on-failure
+        run: ctest --test-dir build --output-on-failure
 
   python-tooling:
     name: Python Tooling
@@ -79,36 +71,6 @@ jobs:
 
       - name: CLI golden validation
         run: PYTHONPATH=tool/src python -m axiomtrace_tools.cli validate --golden tool/golden
-
-      - name: Integration script
-        run: bash ./tests/test_integration.sh
-
-  preset-smoke:
-    name: Preset Smoke (${{ matrix.preset }})
-    runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        preset: [custom, tiny, prod, field, dev]
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Install C dependencies
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y cmake ninja-build clang
-
-      - name: Configure preset
-        run: >
-          cmake -S . -B build-preset-${{ matrix.preset }}
-          -G Ninja
-          -DAXIOM_PRESET=${{ matrix.preset }}
-          -DAXIOM_BUILD_TESTS=OFF
-          -DAXIOM_BUILD_EXAMPLES=ON
-          -DCMAKE_C_COMPILER=clang
-
-      - name: Build preset
-        run: cmake --build build-preset-${{ matrix.preset }} --parallel
 
   release-artifact:
     name: Release Artifact
@@ -151,25 +113,3 @@ jobs:
         with:
           name: axiomtrace_amalgamated
           path: axiomtrace_amalgamated.h
-
-  benchmark:
-    name: Benchmark Output
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Install dependencies
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y cmake ninja-build gcc
-
-      - name: Build benchmark
-        run: >
-          cmake -S . -B build-benchmark
-          -G Ninja
-          -DAXIOM_BUILD_TESTS=ON
-          -DCMAKE_C_COMPILER=gcc
-          && cmake --build build-benchmark --parallel
-
-      - name: Run benchmark
-        run: ./build-benchmark/tests/host/test_benchmark
