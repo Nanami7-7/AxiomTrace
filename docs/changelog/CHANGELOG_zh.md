@@ -65,3 +65,99 @@
 - v2.0 `axiom_storage_t` 统一存储抽象（由 Backend Contract 替代）。
 - v2.0 `AXIOM_LOG("fmt", ...)` 类 printf 运行时字符串哈希（由结构化 Event Record 宏替代）。
 - v2.0 链接器段自动注册后端系统（由显式 `axiom_backend_register()` 替代）。
+
+## [0.6.0] - 2026-05-27
+
+### 新增
+- **API**：新增 `axiom_type_t` 枚举 — 命名类型标签（`AXIOM_TYPE_BOOL`、`AXIOM_TYPE_U8` 等），用类型安全的枚举替代原始 `#define` 常量。
+- **API**：新增 `AXIOM_SYNC_BYTE`、`AXIOM_HEADER_LEN`、`AXIOM_CRC_LEN`、`AXIOM_MAX_TIMESTAMP_LEN`、`AXIOM_TAG_SIZE` 命名常量，替换编码器和规范中的硬编码魔数。
+- **测试**：新增 4 个扩展测试套件 — `test_encoder`（14 组）、`test_ring_ext`（9 组）、`test_event_ext`（7 组）、`test_backend_ext`（8 组）。
+- **测试**：扩展 `test_filter.c` 至 9 组，覆盖全部日志级别、模块掩码、丢弃记录及运行时 mask set&get API。
+- **测试**：扩展 `test_crc.c` 新增 CRC-16 增量更新与整帧 CRC 一致性验证。
+- **基准测试**：新增 MCU 真实基准套件，含 P99.9/P99.99 百分位和 ARM 指令周期估算。
+- **工具**：新增 metadata bundle 系统 — `axiom-bundle generate`、`axiom-codegen`、字典校验器、source map、capsule 报告。
+- **工具**：新增文本渲染器（`render.py`），支持字典模板填充。
+- **CMake**：新增 `AxiomTraceTools.cmake` 用于 CMake bundle 集成。
+- **测试**：新增源码定位测试（`test_location.c`）和 golden frame 生成器（`generate_golden.c`）。
+
+### 变更
+- **重大变更 / Wire v2.0**：事件 payload 迁移为 dictionary 定义的 packed 值；metadata identity 和源码定位 suffix 仍显式带标签。
+- **工具**：Python CLI 重构为 `axiom-codegen`、`axiom-bundle`、`axiom-decoder` 子命令。
+- **工具**：decoder 重构，新增 payload 解析器支持 packed v2 和历史 typed frame。
+- **文档**：所有规范文档与最新 API 同步（中英文）。
+
+### 修复
+- **并发**：修复 `axiom_filter_drop()` 竞态条件 — 将调用移入 `axiom_write()` 的临界区。
+- **并发**：修复丢弃摘要报告竞态条件 — 在临界区内快照后再清零。
+
+## [0.4.0] - 2026-05-07
+
+### 新增
+- **API**：新增 `axiom_backend_err_t` 枚举 — 命名错误码替代整数返回值。
+- **API**：新增 `axiom_ring_consume()` 环形缓冲区 API — 仅移动 tail 指针，不拷贝数据。
+- **API**：新增库版本宏（`AXIOMTRACE_VERSION_MAJOR/MINOR/PATCH`）和编译时 `AXIOMTRACE_VERSION_CHECK()` 宏。
+- **API**：新增 `AXIOM_MODULE_MAX` 可配置常量（默认 32）。
+- **API**：新增 `AXIOM_DEPRECATED(msg)` 跨编译器宏。
+- **API**：为 `axiom_backend_t` 新增 `size` 字段和 `AXIOM_BACKEND_INIT(...)` 支持结构体前向兼容演进。
+
+### 变更
+- **性能**：优化 `axiom_flush()`，使用 `axiom_ring_consume()` 替代冗余的 `axiom_ring_read()`。
+- **文档**：修正环形缓冲区描述，从"无锁"改为"IRQ-safe SPSC，带临界区保护"。
+- **文档**：所有规范文档与最新 API 同步。
+
+### 修复
+- **正确性**：修复 `axiom_timestamp_decode_len()` 对 `0xFE` 返回 3 而非 5 的错误。
+- **正确性**：修复 `axiom_timestamp_encode()` 竞态条件。
+- **正确性**：修复 `axiom_enc_timestamp()` 写入双份类型标签。
+- **正确性**：修复 `axiom_backend_deferred_init()` 初始化了错误的 ring 实例。
+- **正确性**：修复 `AXIOM_MAX_PAYLOAD_LEN` 重复定义。
+- **正确性**：为 `axiom_filter_t` 中的 `level_mask` 和 `module_mask` 添加 `volatile` 限定符。
+- **链接**：为 `axiom_event.c` 中的 `s_filter` 全局变量添加 `static` 限定符。
+
+## [0.3.0] - 2026-05-02
+
+### 修复
+- **正确性**：修复时间戳编码使用 `0xFF` 作为大 delta 标记 — 改为 `0xFE`。
+- **正确性**：为环形缓冲区大小添加 2 的幂次断言。
+
+## [0.2.0] - 2026-05-01
+
+### 新增
+- **CI**：新增 GitHub Actions 流水线，集成 cppcheck 和 scan-build 静态分析。
+- **CI**：新增 Cortex-M QEMU 交叉编译 CI 目标。
+- **文档**：新增 `DIR_STRUCTURE.md` 目录概览文档。
+- **文档**：项目文档重组到 `docs/` 子目录。
+
+### 变更
+- **许可证**：从 MIT 切换到 GPL-3.0。
+- **CI**：精简 CI 为最小化构建-测试流水线以提高可靠性。
+
+### 修复
+- **CI**：修复 cppcheck 在三层 port 架构下的包含路径。
+- **CI**：修复 Cortex-M QEMU 测试 — 添加 ARM 交叉编译器标志。
+- **文档**：修复所有 markdown 文件中的双语链接。
+- **文档**：修复 README 许可证描述错误。
+
+## [0.1.0] - 2026-05-01
+
+### 新增
+- **核心**：无锁 ISR 安全 RAM 环形缓冲区（`axiom_ring.c`），采用盲写策略。
+- **核心**：Event Record 组装（`axiom_event.c`），含帧头、payload_len、payload 和 CRC-16。
+- **核心**：二进制编码器（`axiom_encode.h`），支持 `_Generic` 类型分发。
+- **核心**：CRC-16/CCITT-FALSE 查表实现（`axiom_crc.c`）。
+- **核心**：压缩相对时间戳，支持 delta 编码（`axiom_timestamp.c`）。
+- **核心**：级别过滤和丢弃统计（`axiom_filter.c`）。
+- **后端**：后端注册表和分发器（`axiom_backend.c`），提供 `axiom_backend_register()` API。
+- **后端**：Memory Backend，用于主机测试。
+- **后端**：Deferred Backend，基于环形缓冲区的延迟分发。
+- **前端**：`AX_LOG`、`AX_EVT`、`AX_PROBE`、`AX_FAULT`、`AX_KV` 宏 API，支持 `DEV/FIELD/PROD` 编译期 Profile 裁剪。
+- **移植层**：三层 port 架构 — 通用主机、Cortex-M、RISC-V、ESP32、nRF52、STM32。
+- **工具**：Python decoder、golden frame 生成器和合并脚本。
+- **测试**：主机单元测试覆盖 ring、encoder、CRC、event、filter、backend、location、profile 和 benchmark。
+- **构建**：CMake 构建系统，支持 `AXIOM_PRESET` 资源预设（tiny/prod/field/dev）。
+- **规范**：Event model、wire format、backend contract、fault capsule、API reference、decoder protocol、event dictionary、versioning 和 toolchain ecosystem design 规范文档（全部中英双语）。
+- **文档**：`PLAN.md`、`ROUTE.md`、`RULES.md` 项目治理文档（全部中英双语）。
+- **示例**：`example_minimal.c`（3 行快速开始）和 `example_full.c`（多 API 组合）。
+
+### 变更
+- **性能**：D2R（Direct-to-Ring）O(1) 写入路径，增量 CRC — 单临界区完成整帧写入。
