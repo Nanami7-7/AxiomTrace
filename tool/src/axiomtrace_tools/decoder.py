@@ -59,13 +59,28 @@ def find_dictionary(start_path: str | None = None) -> Path | None:
         current = current.parent
 
 
-def crc16_ccitt_false(data: bytes) -> int:
-    """CRC-16/CCITT-FALSE poly=0x1021 init=0xFFFF."""
-    crc = 0xFFFF
-    for byte in data:
-        crc ^= byte << 8
+def _build_crc16_table() -> tuple[int, ...]:
+    """构建 CRC-16/CCITT-FALSE 256 项查找表（模块加载时一次性计算）。"""
+    table: list[int] = []
+    for i in range(256):
+        crc = i << 8
         for _ in range(8):
             crc = ((crc << 1) ^ 0x1021) & 0xFFFF if crc & 0x8000 else (crc << 1) & 0xFFFF
+        table.append(crc)
+    return tuple(table)
+
+
+_CRC16_TABLE: tuple[int, ...] = _build_crc16_table()
+
+
+def crc16_ccitt_false(data: bytes) -> int:
+    """CRC-16/CCITT-FALSE poly=0x1021 init=0xFFFF.
+
+    使用 256 项查找表替代逐位计算，将每字节处理从 8 次迭代降至 1 次查表。
+    """
+    crc = 0xFFFF
+    for byte in data:
+        crc = ((crc << 8) ^ _CRC16_TABLE[(crc >> 8) ^ byte]) & 0xFFFF
     return crc
 
 
