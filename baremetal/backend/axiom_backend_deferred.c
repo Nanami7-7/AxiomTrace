@@ -137,8 +137,10 @@ int axiom_backend_deferred_init(axiom_backend_deferred_ctx_t *ctx,
                     AXIOM_DEFERRED_RING_SIZE);
     (void)deferred_ring_ctx; /* API compatibility — not used */
 
-    /* 初始化 embedded backend 结构，用于注册到 registry */
-    ctx->backend = (axiom_backend_t){
+    /* 初始化 embedded backend 结构，使用 AXIOM_BACKEND_INIT 宏
+     * 自动填充 size 字段，确保前向兼容的结构体演进机制。
+     * 赋值场景需显式转换为 compound literal。 */
+    ctx->backend = (axiom_backend_t)AXIOM_BACKEND_INIT(
         .name = "deferred",
         .caps = 0,  /* deferred 不声明具体 capability */
         .write = deferred_write,
@@ -147,7 +149,7 @@ int axiom_backend_deferred_init(axiom_backend_deferred_ctx_t *ctx,
         .panic_write = deferred_panic_write,
         .on_drop = deferred_on_drop,
         .ctx = ctx,
-    };
+    );
 
     return 0;
 }

@@ -52,21 +52,21 @@ static int stdout_ready(void *ctx) {
 int main(void) {
     axiom_init();
 
-    /* Use new Backend API: register memory backend */
-    axiom_backend_t memory_be = {
+    /* 使用 AXIOM_BACKEND_INIT 宏初始化后端，自动填充 size 字段
+     * 确保前向兼容的结构体演进机制正常工作 */
+    axiom_backend_t memory_be = AXIOM_BACKEND_INIT(
         .name = "memory",
         .write = memory_write,
         .ready = memory_ready,
         .ctx = &g_memory_head,
-    };
+    );
     axiom_backend_register(&memory_be);
 
-    /* Use new Backend API: register stdout backend */
-    axiom_backend_t stdout_be = {
+    axiom_backend_t stdout_be = AXIOM_BACKEND_INIT(
         .name = "stdout",
         .write = stdout_write,
         .ready = stdout_ready,
-    };
+    );
     axiom_backend_register(&stdout_be);
 
     /* Normal events */

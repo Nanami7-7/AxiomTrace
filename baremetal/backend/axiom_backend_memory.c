@@ -31,10 +31,10 @@ axiom_backend_t axiom_backend_memory(const char *name, uint8_t *buf, uint32_t si
     ctx->buf = buf;
     ctx->size = size;
     ctx->head = 0;
-    return (axiom_backend_t){
+    return (axiom_backend_t)AXIOM_BACKEND_INIT(
         .name = name ? name : "memory",
         .write = memory_write,
         .ready = memory_ready,
         .ctx = ctx,
-    };
+    );
 }
