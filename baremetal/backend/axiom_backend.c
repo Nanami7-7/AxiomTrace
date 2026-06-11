@@ -43,6 +43,11 @@ int axiom_backend_register(const axiom_backend_t *backend) {
 }
 
 void axiom_backend_dispatch(const uint8_t *frame, uint16_t len) {
+    /* 空注册快速返回：避免无后端时的循环开销 */
+    if (s_backend_count == 0) {
+        return;
+    }
+
     for (uint8_t i = 0; i < s_backend_count; ++i) {
         const axiom_backend_t *be = s_backends[i];
 
