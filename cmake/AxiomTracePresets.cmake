@@ -129,20 +129,40 @@ function(axiom_apply_preset target preset)
         message(FATAL_ERROR "Unknown preset: '${preset}'. Valid: custom, ${AXIOM_PRESETS}")
     endif()
 
-    # Apply all preset values as compile definitions
-    set(_macros
-        PRESET PROFILE RING_BUFFER_SIZE MAX_PAYLOAD_LEN MODULE_MAX
-        LOCATION_MODE TIME_SYNC_ENABLED SHORT_CS BACKEND_DEGRADATION
-        CAPSULE_ENABLED CAPSULE_PRE_EVENTS CAPSULE_POST_EVENTS CAPSULE_RING_SIZE
-        RING_BUFFER_POLICY ENCODE_OVERFLOW_DETECTION SELFTEST DEBUG
-        BACKEND_FAIL_THRESHOLD BACKEND_RECOVERY_US
-        CAPSULE_MAX_SNAPSHOT_LEN CAPSULE_FLASH_SIZE
+    # 短名称 → C 宏全名映射表
+    # 修复：原实现直接传递 RING_BUFFER_SIZE 等短名称，与 C 代码中的
+    # AXIOM_RING_BUFFER_SIZE 不匹配，导致预设值未生效。
+    set(_macro_map
+        PRESET:AXIOM_PRESET
+        PROFILE:AXIOM_PROFILE
+        RING_BUFFER_SIZE:AXIOM_RING_BUFFER_SIZE
+        MAX_PAYLOAD_LEN:AXIOM_MAX_PAYLOAD_LEN
+        MODULE_MAX:AXIOM_MODULE_MAX
+        LOCATION_MODE:AXIOM_CFG_LOCATION_MODE
+        TIME_SYNC_ENABLED:AXIOM_CFG_TIME_SYNC_ENABLED
+        SHORT_CS:AXIOM_SHORT_CS
+        BACKEND_DEGRADATION:AXIOM_BACKEND_DEGRADATION
+        CAPSULE_ENABLED:AXIOM_CAPSULE_ENABLED
+        CAPSULE_PRE_EVENTS:AXIOM_CAPSULE_PRE_EVENTS
+        CAPSULE_POST_EVENTS:AXIOM_CAPSULE_POST_EVENTS
+        CAPSULE_RING_SIZE:AXIOM_CAPSULE_RING_SIZE
+        RING_BUFFER_POLICY:AXIOM_RING_BUFFER_POLICY
+        ENCODE_OVERFLOW_DETECTION:AXIOM_ENCODE_OVERFLOW_DETECTION
+        SELFTEST:AXIOM_SELFTEST
+        DEBUG:AXIOM_DEBUG
+        BACKEND_FAIL_THRESHOLD:AXIOM_BACKEND_FAIL_THRESHOLD
+        BACKEND_RECOVERY_US:AXIOM_BACKEND_RECOVERY_US
+        CAPSULE_MAX_SNAPSHOT_LEN:AXIOM_CAPSULE_MAX_SNAPSHOT_LEN
+        CAPSULE_FLASH_SIZE:AXIOM_CAPSULE_FLASH_SIZE
     )
 
-    foreach(macro ${_macros})
-        if(DEFINED AXIOM_PRESET_${preset_lower}_${macro})
+    foreach(pair ${_macro_map})
+        string(REPLACE ":" ";" _parts "${pair}")
+        list(GET _parts 0 _short)
+        list(GET _parts 1 _full)
+        if(DEFINED AXIOM_PRESET_${preset_lower}_${_short})
             target_compile_definitions(${target} PRIVATE
-                ${macro}=${AXIOM_PRESET_${preset_lower}_${macro}}
+                ${_full}=${AXIOM_PRESET_${preset_lower}_${_short}}
             )
         endif()
     endforeach()
