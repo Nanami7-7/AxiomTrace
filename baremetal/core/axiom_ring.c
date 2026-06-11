@@ -32,14 +32,26 @@ void axiom_ring_write_chunk(axiom_ring_t *ring, const uint8_t *data, uint16_t le
     uint32_t head = ring->head;
     uint32_t mask = ring->mask;
     uint8_t *buf = ring_buf(ring);
-    
-    for (uint16_t i = 0; i < len; ++i) {
-        uint8_t b = data[i];
-        buf[head & mask] = b;
-        head++;
-        if (crc) {
+
+    if (crc) {
+        /* CRC 路径：逐字节写入，同步更新 CRC */
+        for (uint16_t i = 0; i < len; ++i) {
+            uint8_t b = data[i];
+            buf[head & mask] = b;
+            head++;
             *crc = axiom_crc16_update(*crc, b);
         }
+    } else {
+        /* 无 CRC 路径：使用 memcpy 加速连续区域写入 */
+        uint32_t idx = head & mask;
+        uint32_t first = ring->capacity - idx;
+        if (first >= len) {
+            memcpy(buf + idx, data, len);
+        } else {
+            memcpy(buf + idx, data, first);
+            memcpy(buf, data + first, len - first);
+        }
+        head += len;
     }
     ring->head = head;
 }
@@ -81,8 +93,14 @@ bool axiom_ring_write(axiom_ring_t *ring, const uint8_t *data, uint16_t len) {
 #endif
     }
 
-    for (uint16_t i = 0; i < len; ++i) {
-        buf[(head + i) & mask] = data[i];
+    /* memcpy 优化：分段拷贝避免逐字节循环开销 */
+    uint32_t idx = head & mask;
+    uint32_t first = cap - idx;
+    if (first >= len) {
+        memcpy(buf + idx, data, len);
+    } else {
+        memcpy(buf + idx, data, first);
+        memcpy(buf, data + first, len - first);
     }
     ring->head = head + len;
     ring->tail = tail;
@@ -103,8 +121,14 @@ uint16_t axiom_ring_read(axiom_ring_t *ring, uint8_t *out, uint16_t max_len) {
     uint16_t n = (avail < max_len) ? (uint16_t)avail : max_len;
     uint8_t *buf = ring_buf(ring);
 
-    for (uint16_t i = 0; i < n; ++i) {
-        out[i] = buf[(tail + i) & mask];
+    /* memcpy 优化：分段拷贝避免逐字节循环开销 */
+    uint32_t idx = tail & mask;
+    uint32_t first = ring->capacity - idx;
+    if (first >= n) {
+        memcpy(out, buf + idx, n);
+    } else {
+        memcpy(out, buf + idx, first);
+        memcpy(out + first, buf, n - first);
     }
     ring->tail = tail + n;
 
@@ -124,8 +148,14 @@ uint16_t axiom_ring_peek(const axiom_ring_t *ring, uint8_t *out, uint16_t max_le
     uint16_t n = (avail < max_len) ? (uint16_t)avail : max_len;
     const uint8_t *buf = ring_buf_const(ring);
 
-    for (uint16_t i = 0; i < n; ++i) {
-        out[i] = buf[(tail + i) & mask];
+    /* memcpy 优化：分段拷贝避免逐字节循环开销 */
+    uint32_t idx = tail & mask;
+    uint32_t first = ring->capacity - idx;
+    if (first >= n) {
+        memcpy(out, buf + idx, n);
+    } else {
+        memcpy(out, buf + idx, first);
+        memcpy(out + first, buf, n - first);
     }
 
     axiom_port_critical_exit();
