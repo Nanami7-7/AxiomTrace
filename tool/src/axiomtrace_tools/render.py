@@ -3,10 +3,14 @@
 from __future__ import annotations
 
 import json
+import re
 from typing import Any, Iterable
 
 from axiomtrace_tools.dictionary import EventDictionary, EventMetadata
 from axiomtrace_tools.source_map import resolve_location
+
+# 预编译正则：匹配 {name:type} 形式的占位符
+_TYPED_PLACEHOLDER_RE = re.compile(r"\{([A-Za-z_][A-Za-z0-9_]*):[^}]*\}")
 
 
 def semantic_frame(
@@ -83,14 +87,30 @@ def render_text(
     return "\n".join(lines)
 
 
-def render_json(frames: Iterable[dict[str, Any]], dictionary: EventDictionary | None = None, metadata_id: str | None = None, source_map: dict[str, Any] | None = None) -> str:
+def render_json(
+    frames: Iterable[dict[str, Any]],
+    dictionary: EventDictionary | None = None,
+    metadata_id: str | None = None,
+    source_map: dict[str, Any] | None = None,
+) -> str:
     """Render frames as a JSON array."""
-    return json.dumps([semantic_frame(frame, dictionary, metadata_id, source_map) for frame in frames], indent=2)
+    return json.dumps(
+        [semantic_frame(frame, dictionary, metadata_id, source_map) for frame in frames],
+        indent=2,
+    )
 
 
-def render_jsonl(frames: Iterable[dict[str, Any]], dictionary: EventDictionary | None = None, metadata_id: str | None = None, source_map: dict[str, Any] | None = None) -> str:
+def render_jsonl(
+    frames: Iterable[dict[str, Any]],
+    dictionary: EventDictionary | None = None,
+    metadata_id: str | None = None,
+    source_map: dict[str, Any] | None = None,
+) -> str:
     """Render frames as JSON Lines."""
-    return "\n".join(json.dumps(semantic_frame(frame, dictionary, metadata_id, source_map)) for frame in frames)
+    return "\n".join(
+        json.dumps(semantic_frame(frame, dictionary, metadata_id, source_map))
+        for frame in frames
+    )
 
 
 def render_raw_json(frames: Iterable[dict[str, Any]]) -> str:
@@ -110,16 +130,16 @@ def _payload_args(payload: list[dict[str, Any]], metadata: EventMetadata | None)
 
 
 def _format_message(template: str, args: dict[str, Any]) -> str:
+    """将事件模板中的 {name} 和 {name:type} 占位符替换为实际值。"""
     message = template
     for name, value in args.items():
-        for marker in (f"{{{name}}}",):
-            message = message.replace(marker, str(value))
-        # Dictionary placeholders are typically {name:type}.
+        # 替换 {name} 形式
+        message = message.replace(f"{{{name}}}", str(value))
+        # 替换 {name:type} 形式（使用预编译正则逐个匹配）
         prefix = "{" + name + ":"
         while prefix in message:
-            start = message.find(prefix)
-            end = message.find("}", start)
-            if end == -1:
+            match = re.search(re.escape(prefix) + r"[^}]*\}", message)
+            if not match:
                 break
-            message = message[:start] + str(value) + message[end + 1 :]
+            message = message[:match.start()] + str(value) + message[match.end():]
     return message
