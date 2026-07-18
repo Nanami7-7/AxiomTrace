@@ -21,7 +21,7 @@ extern "C" {
 #include "app_pid.h"
 #include "app_feedforward.h"
 #include "app_position_control.h"
-#include "bsp_drv8870.h"
+#include "bsp_motor.h"
 #include "project_config.h"
 
 /* ======================== 任务优先级 ======================== */

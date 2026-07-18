@@ -18,7 +18,7 @@
 #include "osal_api.h"
 #include <stdio.h>
 #include "bsp_led.h"
-#include "bsp_drv8870.h"
+#include "bsp_motor.h"
 #include "bsp_encoder.h"
 #include "bsp_uart.h"
 #include "app_complementary_filter.h"
@@ -29,23 +29,19 @@
 #include "axiomtrace.h"
 #include "app_pid.h"
 
-#if (ID_PWM_MAX != PRJ_DRV8870_SPEED_COMMAND_MAX) || \
-    ((-ID_PWM_MIN) != PRJ_DRV8870_SPEED_COMMAND_MAX)
-#error "Model-ID command range must match the DRV8870 signed command range"
+#if (ID_PWM_MAX != PRJ_MOTOR_COMMAND_MAX) || \
+    ((-ID_PWM_MIN) != PRJ_MOTOR_COMMAND_MAX)
+#error "Model-ID command range must match the selected motor backend command range"
 #endif
 #if (ID_DEFAULT_PWM_STEP > ID_PWM_MAX) || \
     (ID_DEFAULT_PWM_STEP < ID_MIN_PWM)
-#error "Model-ID default step must lie inside the DRV8870 command range"
+#error "Model-ID default step must lie inside the unified motor command range"
 #endif
 
 /* ======================== 私有变量 ======================== */
 
 /** 共享上下文(控制任务和菜单任务之间共享) */
 static app_shared_ctx_t s_shared_ctx;
-
-/** 电机配置(板级) */
-static const bsp_drv8870_config_t s_drv8870_cfg[BSP_DRV8870_COUNT] =
-    PRJ_DRV8870_CONFIGS;
 
 /** 编码器配置(板级) */
 static const bsp_encoder_config_t s_encoder_cfg[BSP_ENCODER_COUNT] =
@@ -76,8 +72,7 @@ static int32_t bsp_modules_init(void)
     ret = bsp_uart_init();
     if (ret != BSP_OK) { return -2; }
 
-    ret = bsp_drv8870_init(s_drv8870_cfg, BSP_DRV8870_COUNT,
-        PRJ_DRV8870_PWM_TIMER, PRJ_DRV8870_PWM_PERIOD);
+    ret = bsp_motor_init();
     if (ret != BSP_OK) { return -3; }
 
     ret = bsp_encoder_init(s_encoder_cfg, BSP_ENCODER_COUNT,
@@ -95,7 +90,7 @@ static int32_t bsp_modules_init(void)
  */
 static void pid_controllers_init(void)
 {
-    float duty_max = (float)bsp_drv8870_get_duty_max();
+    float duty_max = (float)bsp_motor_get_command_max();
 
     for (uint32_t i = 0; i < BSP_MOTOR_COUNT; i++) {
         app_pid_init(&s_shared_ctx.pid[i],
@@ -156,8 +151,8 @@ void app_motor_stop(app_shared_ctx_t *ctx, uint32_t motor_idx)
         ctx->motor_enabled[motor_idx] = false;
         app_pid_reset(&ctx->pid[motor_idx]);
     }
-    (void)bsp_drv8870_stop((bsp_drv8870_id_t)motor_idx,
-        BSP_DRV8870_MODE_BRAKE);
+    (void)bsp_motor_stop((bsp_motor_id_t)motor_idx,
+        BSP_MOTOR_MODE_BRAKE);
 }
 
 void app_motor_stop_all(app_shared_ctx_t *ctx)
@@ -171,7 +166,7 @@ void app_motor_stop_all(app_shared_ctx_t *ctx)
             app_pid_reset(&ctx->pid[i]);
         }
     }
-    (void)bsp_drv8870_stop_all();
+    bsp_motor_stop_all();
 }
 
 int32_t app_main_init(void)
@@ -214,11 +209,19 @@ int32_t app_main_init(void)
         (unsigned long)PRJ_ENCODER_DECODE_MULTIPLIER,
         (unsigned long)PRJ_MOTOR_GEAR_RATIO_NUMERATOR,
         (unsigned long)PRJ_MOTOR_GEAR_RATIO_DENOMINATOR);
+    (void)printf("  Driver  : %s | command -%lu..+%lu\r\n",
+        bsp_motor_get_driver_name(),
+        (unsigned long)bsp_motor_get_command_max(),
+        (unsigned long)bsp_motor_get_command_max());
+#if (PRJ_MOTOR_DRIVER == PRJ_MOTOR_DRIVER_DRV8870)
     (void)printf("  DRV8870 : reverse < %lu%% | deadband %lu%%..%lu%% | forward > %lu%%\r\n",
         (unsigned long)PRJ_DRV8870_DEADBAND_LOW_PERCENT,
         (unsigned long)PRJ_DRV8870_DEADBAND_LOW_PERCENT,
         (unsigned long)PRJ_DRV8870_DEADBAND_HIGH_PERCENT,
         (unsigned long)PRJ_DRV8870_DEADBAND_HIGH_PERCENT);
+#else
+    (void)printf("  TB6612  : direction GPIO + active-high PWM | true coast/brake\r\n");
+#endif
     (void)printf("  PID     : Kp=%.2f Ki=%.2f Kd=%.2f (Increment)\r\n",
         (double)APP_PID_DEFAULT_KP,
         (double)APP_PID_DEFAULT_KI,

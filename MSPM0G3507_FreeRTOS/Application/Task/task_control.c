@@ -11,7 +11,7 @@
 #include "app_model_id.h"
 #include "app_position_control.h"
 #include "osal_api.h"
-#include "bsp_drv8870.h"
+#include "bsp_motor.h"
 #include "bsp_encoder.h"
 #include "project_config.h"
 #include "axiomtrace.h"
@@ -55,14 +55,14 @@ void app_control_task(void *param)
 
 #if (PRJ_DRV8870_FACTORY_TEST_ENABLE == 0U)
     /* Production: enable once in task context, then wait before any command. */
-    if (bsp_drv8870_power_enable() != BSP_OK) {
-        bsp_drv8870_power_disable();
-        AX_LOG_ERROR("DRV8870 power enable failed; control task inhibited");
+    if (bsp_motor_power_enable() != BSP_OK) {
+        bsp_motor_power_disable();
+        AX_LOG_ERROR("Motor power enable failed; control task inhibited");
         for (;;) {
             osal_task_delay_ms(1000U);
         }
     }
-    osal_task_delay_ms(PRJ_DRV8870_POWER_STARTUP_MS);
+    osal_task_delay_ms(PRJ_MOTOR_POWER_STARTUP_MS);
 #endif
 
     for (;;) {
@@ -195,10 +195,10 @@ void app_control_task(void *param)
                     ctx->status.output[i] = id_out.pwm;
                 }
                 if (id_out.action == ID_ACTION_BRAKE) {
-                    (void)bsp_drv8870_stop((bsp_drv8870_id_t)i,
-                        BSP_DRV8870_MODE_BRAKE);
+                    (void)bsp_motor_stop((bsp_motor_id_t)i,
+                        BSP_MOTOR_MODE_BRAKE);
                 } else if (id_out.action == ID_ACTION_APPLY_PWM) {
-                    (void)bsp_drv8870_set_speed((bsp_drv8870_id_t)i,
+                    (void)bsp_motor_set_speed((bsp_motor_id_t)i,
                         id_out.pwm);
                 }
                 continue;
@@ -265,8 +265,8 @@ void app_control_task(void *param)
             }
 
             if (enabled) {
-                (void)bsp_drv8870_set_speed(
-                    (bsp_drv8870_id_t)i, (int32_t)output_local);
+                (void)bsp_motor_set_speed(
+                    (bsp_motor_id_t)i, (int32_t)output_local);
             }
         }
         /* 周期延时 */

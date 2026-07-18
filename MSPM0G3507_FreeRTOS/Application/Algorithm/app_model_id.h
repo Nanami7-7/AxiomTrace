@@ -40,7 +40,7 @@ extern "C" {
 
 /**
  * 默认模型辨识阶跃命令。
- * 该值是bsp_drv8870_set_speed()的有符号业务命令，不是0~1000绝对compare。
+ * 该值是bsp_motor_set_speed()的有符号业务命令，不是0~1000绝对compare。
  * 300在当前40%~55%死区映射下约对应正向82%或反向16%的绝对占空比。
  */
 #define ID_DEFAULT_PWM_STEP     (300)
@@ -49,14 +49,14 @@ extern "C" {
 #define ID_MIN_PWM              (80)
 
 /**
- * 有符号速度命令范围，必须与PRJ_DRV8870_SPEED_COMMAND_MAX保持一致。
+ * 有符号速度命令范围，必须与PRJ_MOTOR_COMMAND_MAX保持一致。
  * 本模块保持纯算法依赖，因此由app_main.c的编译期检查防止配置漂移。
  */
 #define ID_PWM_MAX              (500)
 #define ID_PWM_MIN              (-500)
 
-/** 电机数量(必须与 bsp_drv8870.h 中 BSP_DRV8870_COUNT 保持一致)
- *  本模块设计为纯算法、无硬件依赖，故独立定义而非引用 bsp_drv8870.h */
+/** 电机数量(必须与 bsp_motor.h 中 BSP_MOTOR_COUNT 保持一致)
+ *  本模块设计为纯算法、无硬件依赖，故独立定义而非引用 bsp_motor.h */
 #define ID_MOTOR_COUNT          (4)
 
 /* ======================== 类型定义 ======================== */
@@ -142,8 +142,8 @@ void app_id_abort(void);
  *
  * @note   调用者(task_control.c)根据 out 的内容决定:
  *         - ID_ACTION_NONE:    保持正常PID控制
- *         - ID_ACTION_BRAKE:   调用 bsp_drv8870_stop(motor_id, BRAKE)
- *         - ID_ACTION_APPLY_PWM: 调用 bsp_drv8870_set_speed(motor_id, pwm)
+ *         - ID_ACTION_BRAKE:   调用 bsp_motor_stop(motor_id, BRAKE)
+ *         - ID_ACTION_APPLY_PWM: 调用 bsp_motor_set_speed(motor_id, pwm)
  *         同时跳过目标电机的PID计算
  */
 void app_id_control_cycle(const int32_t *rpm, app_id_cycle_out_t *out);

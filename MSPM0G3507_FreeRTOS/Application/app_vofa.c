@@ -12,7 +12,7 @@
 #include "app_position_control.h"
 #include "osal_api.h"
 #include "bsp_uart.h"
-#include "bsp_drv8870.h"
+#include "bsp_motor.h"
 #include "bsp_encoder.h"
 #include "axiomtrace.h"
 #include "project_version.h"
@@ -201,7 +201,7 @@ static bool vofa_run_step_id(app_shared_ctx_t *ctx, uint32_t mid,
         if (g_id_data.done) break;
         if (vofa_detect_stop_cmd() || g_sweep_cancel) {
             app_id_abort();
-            bsp_drv8870_stop((bsp_drv8870_id_t)mid, BSP_DRV8870_MODE_BRAKE);
+            bsp_motor_stop((bsp_motor_id_t)mid, BSP_MOTOR_MODE_BRAKE);
             return false;
         }
         osal_task_delay_ms(10);
@@ -210,7 +210,7 @@ static bool vofa_run_step_id(app_shared_ctx_t *ctx, uint32_t mid,
 
     if (timeout == 0U && !g_id_data.done) {
         app_id_abort();
-        bsp_drv8870_stop((bsp_drv8870_id_t)mid, BSP_DRV8870_MODE_BRAKE);
+        bsp_motor_stop((bsp_motor_id_t)mid, BSP_MOTOR_MODE_BRAKE);
         return false;
     }
 
@@ -1088,7 +1088,7 @@ void app_vofa_apply_cmd(const vofa_cmd_t *cmd,
         }
         (void)printf("@STATUS,motor=%lu,enabled=%u,power=%u,rpm=%ld,target=%.3f,output=%ld,kp=%.6f,ki=%.6f,kd=%.6f,ff_en=%u,ff_k=%.6f,ff_b=%.6f,mode=%s\r\n",
             (unsigned long)mid, enabled ? 1U : 0U,
-            bsp_drv8870_power_is_enabled() ? 1U : 0U,
+            bsp_motor_power_is_enabled() ? 1U : 0U,
             (long)rpm, (double)target, (long)output,
             (double)kp, (double)ki, (double)kd,
             ff_enabled ? 1U : 0U, (double)ff_k, (double)ff_b,

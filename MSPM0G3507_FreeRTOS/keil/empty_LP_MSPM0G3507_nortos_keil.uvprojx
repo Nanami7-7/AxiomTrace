@@ -791,6 +791,11 @@
               <FilePath>..\BSP\Peripherals\bsp_drv8870.c</FilePath>
             </File>
             <File>
+              <FileName>bsp_tb6612.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\BSP\Peripherals\bsp_tb6612.c</FilePath>
+            </File>
+            <File>
               <FileName>bsp_timer.c</FileName>
               <FileType>1</FileType>
               <FilePath>..\BSP\Peripherals\bsp_timer.c</FilePath>
@@ -849,6 +854,11 @@
               <FileName>bsp_drv8870.h</FileName>
               <FileType>5</FileType>
               <FilePath>..\BSP\Peripherals\bsp_drv8870.h</FilePath>
+            </File>
+            <File>
+              <FileName>bsp_tb6612.h</FileName>
+              <FileType>5</FileType>
+              <FilePath>..\BSP\Peripherals\bsp_tb6612.h</FilePath>
             </File>
             <File>
               <FileName>bsp_uart.c</FileName>
@@ -1739,6 +1749,11 @@
               <FilePath>..\BSP\Peripherals\bsp_drv8870.c</FilePath>
             </File>
             <File>
+              <FileName>bsp_tb6612.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\BSP\Peripherals\bsp_tb6612.c</FilePath>
+            </File>
+            <File>
               <FileName>bsp_timer.c</FileName>
               <FileType>1</FileType>
               <FilePath>..\BSP\Peripherals\bsp_timer.c</FilePath>
@@ -1797,6 +1812,11 @@
               <FileName>bsp_drv8870.h</FileName>
               <FileType>5</FileType>
               <FilePath>..\BSP\Peripherals\bsp_drv8870.h</FilePath>
+            </File>
+            <File>
+              <FileName>bsp_tb6612.h</FileName>
+              <FileType>5</FileType>
+              <FilePath>..\BSP\Peripherals\bsp_tb6612.h</FilePath>
             </File>
             <File>
               <FileName>bsp_uart.c</FileName>

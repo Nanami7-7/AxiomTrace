@@ -13,7 +13,7 @@
 #include "app_complementary_filter.h"
 #include "osal_api.h"
 #include "bsp_led.h"
-#include "bsp_drv8870.h"
+#include "bsp_motor.h"
 #include "bsp_uart.h"
 #include "app_debug.h"
 #include "app_test_runner.h"
