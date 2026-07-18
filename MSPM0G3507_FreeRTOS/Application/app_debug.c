@@ -6,7 +6,10 @@
 #include "bsp_uart.h"
 #include "bsp_timer.h"
 #include "bsp_motor.h"
+#if (PRJ_DRV8870_FACTORY_TEST_ENABLE != 0U)
+/* Backend-specific scope access is isolated to the factory-test build. */
 #include "bsp_drv8870.h"
+#endif
 #include "app_model_id.h"
 #include "osal_api.h"
 #include "ti_msp_dl_config.h"

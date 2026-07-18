@@ -16,6 +16,35 @@
 #error "Unsupported PRJ_MOTOR_DRIVER"
 #endif
 
+/*
+ * The facade intentionally casts the common motor ID to the selected backend
+ * ID. Keep that zero-cost mapping compile-time checked so a future enum edit
+ * cannot silently route M1~M4 to the wrong physical channel.
+ */
+#if (PRJ_MOTOR_DRIVER == PRJ_MOTOR_DRIVER_DRV8870)
+_Static_assert((int)BSP_MOTOR_A == (int)BSP_DRV8870_A,
+               "motor A/DRV8870 ID mapping changed");
+_Static_assert((int)BSP_MOTOR_B == (int)BSP_DRV8870_B,
+               "motor B/DRV8870 ID mapping changed");
+_Static_assert((int)BSP_MOTOR_C == (int)BSP_DRV8870_C,
+               "motor C/DRV8870 ID mapping changed");
+_Static_assert((int)BSP_MOTOR_D == (int)BSP_DRV8870_D,
+               "motor D/DRV8870 ID mapping changed");
+_Static_assert((int)BSP_MOTOR_COUNT == (int)BSP_DRV8870_COUNT,
+               "motor/DRV8870 channel count changed");
+#else
+_Static_assert((int)BSP_MOTOR_A == (int)BSP_TB6612_A,
+               "motor A/TB6612 ID mapping changed");
+_Static_assert((int)BSP_MOTOR_B == (int)BSP_TB6612_B,
+               "motor B/TB6612 ID mapping changed");
+_Static_assert((int)BSP_MOTOR_C == (int)BSP_TB6612_C,
+               "motor C/TB6612 ID mapping changed");
+_Static_assert((int)BSP_MOTOR_D == (int)BSP_TB6612_D,
+               "motor D/TB6612 ID mapping changed");
+_Static_assert((int)BSP_MOTOR_COUNT == (int)BSP_TB6612_COUNT,
+               "motor/TB6612 channel count changed");
+#endif
+
 #if (PRJ_MOTOR_DRIVER == PRJ_MOTOR_DRIVER_TB6612) && \
     (PRJ_TB6612_BOARD_CONFIG_AVAILABLE == 0U)
 /*
