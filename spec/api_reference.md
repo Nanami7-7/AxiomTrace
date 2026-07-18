@@ -2,7 +2,7 @@
 
 # AxiomTrace API Reference
 
-> Version: v0.7.0 | Status: **Frozen (v0.1-frontend finalized)**
+> Version: v1.0.0 | Status: **Frozen**
 
 ---
 
@@ -10,7 +10,7 @@
 
 AxiomTrace provides a tiered API surface:
 
-- **Layer 0 — Quick Start**: Hard-coded IDs, zero config, single-file library.
+- **Layer 0 — Quick Start**: Hard-coded IDs, public Memory Backend, and the single-file library.
 - **Layer 1 — Structured**: X-Macro event definitions, compile-time ID management.
 - **Layer 2 — Team Scale**: YAML dictionary + Python codegen, full semantic control.
 
@@ -221,7 +221,24 @@ Runtime filter control. `mask` is a bitfield where bit `N` corresponds to level/
 void axiom_flush(void);
 ```
 
-Explicitly drain the ring buffer to all registered backends. Optional; backends may also drain asynchronously.
+The normal user-side flush entry point. It first drains and dispatches every complete Core frame, resynchronizing past corrupt bytes, then calls each backend's own `flush` callback. `axiom_backend_flush_all()` remains an advanced backend-only API and does not drain the Core ring.
+
+### 8.5 Diagnostics
+
+```c
+typedef struct {
+    uint32_t filtered;
+    uint32_t ring_full;
+    uint32_t encode_overflow;
+    uint32_t invalid_input;
+    uint32_t backend;
+} axiom_diagnostics_t;
+
+void axiom_diagnostics_get(axiom_diagnostics_t *out);
+void axiom_diagnostics_reset(void);
+```
+
+Snapshots and reset are protected by the Port critical section. `axiom_init()` resets these counters. Core ingress loss is reported by the next successful `DROP_SUMMARY`; backend-specific loss is reported through `backend` and `on_drop`, because a failed backend cannot reliably carry its own loss summary.
 
 ---
 
@@ -274,8 +291,8 @@ void     axiom_capsule_clear(void);
 | `AXIOM_MAX_PAYLOAD_LEN` | 128 | Maximum payload bytes per event |
 | `AXIOM_MODULE_MAX` | 32 | Maximum module IDs for filter bitmask (0 .. MAX-1) |
 | `AXIOM_BACKEND_MAX` | 4 | Maximum registered backends |
-| `AXIOMTRACE_VERSION_MAJOR` | 0 | Library major version |
-| `AXIOMTRACE_VERSION_MINOR` | 7 | Library minor version |
+| `AXIOMTRACE_VERSION_MAJOR` | 1 | Library major version |
+| `AXIOMTRACE_VERSION_MINOR` | 0 | Library minor version |
 | `AXIOMTRACE_VERSION_PATCH` | 0 | Library patch version |
 | `AXIOM_PROFILE` | preset-dependent | `DEV`, `FIELD`, or `PROD` |
 | `AXIOM_CFG_LOCATION_MODE` | `NONE` | `NONE`, `HASH`, or `FILE_ID` payload location metadata |

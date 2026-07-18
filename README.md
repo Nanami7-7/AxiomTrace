@@ -1,128 +1,130 @@
-> [English](README.md) | [简体中文](README_zh.md)
+> **English** | [简体中文](README_zh.md)
 
-# AxiomTrace v0.7.0 — Industrial Observability Microkernel
+# AxiomTrace 1.0
 
-AxiomTrace is a high-performance, deterministic observability core designed for bare-metal MCU environments. It transforms the way embedded logs are handled by pushing complexity to the host and keeping the firmware hot path pure, fast, and O(1).
+AxiomTrace is a bounded, allocation-free Wire v2 event recorder for bare-metal C firmware. Firmware records IDs and packed values; host tools validate CRC and turn frames into raw JSON or dictionary-backed text/JSON. The normal ingress policy drops a new frame when the Core ring is full and reports recovery through `DROP_SUMMARY`.
 
----
+## Supported capabilities
 
-## 🚀 Quick Start
+- C11 `AX_EVT`, `AX_LOG`, `AX_PROBE`, `AX_FAULT`, and `AX_KV` frontends.
+- CRC-protected Wire v2 frames, filtering, drop diagnostics, Memory and Deferred backends.
+- Capsule v1 pre/fault/post capture with explicit, segmented Flash commit.
+- Modular CMake library and generated `axiomtrace.h` single-header distribution.
+- Raw decoding without metadata; optional JSON/X-Macro dictionary, codegen, metadata identity, and bundle workflows.
+
+The official compiler contract is GCC or Clang in GNU11 mode. Host GCC/Clang are test platforms; ARM GNU and RISC-V GNU jobs are compile-only reference checks. IAR, MSVC, Arm Compiler, vendor ports, and real MCU timing remain experimental unless separately measured by an integrating project.
+
+## Quick start
+
+Generate the release header:
+
+```sh
+python tool/scripts/amalgamate.py
+```
+
+Use it from exactly one implementation translation unit:
+
+```c
+/* axiomtrace_impl.c */
+#define AXIOMTRACE_IMPLEMENTATION
+#include "axiomtrace.h"
+```
+
+Application code registers a backend, emits, and uses `axiom_flush()` as the normal flush entry point:
 
 ```c
 #include "axiomtrace.h"
 
+static uint8_t trace[128];
+static axiom_memory_backend_ctx_t memory_context;
+
 int main(void) {
+    axiom_backend_t memory =
+        axiom_backend_memory("trace", trace, sizeof(trace), &memory_context);
+
     axiom_init();
-    /* Structured event: O(1), ISR-safe, 0-malloc, 0-printf */
-    AX_EVT(INFO, 0x03u, 0x0001u, (uint16_t)3200);
-    return 0;
+    if (axiom_backend_register(&memory) != AXIOM_BACKEND_OK) return 1;
+    AX_EVT(INFO, 0x03u, 0x0001u, (uint16_t)3200u);
+    axiom_flush();
+
+    return memory_context.head >= 12u ? 0 : 2;
 }
 ```
 
-## 💎 The Industrial Pillars
+Define `AXIOMTRACE_NO_DEFAULT_PORT` in the implementation TU when supplying your own `axiom_port_*` functions. Otherwise the single header includes generic weak defaults.
 
-### ⚡ Deterministic O(1) Performance
-AxiomTrace guarantees that every log call executes in constant time. By using a **Blind Overwrite** policy and a bitwise-mask ring buffer, it avoids expensive frame boundary searches during interrupts.
+The repository example prints one complete frame as hexadecimal:
 
-### 🧬 Short Critical Section Encoding
-Unlike traditional loggers that format text in the hot path, AxiomTrace packs bounded binary values and writes a complete frame to the ring in one critical section. The default `AXIOM_SHORT_CS=1` path trades a bounded stack buffer for lower interrupt latency.
-
-### 🌐 Dual-Track Time Synchronization
-Supports high-resolution relative counters for precise timing analysis, while allowing periodic Unix timestamp injection for real-world wall-clock alignment on the host side.
-
-### 🎨 Rich Host-side Semantics
-Keep your firmware binary lean by storing only raw IDs and integers. Use the **Host Dictionary** and standard **Metadata Bundle** to map IDs back to human-readable text, source locations, enums, physical units, and rich metadata.
-
----
-
-## 🛠️ Key Features
-
-- **Protocol-Entity Architecture**: Text/JSON/Binary are just views; the Event Record is the only truth.
-- **Pluggable Backends**: UART, RTT, Flash Capsule, USB (planned), SWO (planned) — add new ones without touching the core. Use `AXIOM_BACKEND_INIT(...)` for forward-compatible struct initialization.
-- **Fault Capsule**: `AX_FAULT` emits a fault-level Event Record, calls the platform fault hook, freezes the RAM pre/post window, and writes Flash only when user code explicitly calls `axiom_capsule_commit()`.
-- **Profile-based Pruning**: `PROD` profile automatically removes debug probes and logs at compile-time.
-- **Library Versioning**: Compile-time version check via `AXIOMTRACE_VERSION_CHECK(major, minor, patch)`.
-- **Configurable Module Limits**: `AXIOM_MODULE_MAX` (default 32) controls the module filter bitmask width.
-- **Bilingual Documentation**: Seamless transition between English and 简体中文 for global collaboration.
-
----
-
-## 🏗️ Architecture
-
-```text
-AxiomTrace/
-  Frontend Plane   AX_LOG / AX_EVT / AX_PROBE / AX_FAULT / AX_KV
-  Core Plane       Packed Encode → CRC → Filter → Short Critical Ring Write
-  Backend Plane    UART / RTT / USB (planned) / SWO (planned) / Flash Capsule / CAN-FD (planned)
-  Tool Plane       Metadata Bundle / Python Decoder / Text Render / JSON Export / Golden Test
+```sh
+cmake -S . -B build -DAXIOM_BUILD_TESTS=ON -DAXIOM_BUILD_EXAMPLES=ON
+cmake --build build
+./build/baremetal/examples/example_minimal
 ```
 
----
+After installing the Python tool, decode a binary trace structurally with no dictionary:
 
-## 📦 Getting Started
+```sh
+axiom-decoder trace.bin --format raw
+```
 
-### 1. Build & Test
+Then add semantics progressively:
 
-```bash
-cmake -B build -S . -DAXIOM_BUILD_TESTS=ON
+1. Keep raw IDs and raw decode for the smallest firmware integration.
+2. Supply a handwritten JSON dictionary or extract one from X-Macros.
+3. Enable codegen, metadata identity, bundle validation, and source locations only when needed.
+
+## Build and consume with CMake
+
+```sh
+cmake -S . -B build -DAXIOM_BUILD_TESTS=ON -DAXIOM_BUILD_EXAMPLES=ON
 cmake --build build
 ctest --test-dir build --output-on-failure
+cmake --install build --prefix install
 ```
 
-### 2. Python Toolchain
+Consumers may use either `add_subdirectory()` or an installed package:
 
-```bash
-# Install the decoder
-python -m pip install -e ./tool
-
-# Build and test with the local CMake/Ninja toolchain
-cmake -B build -S . -G Ninja -DAXIOM_BUILD_TESTS=ON -DCMAKE_EXPORT_COMPILE_COMMANDS=ON
-cmake --build build
-ctest --test-dir build --output-on-failure
-
-# Decode with the standard metadata bundle
-axiom-codegen --events events.yaml --out build/generated
-axiom-bundle generate --events events.yaml --compile-db build/compile_commands.json --out build/axiomtrace-bundle
-axiom-decoder trace.bin --bundle build/axiomtrace-bundle --format text
+```cmake
+find_package(AxiomTrace 1.0 CONFIG REQUIRED)
+target_link_libraries(firmware PRIVATE AxiomTrace::axiomtrace)
 ```
 
-Bundle-backed semantic decode requires the trace to emit the generated metadata identity once, using `AXIOM_EMIT_METADATA_ID()` from `axiom_metadata_id_generated.h`. The CMake helper described in the toolchain specification generates and wires this header.
+When AxiomTrace is a subproject, tests and examples default to off. Python, YAML parsing, codegen, and bundle generation are not required for a normal firmware build.
 
-Wire `v2.0` encodes ordinary event arguments as dictionary-defined packed values; metadata identity and optional source-location suffixes remain tagged. The reserved `AX_PROBE` system event retains typed fields because its value type varies without an application event schema. `AX_KV` event dictionaries must declare each packed key-hash/value pair in emission order. Use a metadata bundle for semantic `v2` decoding. The host decoder also retains structural support for historical typed-payload `v1.x` frames. JSON event definitions require no optional parser; YAML input requires `python -m pip install -e "./tool[yaml]"`.
+### Port selection
 
-### MCU resource presets
+The top-level build selects only an architecture port:
 
-Use `AXIOM_PRESET` to move between resource classes without hand-tuning every macro:
-
-```bash
-cmake -B build-tiny -S . -G Ninja -DAXIOM_PRESET=tiny -DAXIOM_BUILD_TESTS=OFF
+```sh
+cmake -S . -B build-cortex-m -DAXIOM_PLATFORM=cortex-m \
+  -DAXIOM_BUILD_TESTS=OFF -DAXIOM_BUILD_EXAMPLES=OFF
 ```
 
-| Preset | Intended target | Key behavior |
-| :--- | :--- | :--- |
-| `custom` | project-owned tuning | no preset overrides; use individual `AXIOM_*` macros |
-| `tiny` | very small MCU / strict ISR stack | PROD profile, 256B ring, 32B payload, no capsule, no time sync, per-phase write path |
-| `prod` | production firmware | PROD profile, 1KB ring, 64B payload, no debug logs/probes, capsule off by default |
-| `field` | service builds | FIELD profile, 2KB ring, capsule window enabled with smaller buffers |
-| `dev` | default host/dev build | full diagnostics, 4KB ring, capsule enabled |
+`AXIOM_SOC` and `AXIOM_BOARD` are intentionally not top-level options. SDK-dependent integrations are separate packages under `baremetal/ports/stm32`, `baremetal/ports/nrf52`, and `baremetal/ports/esp32`; see the [porting guide](docs/reference/porting_guide.md) for their dependency boundaries.
 
----
+## Resource presets
 
-## 📚 Documentation Index
+Preset RAM/Flash/stack reports are release artifacts; configured sizes are not claims about total linked firmware cost.
 
-| Document | Description |
-| :--- | :--- |
-| [Directory Structure](docs/reference/DIR_STRUCTURE.md) | Complete file tree with plane annotations |
-| [API Reference](spec/api_reference.md) | Frontend macros and Core control APIs |
-| [Wire Format](spec/wire_format.md) | Binary serialization and framing (COBS) |
-| [Event Model](spec/event_model.md) | Header layout, timestamp, and event semantics |
-| [Dictionary Spec](spec/event_dictionary.md) | YAML schema and Enum mapping |
-| [Toolchain Ecosystem](spec/toolchain_ecosystem_design.md) | Decoder, bundle, codegen, validation, and host-side workflow standards |
-| [Rules & Policy](docs/project/RULES.md) | Engineering standards and hot-path mandates |
-| [Fault Capsule](spec/fault_capsule.md) | Fault freeze, commit, and non-volatile storage |
-| [Porting Guide](docs/reference/porting_guide.md) | How to port AxiomTrace to new MCU platforms |
+| Preset | Core ring | Payload | Capsule | Intended use |
+| --- | ---: | ---: | --- | --- |
+| `tiny` | 256 B | 32 B | off | smallest production integration |
+| `prod` | 1 KiB | 64 B | off | production firmware |
+| `field` | 2 KiB | 96 B | 2 KiB frame history | service builds |
+| `dev` | 4 KiB | 128 B | 4 KiB frame history | host/development |
+| `custom` | project-defined | project-defined | project-defined | explicit tuning |
 
----
+The release budgets are Tiny RAM ≤512 B, Prod ≤1.5 KiB, Field ≤4.5 KiB, and Dev ≤9 KiB under ARM GNU MinSizeRel. Do not substitute Host measurements for target measurements.
+
+## Documentation
+
+- [API reference](spec/api_reference.md)
+- [Wire format](spec/wire_format.md)
+- [Backend contract](spec/backend_contract.md)
+- [Fault capsule](spec/fault_capsule.md)
+- [Toolchain design](spec/toolchain_ecosystem_design.md)
+- [Porting guide](docs/reference/porting_guide.md)
+- [Changelog](docs/changelog/CHANGELOG.md)
 
 ## License
 

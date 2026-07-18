@@ -13,7 +13,7 @@ AxiomTrace 是一个 **MCU 裸机可观测微内核**。我们的坚定目标：
 - **好用**：开发者能在 5 分钟内打出第一条结构化日志，API 语义清晰、命名直观、文档完善。
 - **轻量高效**：热路径 O(1)、无 malloc、无 printf、无阻塞、ISR 可写；最小配置 Flash < 4KB、RAM < 2KB。
 - **扩展性**：Backend 可插拔、Payload 类型可扩展、Profile 可裁剪、协议向前兼容；新增后端不修改 Core。
-- **用户友好**：零配置起步、单文件库快速入门、渐进式 API（从硬编码 ID 到 X-Macro 到 YAML）、错误信息明确、示例覆盖全部场景。
+- **用户友好**：最小 Backend 注册 + 单头文件快速入门、渐进式 API（从硬编码 ID 到 X-Macro 到 YAML）、错误信息明确、示例覆盖关键场景。
 - **可信可发布**：协议可冻结、工具链可验证、golden test 可回归、故障可追溯。
 
 **不是**：
@@ -42,7 +42,7 @@ AxiomTrace 是一个 **MCU 裸机可观测微内核**。我们的坚定目标：
 
 **允许项**：
 - Packed 帧编码与短临界区写入。
-- 盲覆盖（Blind Overwrite）策略，确保环满时具备 O(1) 确定性延迟。
+- 默认 DROP 新帧，保证环满处理为有界 O(1)；可选 OVERWRITE 只能丢弃经过校验的完整旧帧，循环由最大帧长约束。
 - 增量式 CRC（流式计算，无需重复读取内存）。
 - 写 RAM Ring（单次临界区）。
 - 更新全局 drop counter (`volatile uint32_t` 自增)。
@@ -70,7 +70,7 @@ AxiomTrace 是一个 **MCU 裸机可观测微内核**。我们的坚定目标：
 | 规则 | 说明 |
 | :--- | :--- |
 | Event Record 是唯一日志本体 | 固件中不存在"文本日志"或"二进制日志"的区分，只有 Event Record。 |
-| Backend 不得定义私有协议 | 所有 backend 接收的 buffer 必须是统一的 Event Record frame；backend 只能做传输适配（如 COBS 编码、CAN-FD 分帧），不能改变帧内结构。 |
+| Backend 不得定义私有协议 | 所有 Backend 接收的 buffer 必须是完整原始 Event Record frame；任何外部传输封装都位于 Core 之外，且不能改变 CRC 覆盖的主体。 |
 | Text 只是渲染 | 文本输出由主机 decoder 根据 dictionary 模板渲染生成。 |
 | JSON 只是导出 | JSON 由主机工具从 binary 转换生成。 |
 | Binary 是存储/传输形态 | Binary frame 是唯一穿越固件-主机边界的数据形态。 |

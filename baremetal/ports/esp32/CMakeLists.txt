@@ -27,8 +27,9 @@
 
 if(CONFIG_IDF_TARGET_ESP32 OR CONFIG_IDF_TARGET_ESP32C3 OR CONFIG_IDF_TARGET_ESP32S2 OR CONFIG_IDF_TARGET_ESP32S3)
     idf_component_register(
-        SRCDIRS
-            .
+        SRCS
+            axiom_port_esp32.c
+            axiom_backend_uart.c
         INCLUDE_DIRS
             .
         PRIV_REQUIRES
@@ -36,12 +37,11 @@ if(CONFIG_IDF_TARGET_ESP32 OR CONFIG_IDF_TARGET_ESP32C3 OR CONFIG_IDF_TARGET_ESP
             freertos
         REQUIRES
             driver
-        HWRS_FILES
-            axiom_port_esp32.c
-            axiom_backend_uart.c
     )
 
-    component_compile_options(-Wno-unused-function -Wnounused-but-set-variable)
+    target_compile_options(${COMPONENT_LIB} PRIVATE
+        -Wno-unused-function
+        -Wno-unused-but-set-variable)
 
 else()
     message(FATAL_ERROR "axiom_trace_esp32: This component only supports ESP32 series chips")

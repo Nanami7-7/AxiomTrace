@@ -10,7 +10,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Changed
-- (none yet)
+- Top-level Port selection now has one explicit architecture path (`host`, `cortex-m`, or `riscv`); SDK-dependent vendor integrations remain self-contained.
+- Documentation now matches the actual source tree and distinguishes core builds from vendor packages.
+
+### Removed
+- Unwired root examples, placeholder `ports/soc` selectors, and unused per-architecture CMake wrappers.
+
+## [1.0.0] - 2026-07-15
+
+### Added
+- Public diagnostics counters for filtering, Core ring pressure, frontend overflow, invalid input, and backend loss.
+- Release single header with one implementation TU mode, optional default Port, Memory/Deferred backends, and multi-TU tests.
+- Installable `AxiomTrace::axiomtrace` CMake package and add-subdirectory/install consumer fixtures.
+
+### Changed
+- Core ingress now validates all public inputs, defaults to dropping new frames, and only overwrites complete old frames when explicitly configured.
+- `axiom_flush()` now drains and validates the Core ring before cascading backend flush callbacks.
+- Deferred buffering is independent of downstream readiness and retains failed frames for retry.
+- Fault Capsule uses one record-aware frame ring and streams v1 images without a second full RAM image.
+- README and toolchain contracts now distinguish tested Host behavior, compile-only reference ports, and experimental platforms.
 
 ## [0.7.0] - 2026-05-30
 

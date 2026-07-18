@@ -23,7 +23,7 @@ AxiomTrace decoder 工具链运行在主机端，将 MCU 输出的二进制 Even
 
 ### 2.1 原始二进制流
 
-由完整 v2.0 frame 串接而成；历史 v1.0/v1.1 typed-payload frame 仍可进行结构解码。UART/USB 传输可以额外使用 COBS 和 `0x00` 分隔，decoder 负责按输入模式恢复帧。
+由完整的原始 v2.0 Frame Body 串接而成；历史 v1.0/v1.1 typed-payload frame 仍可进行结构解码。COBS 等传输封装不属于 decoder 输入契约，必须预先移除。
 
 ```bash
 axiom-decoder trace.bin --bundle build/axiomtrace-bundle --format text

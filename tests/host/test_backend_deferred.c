@@ -2,6 +2,7 @@
 
 #include "axiom_backend.h"
 #include "axiom_backend_deferred.h"
+#include "axiom_crc.h"
 #include "axiom_event.h"
 
 #include <string.h>
@@ -15,6 +16,18 @@ static int s_downstream_panic_calls;
 static int s_downstream_drop_calls;
 static uint32_t s_downstream_lost;
 static int s_downstream_write_result; /* 0=success, -1=fail */
+static int s_downstream_ready;
+
+static void make_valid_frame(uint8_t frame[12]) {
+    memset(frame, 0, 12u);
+    frame[0] = AXIOM_SYNC_BYTE;
+    frame[1] = AXIOM_WIRE_VERSION;
+    frame[8] = 0u;
+    frame[9] = 0u;
+    uint16_t crc = axiom_crc16(frame, 10u);
+    frame[10] = (uint8_t)(crc & 0xFFu);
+    frame[11] = (uint8_t)(crc >> 8u);
+}
 
 static int mock_write(const uint8_t *buf, uint16_t len, void *ctx) {
     (void)ctx;
@@ -25,6 +38,11 @@ static int mock_write(const uint8_t *buf, uint16_t len, void *ctx) {
         s_downstream_len += len;
     }
     return 0;
+}
+
+static int mock_ready(void *ctx) {
+    (void)ctx;
+    return s_downstream_ready;
 }
 
 static int mock_panic_write(const uint8_t *buf, uint16_t len, void *ctx) {
@@ -47,6 +65,7 @@ static void reset_mock(void) {
     s_downstream_drop_calls = 0;
     s_downstream_lost = 0;
     s_downstream_write_result = 0;
+    s_downstream_ready = 1;
     memset(s_downstream_buf, 0, sizeof(s_downstream_buf));
 }
 
@@ -122,9 +141,8 @@ static void test_flush_cascade(void) {
 
     /* Write a minimal valid frame flush can fully consume:
      * 8 hdr + 1 ts + 1 payload_len + 0 payload + 2 crc = 12 bytes */
-    uint8_t frame[12] = {0};
-    frame[8] = 0;    /* ts byte: delta=0 → ts_len=1 */
-    frame[9] = 0;    /* payload_len = 0 */
+    uint8_t frame[12];
+    make_valid_frame(frame);
     be->write(frame, sizeof(frame), be->ctx);
 
     int flushed = be->flush(be->ctx);
@@ -187,13 +205,69 @@ static void test_downstream_busy(void) {
 
     const axiom_backend_t *be = axiom_backend_deferred_get_backend(&ctx);
 
-    uint8_t frame[16] = {0xDD};
+    uint8_t frame[12];
+    make_valid_frame(frame);
     be->write(frame, sizeof(frame), be->ctx);
     CHECK("busy: pending > 0", axiom_backend_deferred_pending(&ctx) > 0);
 
     int flushed = be->flush(be->ctx);
     CHECK("busy: flush returns 0 (nothing dispatched)", flushed == 0);
     CHECK("busy: pending still > 0", axiom_backend_deferred_pending(&ctx) > 0);
+}
+
+static void test_downstream_not_ready_still_buffers(void) {
+    axiom_backend_deferred_ctx_t ctx;
+    axiom_deferred_ring_ctx_t ring_ctx;
+    static const axiom_backend_t downstream = AXIOM_BACKEND_INIT(
+        .name = "mock",
+        .write = mock_write,
+        .ready = mock_ready
+    );
+
+    axiom_backend_deferred_init(&ctx, &ring_ctx, &downstream);
+    reset_mock();
+    s_downstream_ready = 0;
+    const axiom_backend_t *be = axiom_backend_deferred_get_backend(&ctx);
+    uint8_t frame[12];
+    make_valid_frame(frame);
+
+    CHECK("not_ready: deferred itself remains ready", be->ready(be->ctx) == 1);
+    CHECK("not_ready: frame accepted locally", be->write(frame, sizeof(frame), be->ctx) == 0);
+    CHECK("not_ready: flush waits", be->flush(be->ctx) == 0);
+    CHECK("not_ready: frame retained", axiom_backend_deferred_pending(&ctx) == sizeof(frame));
+}
+
+static void test_ready_reserves_a_maximum_frame(void) {
+    axiom_backend_deferred_ctx_t ctx;
+    axiom_deferred_ring_ctx_t ring_ctx;
+    static const axiom_backend_t downstream = AXIOM_BACKEND_INIT(
+        .name = "mock", .write = mock_write);
+    axiom_backend_deferred_init(&ctx, &ring_ctx, &downstream);
+    reset_mock();
+    const axiom_backend_t *be = axiom_backend_deferred_get_backend(&ctx);
+    uint8_t filler[AXIOM_DEFERRED_RING_SIZE - AXIOM_MAX_FRAME_LEN + 1u] = {0};
+
+    CHECK("ready_space: initially ready", be->ready(be->ctx) == 1);
+    CHECK("ready_space: filler accepted", be->write(filler, sizeof(filler), be->ctx) == 0);
+    CHECK("ready_space: refuses when maximum frame no longer fits",
+          be->ready(be->ctx) == 0);
+}
+
+static void test_corrupt_data_resynchronizes(void) {
+    axiom_backend_deferred_ctx_t ctx;
+    axiom_deferred_ring_ctx_t ring_ctx;
+    static const axiom_backend_t downstream = AXIOM_BACKEND_INIT(
+        .name = "mock", .write = mock_write);
+    axiom_backend_deferred_init(&ctx, &ring_ctx, &downstream);
+    reset_mock();
+    const axiom_backend_t *be = axiom_backend_deferred_get_backend(&ctx);
+    uint8_t corrupt[3] = {0x00u, 0x11u, 0x22u};
+    uint8_t frame[12];
+    make_valid_frame(frame);
+    CHECK("resync: corrupt prefix queued", be->write(corrupt, sizeof(corrupt), be->ctx) == 0);
+    CHECK("resync: valid frame queued", be->write(frame, sizeof(frame), be->ctx) == 0);
+    CHECK("resync: valid frame dispatched", be->flush(be->ctx) == 1);
+    CHECK("resync: queue drained", axiom_backend_deferred_pending(&ctx) == 0u);
 }
 
 int main(void) {
@@ -204,6 +278,9 @@ int main(void) {
     test_panic_write_bypass();
     test_reset();
     test_downstream_busy();
+    test_downstream_not_ready_still_buffers();
+    test_ready_reserves_a_maximum_frame();
+    test_corrupt_data_resynchronizes();
 
     TEST_RESULT("test_backend_deferred", failures);
     return failures;

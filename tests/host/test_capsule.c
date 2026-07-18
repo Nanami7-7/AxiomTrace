@@ -67,6 +67,31 @@ static uint8_t count_capsule_frames(const uint8_t *capsule, uint16_t len) {
     return frames;
 }
 
+static uint16_t capsule_event_id_at(const uint8_t *capsule, uint16_t len,
+                                    uint8_t wanted_index) {
+    uint16_t pos = (uint16_t)(21u + capsule[20]);
+    uint16_t end = (uint16_t)(len - 4u);
+    uint8_t index = 0u;
+    while (pos + 12u <= end && capsule[pos] == AXIOM_SYNC_BYTE) {
+        uint8_t ts_len = axiom_timestamp_decode_len(capsule[pos + 8u]);
+        uint16_t payload_len_pos = (uint16_t)(pos + 8u + ts_len);
+        if (payload_len_pos >= end) {
+            break;
+        }
+        uint16_t frame_len = (uint16_t)(8u + ts_len + 1u +
+                                        capsule[payload_len_pos] + 2u);
+        if (pos + frame_len > end) {
+            break;
+        }
+        if (index == wanted_index) {
+            return read_u16_le(capsule + pos + 4u);
+        }
+        pos = (uint16_t)(pos + frame_len);
+        index++;
+    }
+    return 0xFFFFu;
+}
+
 static void emit_pre_events(uint8_t count) {
     for (uint8_t i = 0; i < count; ++i) {
         AX_EVT(INFO, 0x10u, (uint16_t)(0x0100u + i), i);
@@ -109,7 +134,7 @@ static void test_commit_read_and_clear(void) {
 
     CHECK("commit succeeds", axiom_capsule_commit());
     CHECK("commit erases once", g_axiom_port_flash_erase_calls == 1u);
-    CHECK("commit writes once", g_axiom_port_flash_write_calls == 1u);
+    CHECK("commit uses bounded segmented writes", g_axiom_port_flash_write_calls > 1u);
     CHECK("present after commit", axiom_capsule_present());
 
     uint16_t len = read_capsule(capsule, sizeof(capsule));
@@ -125,6 +150,11 @@ static void test_commit_read_and_clear(void) {
     CHECK("snapshot bytes", capsule[21] == 0x11u && capsule[28] == 0x88u);
     CHECK("capsule crc", capsule_crc_ok(capsule, len));
     CHECK("frame count", count_capsule_frames(capsule, len) == 6u);
+    CHECK("frame order: first pre", capsule_event_id_at(capsule, len, 0u) == 0x0100u);
+    CHECK("frame order: last pre", capsule_event_id_at(capsule, len, 2u) == 0x0102u);
+    CHECK("frame order: fault", capsule_event_id_at(capsule, len, 3u) == 0x0400u);
+    CHECK("frame order: first post", capsule_event_id_at(capsule, len, 4u) == 0x0401u);
+    CHECK("frame order: last post", capsule_event_id_at(capsule, len, 5u) == 0x0402u);
 
     axiom_capsule_clear();
     CHECK("clear removes present capsule", !axiom_capsule_present());
@@ -140,6 +170,10 @@ static void test_pre_window_cap(void) {
     CHECK("pre window capped", capsule[17] == AXIOM_CAPSULE_PRE_EVENTS);
     CHECK("post window has fault", capsule[18] == 1u);
     CHECK("capped frame count", count_capsule_frames(capsule, len) == (uint8_t)(AXIOM_CAPSULE_PRE_EVENTS + 1u));
+    CHECK("oldest complete pre frames evicted",
+          capsule_event_id_at(capsule, len, 0u) == 0x0104u);
+    CHECK("fault remains after eviction",
+          capsule_event_id_at(capsule, len, AXIOM_CAPSULE_PRE_EVENTS) == 0x0200u);
 }
 
 static void test_commit_failure_keeps_ram_capsule(void) {
@@ -167,11 +201,26 @@ static void test_flash_crc_mismatch_after_reboot(void) {
     CHECK("corrupt flash capsule is not present", !axiom_capsule_present());
 }
 
+static void test_power_loss_at_each_write_stage(void) {
+    for (uint32_t stage = 1u; stage <= 4u; ++stage) {
+        prepare_host();
+        emit_pre_events(1u);
+        AX_FAULT(0x35u, (uint16_t)(0x0310u + stage));
+        g_axiom_port_flash_fail_write_call = stage;
+        CHECK("power stage: commit fails", !axiom_capsule_commit());
+        CHECK("power stage: volatile capsule readable", axiom_capsule_present());
+
+        axiom_init();
+        CHECK("power stage: partial flash rejected after reboot", !axiom_capsule_present());
+    }
+}
+
 int main(void) {
     test_commit_read_and_clear();
     test_pre_window_cap();
     test_commit_failure_keeps_ram_capsule();
     test_flash_crc_mismatch_after_reboot();
+    test_power_loss_at_each_write_stage();
 
     if (failures == 0) {
         printf("test_capsule: PASSED\n");

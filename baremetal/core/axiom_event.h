@@ -29,7 +29,10 @@ typedef enum {
 /* ---------------------------------------------------------------------------
  * Event header: exactly 8 bytes, packed, little-endian on wire
  * --------------------------------------------------------------------------- */
-typedef struct __attribute__((packed)) {
+#if defined(_MSC_VER)
+#pragma pack(push, 1)
+#endif
+typedef struct AXIOM_COMPILER_PACKED {
     uint8_t  sync;       /* AXIOM_SYNC_BYTE = 0xA5 */
     uint8_t  version;    /* major << 4 | minor */
     uint8_t  level;      /* lower nibble: level, upper nibble: reserved (0) */
@@ -37,6 +40,9 @@ typedef struct __attribute__((packed)) {
     uint16_t event_id;   /* little-endian */
     uint16_t seq;        /* little-endian */
 } axiom_event_header_t;
+#if defined(_MSC_VER)
+#pragma pack(pop)
+#endif
 
 AXIOM_CHECK_SIZE(axiom_event_header_t, 8);
 AXIOM_CHECK_ALIGN(axiom_event_header_t, 1);

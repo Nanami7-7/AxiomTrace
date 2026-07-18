@@ -50,9 +50,9 @@ static void check_location_suffix(uint16_t line, uint8_t user_payload_len) {
     CHECK("location: hash payload length", payload_len >= 8u);
     CHECK("location: tag", location[0] == AXIOM_TYPE_META_LOCATION);
     CHECK("location: hash mode", location[1] == AXIOM_CFG_LOCATION_MODE_HASH);
-    CHECK("location: file hash", read_u16(location + 2) == _axiom_fnv1a_16(__FILE__));
+    CHECK("location: file hash", read_u16(location + 2) == axiom_internal_fnv1a_16(__FILE__));
     CHECK("location: line", read_u16(location + 4) == line);
-    CHECK("location: function hash", read_u16(location + 6) == _axiom_fnv1a_16("test_location_events"));
+    CHECK("location: function hash", read_u16(location + 6) == axiom_internal_fnv1a_16("test_location_events"));
 #else
     (void)line;
     (void)payload;

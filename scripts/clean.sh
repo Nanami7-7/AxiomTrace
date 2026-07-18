@@ -37,9 +37,10 @@ show_help() {
     echo "  - build-*/ 目录（保留 build/）"
     echo "  - Testing/ 目录"
     echo "  - test_report/ 目录"
+    echo "  - test_report*.md / performance_report*.md / perf_report*.md 文件（仅清理已被 .gitignore 忽略者）"
     echo "  - __pycache__/ 目录（递归）"
     echo "  - .pytest_cache/ 目录"
-    echo "  - axiomtrace_amalgamated.h 文件"
+    echo "  - dist/axiomtrace.h 文件"
     echo "  - tool/src/axiomtrace_tools.egg-info/ 目录"
     echo "  - tool/build/ 目录"
     echo ""
@@ -53,7 +54,7 @@ show_help() {
     echo "  - .git/"
     echo "  - .githooks/"
     echo "  - .sisyphus/"
-    echo "  - 源代码目录 (baremetal/, cmake/, docs/, examples/, spec/, tests/, tool/)"
+    echo "  - 源代码目录 (baremetal/, cmake/, docs/, spec/, tests/, tool/)"
 }
 
 # 日志函数
@@ -114,6 +115,28 @@ clean_recursive() {
     fi
 }
 
+# 递归清理被 .gitignore 标记的生成报告文件
+clean_ignored_files() {
+    local pattern="$1"
+    local description="$2"
+
+    local found=false
+    while IFS= read -r -d '' target; do
+        found=true
+        if command -v git >/dev/null 2>&1 && git -C "$PROJECT_ROOT" check-ignore -q "$target"; then
+            safe_remove "$target" "$description"
+        else
+            log_skip "非忽略文件，保留: $description ($target)"
+            ((SKIPPED_COUNT++)) || true
+        fi
+    done < <(find "$PROJECT_ROOT" -type f -name "$pattern" -print0 2>/dev/null || true)
+
+    if [ "$found" = false ]; then
+        log_skip "未找到: $description"
+        ((SKIPPED_COUNT++)) || true
+    fi
+}
+
 # 清理build-*目录（保留build/）
 clean_build_dirs() {
     log_info "清理 build-* 目录..."
@@ -152,23 +175,29 @@ clean_default() {
     log_info "清理 test_report/ 目录..."
     safe_remove "$PROJECT_ROOT/test_report" "test_report 目录"
 
-    # 4. 清理 __pycache__/ 目录（递归）
+    # 4. 清理生成报告文件（仅限 .gitignore 覆盖的文件）
+    log_info "清理生成报告文件..."
+    clean_ignored_files "test_report*.md" "test_report Markdown 文件"
+    clean_ignored_files "performance_report*.md" "performance_report Markdown 文件"
+    clean_ignored_files "perf_report*.md" "perf_report Markdown 文件"
+
+    # 5. 清理 __pycache__/ 目录（递归）
     log_info "清理 __pycache__/ 目录..."
     clean_recursive "__pycache__" "__pycache__ 目录"
 
-    # 5. 清理 .pytest_cache/ 目录
+    # 6. 清理 .pytest_cache/ 目录
     log_info "清理 .pytest_cache/ 目录..."
     safe_remove "$PROJECT_ROOT/.pytest_cache" ".pytest_cache 目录"
 
-    # 6. 清理 axiomtrace_amalgamated.h 文件
-    log_info "清理 axiomtrace_amalgamated.h 文件..."
-    safe_remove "$PROJECT_ROOT/axiomtrace_amalgamated.h" "合并头文件"
+    # 7. 清理生成的发布头文件
+    log_info "清理 dist/axiomtrace.h 文件..."
+    safe_remove "$PROJECT_ROOT/dist/axiomtrace.h" "发布头文件"
 
-    # 7. 清理 tool/src/axiomtrace_tools.egg-info/ 目录
+    # 8. 清理 tool/src/axiomtrace_tools.egg-info/ 目录
     log_info "清理 tool/src/axiomtrace_tools.egg-info/ 目录..."
     safe_remove "$PROJECT_ROOT/tool/src/axiomtrace_tools.egg-info" "egg-info 目录"
 
-    # 8. 清理 tool/build/ 目录
+    # 9. 清理 tool/build/ 目录
     log_info "清理 tool/build/ 目录..."
     safe_remove "$PROJECT_ROOT/tool/build" "tool/build 目录"
 }

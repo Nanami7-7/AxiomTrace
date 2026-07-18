@@ -117,7 +117,7 @@ AxiomTrace uses bounded binary frame assembly to minimize hot-path latency:
 2. **Short Critical Section**: With `AXIOM_SHORT_CS=1` (default), `axiom_write()` pre-encodes the complete frame outside the critical section, then commits it to the ring in one write while shared state is protected.
 3. **CRC-Protected Frame**: CRC-16 covers the header, timestamp, payload length, and payload. The fallback `AXIOM_SHORT_CS=0` path keeps incremental CRC while reducing stack usage.
 
-For byte-stream transports (UART, USB CDC), the entire frame may be COBS-encoded with a `0x00` delimiter. See `spec/wire_format.md` for transport variations.
+Core emits raw complete Frame Bodies. Optional external transport wrappers are outside the Event Record model; see `spec/wire_format.md`.
 
 ---
 

@@ -139,11 +139,8 @@ AxiomTrace/
 
 **Deliverables**:
 - Memory Backend.
-- UART Backend Template (COBS + 0x00 delimiter).
-- USB CDC Backend Template (bulk IN endpoint).
-- RTT Backend Template (SEGGER RTT up-channel).
-- SWO/ITM Backend Template (32-bit stimulus word stream).
-- CAN-FD Backend Template (frame splitting and ID mapping).
+- Memory and Deferred backends are linked into the main library.
+- Hardware transport backends are outside the v1.0 convergence scope.
 - Flash Capsule Backend (commits on fault, no writes during normal operation).
 
 **Backend Contract**:

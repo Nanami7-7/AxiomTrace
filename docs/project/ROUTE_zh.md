@@ -70,7 +70,7 @@
 - [x] Host tests：各 Profile 下宏展开行为验证。
 
 **验收标准**：
-- `example_minimal.c` 在主机 `gcc` 下零配置编译通过并输出预期结果。
+- `example_minimal.c` 注册公开 Memory Backend、发事件、调用 `axiom_flush()`，并在 Host GCC/Clang 下输出经过 decoder 验证的帧。
 - `PROD` profile 下 `AX_LOG` / `AX_PROBE` 编译为空，不产生代码/数据。
 - 所有 Frontend API 最终调用同一个 `axiom_write()`。
 
@@ -82,19 +82,16 @@
 
 - [x] `axiom_backend.c` 注册表与分发器实现。
 - [x] `axiom_backend_t` 结构体与 `axiom_backend_register()` API。
-- [x] Memory Backend 完善（ring buffer 区域直接导出）。
-- [x] UART Backend Template（COBS 编码 + 0x00 delimiter，用户填 UART 发送函数）。
-- [ ] USB CDC Backend Template（bulk IN endpoint，用户填 USB 发送函数）。
-- [x] RTT Backend Template（SEGGER RTT up-channel，用户填 SEGGER RTT 函数）。
-- [ ] SWO/ITM Backend Template（32-bit stimulus word 流，用户填 ITM 函数）。
-- [ ] CAN-FD Backend Template（帧拆分与 ID 映射，用户填 CAN 发送函数）。
+- [x] 公开 Memory Backend factory，使用调用者持有的线性捕获缓冲区。
+- [ ] 硬件传输 Backend 延后到 v1.0 之后；发布主库只包含 Memory 与 Deferred。
+- [ ] SWO/ITM 与 CAN-FD 不在 v1.0 范围。
 - [x] Backend drop callback 与限速/降级机制。
 - [x] Host tests：`test_backend_ext.c` 与 `test_dynamic_call_chain.c`（注册、dispatch、drop、busy backend、降级、恢复、panic_write）。
 
 **验收标准**：
 - 新增一个 backend 只需：实现 3 个函数 + 调用 `axiom_backend_register()`，不修改 `core/`。
 - backend busy 时返回 `-EAGAIN`，Core 正确累计 drop counter。
-- 所有 template 在主机用 mock 函数编译通过。
+- Memory 与 Deferred 实现从主 target 链接，并通过 Host 测试。
 
 ---
 
@@ -104,7 +101,7 @@
 
 - [ ] `AX_PROBE(tag, value)` 高频优化（绕过 filter、极简 header、可选无 crc）。
 - [ ] Probe ring 独立缓冲区（与主 ring 隔离，避免探查数据覆盖关键日志）。
-- [ ] Probe 后端：SWO/ITM（推荐，无损输出）。
+- [ ] 独立 Probe 传输不在 v1.0 范围。
 - [ ] Probe decoder 支持（将 probe 流还原为时序波形描述）。
 - [ ] Benchmark：probe 写入周期数 < 100 周期（Cortex-M4 @ 80MHz）。
 - [ ] Host tests：probe ring 独立性与覆写策略测试。

@@ -20,6 +20,11 @@ extern "C" {
 #define AXIOM_DEFERRED_RING_SIZE 256
 #endif
 
+_Static_assert(AXIOM_DEFERRED_RING_SIZE >= AXIOM_MAX_FRAME_LEN,
+               "AXIOM_DEFERRED_RING_SIZE must fit the maximum frame");
+_Static_assert((AXIOM_DEFERRED_RING_SIZE & (AXIOM_DEFERRED_RING_SIZE - 1u)) == 0u,
+               "AXIOM_DEFERRED_RING_SIZE must be a power of two");
+
 /* ---------------------------------------------------------------------------
  * Deferred Ring Context
  * Independent ring, isolated from the main ring, statically allocated.

@@ -10,7 +10,25 @@
 ## [未发布]
 
 ### 变更
-- （暂无）
+- 顶层 Port 选择收敛为明确的 `host`、`cortex-m` 或 `riscv` 架构路径；依赖 SDK 的厂商适配保持自包含。
+- 文档与实际源码树同步，并明确区分核心构建与厂商包。
+
+### 移除
+- 未接入构建的根目录 examples、占位 `ports/soc` 选择器和未使用的架构级 CMake 包装文件。
+
+## [1.0.0] - 2026-07-15
+
+### 新增
+- 公开诊断计数：过滤、Core ring 压力、前端溢出、非法输入与 Backend 丢失。
+- 发布级单头文件：单 implementation TU、可选默认 Port、Memory/Deferred Backend 与多 TU 测试。
+- 可安装的 `AxiomTrace::axiomtrace` CMake 包，以及 add-subdirectory/install 消费者夹具。
+
+### 变更
+- Core ingress 统一校验公开输入，默认丢弃新帧；显式 OVERWRITE 时只覆盖完整旧帧。
+- `axiom_flush()` 先排空并校验 Core ring，再级联 Backend flush callback。
+- Deferred 缓存与下游就绪状态解耦，失败帧保留待重试。
+- Fault Capsule 使用一个记录感知帧环，无需第二份完整 RAM image 即可流式生成 v1 格式。
+- README 与工具链契约明确区分 Host 实测、仅编译 reference Port 与实验性平台。
 
 ## [0.7.0] - 2026-05-30
 

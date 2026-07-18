@@ -67,7 +67,8 @@ void axiom_ring_init(axiom_ring_t *ring, uint8_t *buf, uint32_t size) {
     ring->storage = (uintptr_t)buf;
 }
 
-bool axiom_ring_write(axiom_ring_t *ring, const uint8_t *data, uint16_t len) {
+static bool ring_write_internal(axiom_ring_t *ring, const uint8_t *data, uint16_t len,
+                                bool allow_overwrite) {
     if (len == 0 || len > ring->capacity) {
         return false;
     }
@@ -82,15 +83,11 @@ bool axiom_ring_write(axiom_ring_t *ring, const uint8_t *data, uint16_t len) {
     uint8_t *buf  = ring_buf(ring);
 
     if (used + len > cap) {
-#if AXIOM_RING_BUFFER_POLICY == AXIOM_RING_BUFFER_POLICY_DROP
-        axiom_port_critical_exit();
-        return false;
-#else
-        /* OVERWRITE: blind advancement of tail to maintain O(1).
-         * Decoder is responsible for handling partially overwritten frames.
-         */
+        if (!allow_overwrite) {
+            axiom_port_critical_exit();
+            return false;
+        }
         tail = (head + len) - cap;
-#endif
     }
 
     /* memcpy 优化：分段拷贝避免逐字节循环开销 */
@@ -107,6 +104,18 @@ bool axiom_ring_write(axiom_ring_t *ring, const uint8_t *data, uint16_t len) {
 
     axiom_port_critical_exit();
     return true;
+}
+
+bool axiom_ring_write(axiom_ring_t *ring, const uint8_t *data, uint16_t len) {
+#if AXIOM_RING_BUFFER_POLICY == AXIOM_RING_BUFFER_POLICY_OVERWRITE
+    return ring_write_internal(ring, data, len, true);
+#else
+    return ring_write_internal(ring, data, len, false);
+#endif
+}
+
+bool axiom_ring_try_write(axiom_ring_t *ring, const uint8_t *data, uint16_t len) {
+    return ring_write_internal(ring, data, len, false);
 }
 
 uint16_t axiom_ring_read(axiom_ring_t *ring, uint8_t *out, uint16_t max_len) {

@@ -3,6 +3,7 @@
 
 #include <stdint.h>
 #include <stddef.h>
+#include "axiom_config.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -57,6 +58,7 @@ extern uint32_t g_axiom_port_flash_read_calls;
 extern uint32_t g_axiom_port_flash_write_limit;
 extern int g_axiom_port_flash_fail_erase;
 extern int g_axiom_port_flash_fail_write;
+extern uint32_t g_axiom_port_flash_fail_write_call;
 extern int g_axiom_port_flash_fail_read;
 void axiom_port_host_flash_reset(void);
 #endif

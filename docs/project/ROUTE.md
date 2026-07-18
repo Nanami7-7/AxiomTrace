@@ -70,7 +70,7 @@
 - [x] Host tests: Macro expansion behavior verification under each Profile.
 
 **Acceptance Criteria**:
-- `example_minimal.c` compiles and runs on host `gcc` with zero config, outputting expected results.
+- `example_minimal.c` registers the public Memory Backend, emits, calls `axiom_flush()`, and outputs a decoder-validated frame on host GCC/Clang.
 - `AX_LOG` / `AX_PROBE` compile to nothing in `PROD` profile, no code/data generated.
 - All Frontend APIs eventually call the same `axiom_write()`.
 
@@ -82,19 +82,16 @@
 
 - [x] `axiom_backend.c` registry and dispatcher implementation.
 - [x] `axiom_backend_t` struct and `axiom_backend_register()` API.
-- [x] Memory Backend refinement (direct export of ring buffer area).
-- [x] UART Backend Template (COBS encoding + 0x00 delimiter, user fills UART transmit function).
-- [ ] USB CDC Backend Template (bulk IN endpoint, user fills USB transmit function).
-- [x] RTT Backend Template (SEGGER RTT up-channel, user fills SEGGER RTT function).
-- [ ] SWO/ITM Backend Template (32-bit stimulus word stream, user fills ITM function).
-- [ ] CAN-FD Backend Template (frame splitting and ID mapping, user fills CAN transmit function).
+- [x] Public Memory Backend factory with caller-owned linear capture buffer.
+- [ ] Hardware transport backends are deferred beyond v1.0; the release library includes Memory and Deferred only.
+- [ ] SWO/ITM and CAN-FD remain out of scope for v1.0.
 - [x] Backend drop callback and rate-limiting/degradation mechanism.
 - [x] Host tests: `test_backend_ext.c` and `test_dynamic_call_chain.c` (registration, dispatch, drop, busy backend, degradation, recovery, panic_write).
 
 **Acceptance Criteria**:
 - Adding a new backend only requires: implementing 3 functions + calling `axiom_backend_register()`, no changes to `core/`.
 - Backend returns `-EAGAIN` when busy; Core correctly increments drop counter.
-- All templates compile on host with mock functions.
+- Memory and Deferred implementations link from the main target and pass Host tests.
 
 ---
 
@@ -104,7 +101,7 @@
 
 - [ ] `AX_PROBE(tag, value)` high-frequency optimization (bypass filter, minimal header, optional no-crc).
 - [ ] Independent Probe ring buffer (isolated from main ring to avoid overwriting critical logs).
-- [ ] Probe backend: SWO/ITM (recommended, lossless output).
+- [ ] Dedicated Probe transport remains out of scope for v1.0.
 - [ ] Probe decoder support (restores probe stream into timing waveforms).
 - [ ] Benchmark: Probe write cycles < 100 cycles (Cortex-M4 @ 80MHz).
 - [ ] Host tests: Probe ring independence and overwrite policy testing.

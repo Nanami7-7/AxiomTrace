@@ -1,5 +1,7 @@
 #include "axiom_event.h"
+#include "axiom_diagnostics.h"
 #include "axiom_encode.h"
+#include "axiom_frame.h"
 #include "axiom_crc.h"
 #include "axiom_ring.h"
 #include "axiom_filter.h"
@@ -17,8 +19,14 @@
 /* Compile-time sanity checks — must come AFTER all default overrides */
 _Static_assert(AXIOM_MAX_PAYLOAD_LEN <= 255,
     "AXIOM_MAX_PAYLOAD_LEN must not exceed 255 (uint8_t limit)");
+_Static_assert(AXIOM_MAX_PAYLOAD_LEN >= 7,
+    "AXIOM_MAX_PAYLOAD_LEN must fit the 7-byte DROP_SUMMARY payload");
 _Static_assert((AXIOM_RING_BUFFER_SIZE & (AXIOM_RING_BUFFER_SIZE - 1u)) == 0,
     "AXIOM_RING_BUFFER_SIZE must be a power of two");
+_Static_assert(AXIOM_RING_BUFFER_SIZE >= AXIOM_MAX_FRAME_LEN,
+    "AXIOM_RING_BUFFER_SIZE must fit the maximum frame");
+_Static_assert(AXIOM_MODULE_MAX > 0u && AXIOM_MODULE_MAX <= 32u,
+    "AXIOM_MODULE_MAX must fit the 32-bit module mask");
 
 /* ---------------------------------------------------------------------------
  * Encode overflow flag — set by axiom_enc_xxx() when payload exceeds limit.
@@ -46,6 +54,64 @@ static uint16_t s_seq;
 static axiom_filter_t s_filter;
 static axiom_timestamp_ctx_t s_ts_ctx;
 
+static void axiom_record_drop(uint8_t module_id, uint16_t event_id) {
+    axiom_port_critical_enter();
+    axiom_filter_drop(&s_filter, module_id, event_id);
+    axiom_port_critical_exit();
+}
+
+void axiom_internal_record_encode_drop(uint8_t module_id, uint16_t event_id) {
+    axiom_record_drop(module_id, event_id);
+    axiom_diagnostics_note_encode_overflow(1u);
+}
+
+#if AXIOM_RING_BUFFER_POLICY == AXIOM_RING_BUFFER_POLICY_OVERWRITE
+static bool axiom_ring_oldest_frame(uint16_t *frame_len, uint8_t *module_id,
+                                    uint16_t *event_id) {
+    uint8_t frame[AXIOM_MAX_FRAME_LEN];
+    uint16_t available = axiom_ring_peek(&s_ring, frame, sizeof(frame));
+    if (!axiom_frame_validate(frame, available, frame_len)) {
+        return false;
+    }
+    *module_id = frame[3];
+    *event_id = (uint16_t)frame[4] | (uint16_t)((uint16_t)frame[5] << 8u);
+    return true;
+}
+#endif
+
+/* Called with the port critical section held. */
+static bool axiom_ring_make_space(uint16_t frame_len, uint8_t module_id,
+                                  uint16_t event_id, uint32_t *dropped) {
+    uint32_t used = s_ring.head - s_ring.tail;
+    *dropped = 0u;
+    if (used + frame_len <= s_ring.capacity) {
+        return true;
+    }
+
+#if AXIOM_RING_BUFFER_POLICY == AXIOM_RING_BUFFER_POLICY_DROP
+    axiom_filter_drop(&s_filter, module_id, event_id);
+    *dropped = 1u;
+    return false;
+#else
+    while (used + frame_len > s_ring.capacity) {
+        uint16_t old_len = 0u;
+        uint8_t old_module = module_id;
+        uint16_t old_event = event_id;
+        if (!axiom_ring_oldest_frame(&old_len, &old_module, &old_event)) {
+            s_ring.tail = s_ring.head;
+            axiom_filter_drop(&s_filter, module_id, event_id);
+            (*dropped)++;
+            break;
+        }
+        s_ring.tail += old_len;
+        axiom_filter_drop(&s_filter, old_module, old_event);
+        (*dropped)++;
+        used = s_ring.head - s_ring.tail;
+    }
+    return true;
+#endif
+}
+
 static void axiom_write_drop_summary(uint32_t lost, uint8_t mod, uint16_t evt) {
     uint8_t summary[7];
     uint8_t sp = 0;
@@ -65,25 +131,22 @@ void axiom_init(void) {
     axiom_filter_init(&s_filter);
     axiom_timestamp_init(&s_ts_ctx);
     axiom_capsule_init();
+    axiom_diagnostics_reset();
 }
 
 void axiom_flush(void) {
     uint8_t frame[AXIOM_MAX_FRAME_LEN];
     uint16_t n;
     while ((n = axiom_ring_peek(&s_ring, frame, sizeof(frame))) > 0) {
-        /* Frame structure: Header(8B) + Timestamp(1-5B) + PayloadLen(1B) + Payload(N) + CRC(2B) */
-        /* Minimum frame: header(8) + timestamp(1) + payload_len(1) + crc(2) = 12 */
-        if (n < 12) break;
-        /* Decode variable-length timestamp to find payload_len offset */
-        uint8_t ts_len = axiom_timestamp_decode_len(frame[8]);
-        /* Determine actual frame length */
-        uint16_t payload_len = frame[8 + ts_len];
-        uint16_t frame_len = (uint16_t)(8u + ts_len + 1u + payload_len + 2u);
-        if (n < frame_len) break;
-        /* Data already copied by peek — just advance the tail pointer */
+        uint16_t frame_len = 0u;
+        if (!axiom_frame_validate(frame, n, &frame_len)) {
+            axiom_ring_consume(&s_ring, 1u);
+            continue;
+        }
         axiom_ring_consume(&s_ring, frame_len);
         axiom_backend_dispatch(frame, frame_len);
     }
+    axiom_backend_flush_all();
 }
 
 /* ---------------------------------------------------------------------------
@@ -106,13 +169,19 @@ void axiom_flush(void) {
 
 void axiom_write(axiom_level_t level, uint8_t module_id, uint16_t event_id,
                  const uint8_t *payload, uint8_t payload_len) {
-    if (level >= AXIOM_LEVEL_MAX) return;
+    if (level >= AXIOM_LEVEL_MAX || payload_len > AXIOM_MAX_PAYLOAD_LEN ||
+        (payload_len > 0u && !payload)) {
+        axiom_record_drop(module_id, event_id);
+        axiom_diagnostics_note_invalid_input(1u);
+        return;
+    }
 
     if (!axiom_filter_check(&s_filter, level, module_id)) {
         /* CS protects drop_count read-modify-write from concurrent ISR races */
         axiom_port_critical_enter();
         axiom_filter_drop(&s_filter, module_id, event_id);
         axiom_port_critical_exit();
+        axiom_diagnostics_note_filtered(1u);
         return;
     }
 
@@ -148,21 +217,13 @@ void axiom_write(axiom_level_t level, uint8_t module_id, uint16_t event_id,
     uint8_t ts_len = axiom_timestamp_encode(&s_ts_ctx, local_buf + pos);
     pos += ts_len;
 
-    /* Capacity check & policy enforcement */
-    uint32_t head = s_ring.head;
-    uint32_t tail = s_ring.tail;
-    uint32_t cap  = s_ring.capacity;
-    uint32_t used = head - tail;
     /* frame_len = header(8) + ts + payload_len(1) + payload + CRC(2) */
     uint16_t frame_len = (uint16_t)(pos + 1u + payload_len + 2u);
-
-    if (used + frame_len > cap) {
-#if AXIOM_RING_BUFFER_POLICY == AXIOM_RING_BUFFER_POLICY_DROP
+    uint32_t ring_dropped = 0u;
+    if (!axiom_ring_make_space(frame_len, module_id, event_id, &ring_dropped)) {
         axiom_port_critical_exit();
+        axiom_diagnostics_note_ring_full(ring_dropped);
         return;
-#else
-        s_ring.tail = (head + frame_len) - cap;
-#endif
     }
 
     /* Payload length byte */
@@ -187,10 +248,12 @@ void axiom_write(axiom_level_t level, uint8_t module_id, uint16_t event_id,
 
     /* Snapshot drop statistics atomically before leaving CS */
     const bool has_drop = s_filter.drop_pending;
+    const bool can_report_drop = has_drop &&
+        !(module_id == AXIOM_SYSTEM_MODULE_ID && event_id == AXIOM_SYSTEM_EVENT_DROP_SUMMARY);
     uint32_t cached_lost = 0;
     uint8_t  cached_mod  = 0;
     uint16_t cached_evt  = 0;
-    if (has_drop) {
+    if (can_report_drop) {
         cached_lost = s_filter.drop_count;
         cached_mod  = s_filter.drop_module;
         cached_evt  = s_filter.drop_event;
@@ -202,12 +265,16 @@ void axiom_write(axiom_level_t level, uint8_t module_id, uint16_t event_id,
 
     axiom_port_critical_exit();
 
+    if (ring_dropped > 0u) {
+        axiom_diagnostics_note_ring_full(ring_dropped);
+    }
+
     axiom_capsule_observe_frame(local_buf, pos, level);
 
     /* Emit DROP_SUMMARY outside critical section.
      * Recursive axiom_write() is safe: it has its own critical section.
      * Using cached_* locals avoids touching s_filter after CS exit. */
-    if (has_drop) {
+    if (can_report_drop) {
         axiom_capsule_record_drops(cached_lost);
         axiom_write_drop_summary(cached_lost, cached_mod, cached_evt);
     }
@@ -217,13 +284,19 @@ void axiom_write(axiom_level_t level, uint8_t module_id, uint16_t event_id,
 
 void axiom_write(axiom_level_t level, uint8_t module_id, uint16_t event_id,
                  const uint8_t *payload, uint8_t payload_len) {
-    if (level >= AXIOM_LEVEL_MAX) return;
+    if (level >= AXIOM_LEVEL_MAX || payload_len > AXIOM_MAX_PAYLOAD_LEN ||
+        (payload_len > 0u && !payload)) {
+        axiom_record_drop(module_id, event_id);
+        axiom_diagnostics_note_invalid_input(1u);
+        return;
+    }
 
     if (!axiom_filter_check(&s_filter, level, module_id)) {
         /* CS protects drop_count read-modify-write from concurrent ISR races */
         axiom_port_critical_enter();
         axiom_filter_drop(&s_filter, module_id, event_id);
         axiom_port_critical_exit();
+        axiom_diagnostics_note_filtered(1u);
         return;
     }
 
@@ -237,18 +310,11 @@ void axiom_write(axiom_level_t level, uint8_t module_id, uint16_t event_id,
     uint8_t ts_len = axiom_timestamp_encode(&s_ts_ctx, ts_buf);
     uint16_t total_len = (uint16_t)(8u + ts_len + 1u + payload_len + 2u);
 
-    uint32_t head = s_ring.head;
-    uint32_t tail = s_ring.tail;
-    uint32_t cap  = s_ring.capacity;
-    uint32_t used = head - tail;
-
-    if (used + total_len > cap) {
-#if AXIOM_RING_BUFFER_POLICY == AXIOM_RING_BUFFER_POLICY_DROP
+    uint32_t ring_dropped = 0u;
+    if (!axiom_ring_make_space(total_len, module_id, event_id, &ring_dropped)) {
         axiom_port_critical_exit();
+        axiom_diagnostics_note_ring_full(ring_dropped);
         return;
-#else
-        s_ring.tail = (head + total_len) - cap;
-#endif
     }
 
     uint16_t crc = 0xFFFFu;
@@ -295,10 +361,12 @@ void axiom_write(axiom_level_t level, uint8_t module_id, uint16_t event_id,
 #endif
 
     const bool     has_drop    = s_filter.drop_pending;
+    const bool can_report_drop = has_drop &&
+        !(module_id == AXIOM_SYSTEM_MODULE_ID && event_id == AXIOM_SYSTEM_EVENT_DROP_SUMMARY);
     uint32_t       cached_lost = 0;
     uint8_t        cached_mod  = 0;
     uint16_t       cached_evt  = 0;
-    if (has_drop) {
+    if (can_report_drop) {
         cached_lost = s_filter.drop_count;
         cached_mod  = s_filter.drop_module;
         cached_evt  = s_filter.drop_event;
@@ -310,11 +378,15 @@ void axiom_write(axiom_level_t level, uint8_t module_id, uint16_t event_id,
 
     axiom_port_critical_exit();
 
+    if (ring_dropped > 0u) {
+        axiom_diagnostics_note_ring_full(ring_dropped);
+    }
+
 #if AXIOM_CAPSULE_ENABLED
     axiom_capsule_observe_frame(capsule_frame, capsule_pos, level);
 #endif
 
-    if (has_drop) {
+    if (can_report_drop) {
         axiom_capsule_record_drops(cached_lost);
         axiom_write_drop_summary(cached_lost, cached_mod, cached_evt);
     }

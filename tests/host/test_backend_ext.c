@@ -4,6 +4,7 @@
 #include <stdbool.h>
 #include <string.h>
 #include "axiom_backend.h"
+#include "axiom_diagnostics.h"
 #include "axiom_event.h"
 #include "axiom_port.h"
 
@@ -159,6 +160,7 @@ static int mock_fail_write(const uint8_t *buf, uint16_t len, void *ctx) {
 
 static void test_backend_degradation_and_recovery(void) {
     reset_mocks();
+    axiom_diagnostics_reset();
     g_axiom_port_simulated_time = 1000; /* Start time */
 
     /* AXIOM_BACKEND_MAX is typically 4. Register a failing backend. */
@@ -189,6 +191,9 @@ static void test_backend_degradation_and_recovery(void) {
     axiom_backend_dispatch(frame, sizeof(frame));
     /* It should try to recover and restore active count */
     CHECK("degradation: auto-recovered after timeout", axiom_backend_active_count() == active_before);
+    axiom_diagnostics_t diagnostics;
+    axiom_diagnostics_get(&diagnostics);
+    CHECK("degradation: backend failures diagnosed", diagnostics.backend >= 6u);
 }
 
 int main(void) {

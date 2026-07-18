@@ -2,13 +2,13 @@
 
 # AxiomTrace Fault Capsule 规范
 
-> 版本：v1.0 候选  |  状态：**已在可移植 RAM/Flash 后端中实现**  |  当前代码：`baremetal/core/axiom_capsule.c`, `baremetal/core/axiom_event.c`, `tool/src/axiomtrace_tools/capsule.py`
+> 版本：v1.0  |  状态：**已实现**  |  当前代码：`baremetal/core/axiom_capsule.c`, `baremetal/core/axiom_event.c`, `tool/src/axiomtrace_tools/capsule.py`
 
 ---
 
 ## 1. 概念
 
-**Fault Capsule (故障舱)** 是用于事后分析的持久化快照格式。v1.0 中，`AX_FAULT` 会发出 fault-level Event Record、调用 `axiom_port_fault_hook()`、冻结 RAM 中的故障前窗口、捕获故障后窗口，并允许用户代码将组装好的 capsule 镜像提交到配置的 Flash 区域。
+**Fault Capsule (故障舱)** 是用于事后分析的持久化快照格式。v1.0 中，`AX_FAULT` 会发出 fault-level Event Record、调用 `axiom_port_fault_hook()`、冻结保留的故障前窗口、捕获故障后窗口，并允许用户代码将 capsule v1 镜像流式提交到配置的 Flash 区域。
 
 **核心规则**：在系统正常运行时，Flash 写入量为 **零**。只有在触发故障后，在非 ISR 上下文调用 `axiom_capsule_commit()` 时才会触碰 Flash。
 
@@ -20,23 +20,22 @@
 
 | 区域          | 用途                                 | 策略                |
 |---------------|--------------------------------------|---------------------|
-| Normal Ring   | 常规事件日志                         | 覆盖或丢弃          |
-| Capsule Ring  | 预留用于故障捕获                     | 故障时冻结          |
+| Core Ring | 常规事件分发 | 默认 DROP；可选记录感知 OVERWRITE |
+| Capsule 帧环 | 保留完整历史帧 | 故障前按整帧淘汰；故障后只追加 |
 
 ### 2.1 生命周期
 
-1. **正常运行**：事件流向 Normal Ring。Capsule Ring 保持为空。
+1. **正常运行**：事件流经 Core Ring；一个记录感知的 capsule 字节环保留最新完整故障前帧，同时满足数量和字节限制。
 2. **故障触发**：调用 `AX_FAULT()`。
    - Core 调用 `axiom_port_fault_hook()` 并发出 fault Event Record。
-   - capsule observer 冻结 normal pre-window，并按本文契约捕获故障前/后窗口。
-   - Normal Ring 被 **冻结**（新的常规事件将被丢弃或重定向）。
-   - 最近的 `N` 条故障前 Event Record 会从 RAM pre-window 复制到 Capsule stream。
-3. **故障后捕获**：最多 `M` 个故障后事件被写入 Capsule Ring。
-4. **冻结完成**：当 Capsule Ring 满或达到故障后窗口 `M` 时，系统进入 **Capsule Frozen (故障舱冻结)** 状态。
+   - capsule observer 冻结自身保留的 pre-window；独立的 Core Ring 继续按自身策略工作。
+   - fault 帧作为 post-window 的第一条记录追加。
+3. **故障后捕获**：最多 `M` 条 fault/故障后事件只追加写入，不淘汰已冻结的 pre-window。
+4. **冻结完成**：当帧环满或达到故障后窗口 `M` 时，系统进入 **Capsule Frozen (故障舱冻结)** 状态。
 5. **提交 (Commit)**：用户代码（或 Port 层）调用 `axiom_capsule_commit()`：
    - 擦除 Flash 故障舱扇区（非 ISR 环境）。
    - 写入故障舱报头（寄存器快照、复位原因、固件哈希、丢弃统计等）。
-   - 写入 Capsule Ring 的内容。
+   - 分块写入 snapshot 与帧环内容。
    - 写入故障舱 CRC 校验值。
 6. **重启转储**：复位后，用户代码调用 `axiom_capsule_present()` / `axiom_capsule_read()` 来获取故障舱内容进行分析。
 
@@ -165,7 +164,7 @@ uint32_t axiom_capsule_read(uint8_t *out, uint32_t max_len);
 void axiom_capsule_clear(void);
 ```
 
-`axiom_capsule_present()` 和 `axiom_capsule_read()` 会校验 capsule magic、编码长度与 CRC-32。Flash commit 失败时，RAM capsule 仍可读取。
+`axiom_capsule_read()` 直接在调用者缓冲区合成既有 capsule v1 镜像，不保留第二份完整 RAM image。`axiom_capsule_present()` 使用固定 64 字节 scratch 流式校验 Flash。两条 Flash 路径都校验 magic、编码长度与 CRC-32；提交失败时，保留的帧环仍可读取。
 
 ---
 

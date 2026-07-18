@@ -117,7 +117,7 @@ AxiomTrace 采用有界二进制帧组装来降低热路径延迟：
 2. **短临界区**：默认 `AXIOM_SHORT_CS=1` 时，`axiom_write()` 在临界区外预编码完整帧，再在共享状态受保护的临界区内一次性写入 ring。
 3. **CRC 保护帧**：CRC-16 覆盖 header、timestamp、payload length 与 payload。`AXIOM_SHORT_CS=0` 回退路径保留增量 CRC，用于极端栈受限目标。
 
-对于字节流传输（UART, USB CDC），整个帧可能会进行 COBS 编码并附加 `0x00` 分隔符。传输差异请参见 `spec/wire_format.md`。
+Core 发出原始完整 Frame Body。可选外部传输封装不属于 Event Record 模型，详见 `spec/wire_format.md`。
 
 ---
 

@@ -1,482 +1,127 @@
-# AxiomTrace Porting Guide
+# AxiomTrace 移植指南
 
-> [English & 简体中文](porting_guide.md)
->
-> 版本: v1.0  |  状态: 现行（中英双语合并文档）
+> 适用于 AxiomTrace 1.0。公共 Port 接口位于 `baremetal/port/axiom_port.h`。
 
----
+## 1. 架构边界
 
-## 目录
+AxiomTrace 的仓库内核按职责分为五个平面：
 
-1. [架构概述](#架构概述)
-2. [目录结构](#目录结构)
-3. [CMake 选项](#cmake-选项)
-4. [快速开始](#快速开始)
-5. [添加新平台](#添加新平台)
-6. [添加新 SoC](#添加新-soc)
-7. [添加新开发板](#添加新开发板)
-8. [接口参考](#接口参考)
-9. [最佳实践](#最佳实践)
-
----
-
-## 架构概述
-
-AxiomTrace 采用 **三层架构** 设计，参考 Zephyr RTOS 的 arch/soc/board 分层模式：
-
-```
-┌─────────────────────────────────────────────────────────┐
-│                      Board Layer                         │
-│              (开发板特定配置: 传感器, LED, 按键)           │
-├─────────────────────────────────────────────────────────┤
-│                       SoC Layer                          │
-│            (芯片特定实现: STM32F4, nRF52, ESP32)          │
-├─────────────────────────────────────────────────────────┤
-│                     Arch Layer                           │
-│              (架构特定实现: Cortex-M, RISC-V)             │
-├─────────────────────────────────────────────────────────┤
-│                    Generic Layer                         │
-│               (默认弱符号实现, 可被上层覆盖)               │
-└─────────────────────────────────────────────────────────┘
+```text
+frontend/  ->  core/  ->  backend/
+                 ^          |
+                 |          +--> downstream transport
+                 +-- port/  +--> vendor port package
 ```
 
-### 设计原则
+- `frontend/`：`AX_EVT`、`AX_LOG`、`AX_PROBE`、`AX_FAULT`、`AX_KV` 宏。
+- `core/`：事件帧、编码、Ring、过滤、时间戳、诊断和 Fault Capsule。
+- `backend/`：Backend 契约、Memory Backend、Deferred Backend。
+- `port/`：稳定的 `axiom_port_*` 接口声明。
+- `ports/`：Host 默认实现、架构实现和需要外部 SDK 的厂商包。
 
-1. **向下兼容**: 现有 `axiom_port.h` 接口保持不变
-2. **弱符号覆盖**: 上层实现可覆盖下层弱符号实现
-3. **零依赖**: Port 实现不依赖外部库 (如 HAL)
-4. **可组合**: arch + soc + board 组合出完整移植
+顶层 CMake 只负责选择架构 Port；它不猜测 SoC 或开发板，也不把厂商 SDK 混入核心库。
 
----
+## 2. Port 目录约定
 
-## 目录结构
-
-```
-baremetal/
-├── port/                      # 原有 port 目录 (保持向后兼容)
-│   ├── axiom_port.h           # 公共接口定义
-│   └── axiom_port_generic.c  # 默认实现
-│
-└── ports/                     # 新分层 port 结构
-    ├── CMakeLists.txt         # 统一管理文件
-    │
-    ├── generic/               # 通用/主机实现
-    │   └── axiom_port_generic.c
-    │
-    ├── arch/                  # 架构层
-    │   ├── cortex-m/          # ARM Cortex-M
-    │   │   ├── CMakeLists.txt
-    │   │   └── axiom_port_cortex_m.c
-    │   └── riscv/             # RISC-V
-    │       ├── CMakeLists.txt
-    │       └── axiom_port_riscv.c
-    │
-    ├── soc/                   # 芯片层
-    │   ├── stm32f4/           # STM32F4 系列
-    │   │   └── CMakeLists.txt
-    │   ├── nrf52/             # Nordic nRF52 系列
-    │   │   └── CMakeLists.txt
-    │   └── esp32/             # Espressif ESP32
-    │       └── CMakeLists.txt
-    │
-    └── board/                 # 板级层
-        └── generic/           # 默认板级配置
+```text
+baremetal/ports/
+├── CMakeLists.txt              # host/cortex-m/riscv 选择器
+├── generic/                    # Host 和默认弱符号实现
+├── arch/
+│   ├── cortex-m/               # Cortex-M 架构实现
+│   └── riscv/                  # RISC-V 架构实现
+├── stm32/                      # STM32 + UART 外部包
+├── nrf52/                      # nRF52 + SEGGER RTT 外部包
+└── esp32/                      # ESP-IDF Component 外部包
 ```
 
----
+`soc/`、`board/` 不再作为空的占位目录提交。新的 SoC 或开发板适配应放在实际需要 SDK/链接配置的厂商包中，并用 README 说明依赖。
 
-## CMake 选项
+## 3. 顶层 CMake 选项
 
-### AXIOM_PLATFORM
+| 选项 | 可选值 | 作用 |
+| --- | --- | --- |
+| `AXIOM_PLATFORM` | `host`、`cortex-m`、`riscv` | 选择一个架构级 Port；默认按 `CMAKE_SYSTEM_PROCESSOR` 自动检测 |
+| `AXIOM_PRESET` | `custom`、`tiny`、`prod`、`field`、`dev` | 选择资源预设 |
+| `AXIOM_BUILD_TESTS` | `ON`/`OFF` | 构建 Host 测试 |
+| `AXIOM_BUILD_EXAMPLES` | `ON`/`OFF` | 构建 `baremetal/examples` |
 
-目标处理器架构。
+`AXIOM_SOC` 和 `AXIOM_BOARD` 不是顶层项目的选项。厂商 Port 自己处理 SDK、芯片和板级配置，避免“配置成功但实际仍使用 generic Port”的隐式回退。
 
-| 值 | 说明 |
-|---|---|
-| `cortex-m` | ARM Cortex-M 架构 |
-| `riscv` | RISC-V 架构 |
-| `host` | 主机/模拟环境 (默认) |
+## 4. 构建方式
 
-### AXIOM_SOC
+Host 默认使用 generic Port：
 
-目标芯片型号。
-
-| 值 | 说明 |
-|---|---|
-| `generic` | 通用配置 (默认) |
-| `stm32f4` | STM32F4 系列 |
-| `nrf52` | Nordic nRF52 系列 |
-| `esp32` | Espressif ESP32 |
-
-### AXIOM_BOARD
-
-目标开发板型号 (可选, 覆盖 SoC 默认配置)。
-
-| 值 | 说明 |
-|---|---|
-| `generic` | 通用配置 (默认) |
-
----
-
-## 快速开始
-
-### 主机环境 (默认)
-
-```bash
-cmake -B build -S .
+```sh
+cmake -S . -B build -G Ninja \
+  -DAXIOM_BUILD_TESTS=ON -DAXIOM_BUILD_EXAMPLES=ON
 cmake --build build
+ctest --test-dir build --output-on-failure
 ```
 
-自动检测架构为 `host`, 使用通用 port 实现。
+交叉编译时显式指定架构和工具链：
 
-### Cortex-M (通用)
-
-```bash
-cmake -B build -DAXIOM_PLATFORM=cortex-m -DAXIOM_SOC=generic
-cmake --build build
+```sh
+cmake -S . -B build-cortex-m -G Ninja \
+  -DAXIOM_PLATFORM=cortex-m \
+  -DCMAKE_TOOLCHAIN_FILE=/path/to/toolchain.cmake \
+  -DAXIOM_BUILD_TESTS=OFF -DAXIOM_BUILD_EXAMPLES=OFF
+cmake --build build-cortex-m
 ```
 
-### STM32F4 完整配置
+## 5. 使用厂商 Port 包
 
-```bash
-cmake -B build -DAXIOM_PLATFORM=cortex-m -DAXIOM_SOC=stm32f4 -DAXIOM_BOARD=generic
-cmake --build build
-```
-
-### nRF52 完整配置
-
-```bash
-cmake -B build -DAXIOM_PLATFORM=cortex-m -DAXIOM_SOC=nrf52 -DAXIOM_BOARD=generic
-cmake --build build
-```
-
-### ESP32 完整配置
-
-```bash
-cmake -B build -DAXIOM_PLATFORM=riscv -DAXIOM_SOC=esp32 -DAXIOM_BOARD=generic
-cmake --build build
-```
-
----
-
-## 添加新平台
-
-### 1. 创建架构目录
-
-```bash
-mkdir -p baremetal/ports/arch/<platform-name>
-```
-
-### 2. 实现 Port 函数
-
-创建 `axiom_port_<platform-name>.c`，实现以下函数：
-
-```c
-#include "axiom_port.h"
-
-/* 必须实现的函数 */
-uint32_t axiom_port_timestamp(void);
-void axiom_port_critical_enter(void);
-void axiom_port_critical_exit(void);
-
-/* 可选实现 (默认空实现) */
-void axiom_port_string_out(const char *str);
-void axiom_port_fault_hook(uint8_t module_id, uint16_t event_id,
-                           const uint8_t *payload, uint8_t payload_len);
-uint8_t axiom_port_fault_snapshot(uint8_t *buf, uint8_t max_len);
-int axiom_port_flash_erase(uint32_t addr, uint32_t len);
-int axiom_port_flash_write(uint32_t addr, const uint8_t *data, uint32_t len);
-```
-
-### 3. 创建 CMakeLists.txt
+厂商包要求核心目标已经存在，并通过 `AxiomTrace::axiomtrace` 继承公共头文件和编译设置。以 STM32 为例：
 
 ```cmake
-cmake_minimum_required(VERSION 3.16)
-
-set(AXIOM_PORT_ARCH_NAME "<platform-name>")
-
-set(AXIOM_PORT_<PLATFORM>_SOURCES
-    ${CMAKE_CURRENT_SOURCE_DIR}/axiom_port_<platform-name>.c
-    PARENT_SCOPE
-)
+add_subdirectory(path/to/AxiomTrace axiomtrace-core)
+add_subdirectory(path/to/AxiomTrace/baremetal/ports/stm32 axiomtrace-stm32)
+target_link_libraries(firmware PRIVATE axiom_trace_stm32)
 ```
 
-### 4. 更新上层 CMakeLists
-
-在 `baremetal/ports/CMakeLists.txt` 中添加新平台到 `AXIOM_PLATFORM_OPTIONS`。
-
----
-
-## 添加新 SoC
-
-### 1. 创建 SoC 目录
-
-```bash
-mkdir -p baremetal/ports/soc/<soc-name>
-```
-
-### 2. 实现芯片特定功能
-
-创建 `axiom_port_<soc-name>.c`，实现芯片特定功能：
-
-- Flash 操作
-- 外设初始化
-- 时钟配置
-
-### 3. 创建 CMakeLists.txt
+STM32 包需要工程提供芯片启动代码、HAL/寄存器环境和最终链接脚本；它不会在仓库内伪造这些依赖。nRF52 包同样需要 SEGGER RTT 头文件和实现：
 
 ```cmake
-cmake_minimum_required(VERSION 3.16)
-
-set(AXIOM_PORT_SOC_NAME "<soc-name>")
-set(<SOC>_SPECIFIC_CONFIG "value")
+add_subdirectory(path/to/AxiomTrace axiomtrace-core)
+add_subdirectory(path/to/AxiomTrace/baremetal/ports/nrf52 axiomtrace-nrf52)
+target_link_libraries(firmware PRIVATE axiom_port_nrf52)
 ```
 
----
+ESP32 包是 ESP-IDF Component，应复制/纳入 Component 目录，由 `idf_component_register()` 提供 `esp_timer`、FreeRTOS 和 UART 依赖；不能用普通 Host CMake 配置它。
 
-## 添加新开发板
+## 6. 添加新的架构 Port
 
-### 1. 创建 Board 目录
+1. 在 `baremetal/ports/arch/<name>/` 添加 `axiom_port_<name>.c`。
+2. 实现以下基础接口：
 
-```bash
-mkdir -p baremetal/ports/board/<board-name>
-```
+   ```c
+   uint32_t axiom_port_timestamp(void);
+   void axiom_port_critical_enter(void);
+   void axiom_port_critical_exit(void);
+   ```
 
-### 2. 实现板级配置
+3. 按需实现字符串输出、Fault Hook、快照和 Flash 接口；不需要的接口可以返回默认失败值。
+4. 在 `baremetal/ports/CMakeLists.txt` 增加一个明确的 `AXIOM_PLATFORM` 分支，并确认源文件存在。
+5. 不要为单个源文件再创建未被父级调用的 CMake 包装文件。
 
-创建 `axiom_port_<board-name>.c`，实现：
+时间戳必须单调递增且允许 32 位自然回绕；临界区必须成对、可嵌套或明确禁止嵌套；Port 热路径不能分配堆内存、阻塞等待或擦写 Flash。
 
-- GPIO 配置 (LED, 按钮)
-- 传感器初始化
-- 特定外设配置
+## 7. 添加新的厂商/板级包
 
-### 3. 创建 CMakeLists.txt
+当适配需要 SDK 头文件、UART/RTT 驱动、启动代码或链接脚本时，在 `baremetal/ports/<vendor>/` 建立独立包：
 
-```cmake
-cmake_minimum_required(VERSION 3.16)
+- `CMakeLists.txt` 只声明真实存在的源文件和依赖；
+- `README.md` 记录 SDK 版本、必需符号、初始化顺序和链接要求；
+- 包目标通过 `AxiomTrace::axiomtrace` 依赖核心库；
+- 不修改核心 `CMakeLists.txt` 来猜测具体开发板；
+- 在目标工具链/SDK 工程中验证，Host CTest 不冒充硬件验证。
 
-set(AXIOM_PORT_BOARD_NAME "<board-name>")
-set(<BOARD>_SPECIFIC_PIN 13)  # 示例: LED_PIN
-```
+## 8. 验证清单
 
----
+- Host：`cmake --build`、`ctest --test-dir build --output-on-failure`。
+- Python 工具：`uv run --project tool --extra test python -m pytest -q`。
+- 单头文件：运行 `tool/scripts/amalgamate.py` 并编译单 implementation TU。
+- 文档与版本：运行 `python scripts/release_checks.py`。
+- 目标平台：使用真实交叉编译器检查启动、Port、链接脚本和资源预算。
 
-## 接口参考
-
-### axiom_port_timestamp()
-
-返回单调递增的微秒时间戳。
-
-```c
-extern uint32_t axiom_port_timestamp(void);
-```
-
-**实现要求**:
-- 返回值应为微秒级精度
-- 自然回绕 (32位溢出)
-- ISR 安全 (无锁实现)
-
-**Cortex-M 推荐**: DWT_CYCCNT 寄存器
-**RISC-V 推荐**: mcycle CSR
-
-### axiom_port_critical_enter() / axiom_port_critical_exit()
-
-临界区保护。
-
-```c
-extern void axiom_port_critical_enter(void);
-extern void axiom_port_critical_exit(void);
-```
-
-**实现要求**:
-- 必须可嵌套 (配对调用)
-- ISR 安全
-- 禁止调度器 (如使用 RTOS)
-
-**Cortex-M 推荐**: PRIMASK 或 BASEPRI
-**RISC-V 推荐**: mstatus.MIE
-
-### axiom_port_string_out()
-
-开发日志输出。
-
-```c
-extern void axiom_port_string_out(const char *str);
-```
-
-**实现要求**:
-- 非阻塞
-- ISR 可调用
-- 目标设备: UART / RTT / SWO / ITM
-
-### axiom_port_fault_hook()
-
-故障钩子函数。
-
-```c
-extern void axiom_port_fault_hook(uint8_t module_id, uint16_t event_id,
-                                  const uint8_t *payload, uint8_t payload_len);
-```
-
-**调用时机**: AX_FAULT 事件触发时
-
-**用途示例**:
-- 触发硬件断点
-- 写入调试器
-- 保存故障上下文
-
-### axiom_port_fault_snapshot()
-
-寄存器快照。
-
-```c
-extern uint8_t axiom_port_fault_snapshot(uint8_t *buf, uint8_t max_len);
-```
-
-**返回**: 实际写入字节数
-
-**Cortex-M 推荐快照**:
-- R0-R3, R12, LR, PSR, PC
-- CONTROL, PRIMASK, BASEPRI
-
-### axiom_port_flash_erase() / axiom_port_flash_write() / axiom_port_flash_read()
-
-Flash 操作 (用于 Fault Capsule)。
-
-```c
-extern int axiom_port_flash_erase(uint32_t addr, uint32_t len);
-extern int axiom_port_flash_write(uint32_t addr, const uint8_t *data, uint32_t len);
-extern int axiom_port_flash_read(uint32_t addr, uint8_t *out, uint32_t len);
-```
-
-**返回**: 0 成功, -1 失败
-
-**要求**:
-- 非 ISR 调用
-- 擦除必须按页/扇区
-- `AXIOM_CAPSULE_ENABLED=1` 时必须实现 read/write/erase 才能跨重启保留 capsule
-- `tiny` / `prod` preset 默认关闭 capsule；需要故障舱时显式打开并配置 Flash 区域
-
----
-
-## 最佳实践
-
-### 0. 先选资源预设
-
-移植新 MCU 时优先从预设开始，再做少量单项覆盖：
-
-| 预设 | 适用场景 | 建议 |
-|:---|:---|:---|
-| `custom` | 已有工程规范或精确资源预算 | 使用单项 `AXIOM_*` 宏组合，不接受预设覆写 |
-| `tiny` | 低频、极小 SRAM、严格 ISR 栈预算 | 首个 bring-up 默认用它，确认链路后再打开更多功能 |
-| `prod` | 量产默认 | 保留结构化事件，裁掉 debug 文本和 probe |
-| `field` | 现场服务/售后诊断 | 保留 probe 和较小 capsule 窗口 |
-| `dev` | 主机、评估板、开发调试 | 功能完整，适合验证，不代表最低资源占用 |
-
-```bash
-cmake -B build-tiny -S . -G Ninja -DAXIOM_PRESET=tiny
-```
-
-### 1. 使用弱符号
-
-```c
-// 在 generic 层使用 __attribute__((weak))
-__attribute__((weak)) uint32_t axiom_port_timestamp(void) {
-    return 0u;  // 默认返回 0
-}
-```
-
-### 2. 保持热路径高效
-
-```c
-// 错误: 热路径中不应有复杂逻辑
-void axiom_port_critical_enter(void) {
-    // 禁止在临界区入口做复杂判断
-}
-
-// 正确: 简单禁用中断
-void axiom_port_critical_enter(void) {
-    __asm volatile ("cpsid i" : : : "memory");
-}
-```
-
-### 3. Flash 操作的原子性
-
-```c
-// 确保 Flash 操作不被中断打断
-void axiom_port_flash_write(uint32_t addr, const uint8_t *data, uint32_t len) {
-    critical_enter();
-    // 执行 Flash 写入
-    critical_exit();
-}
-```
-
-### 4. 时间戳精度
-
-```c
-// 推荐: 使用硬件计数器
-uint32_t axiom_port_timestamp(void) {
-    return DWT_CYCCNT;  // 单周期递增, 精度高
-}
-
-// 不推荐: SysTick 可能有 jiter
-// 不推荐: 软件计数器可能被中断延迟
-```
-
-### 5. 向后兼容
-
-保持 `axiom_port.h` 接口不变，只扩展内部实现。
-
----
-
-## 常见问题
-
-### Q: 如何选择 arch / soc / board?
-
-**A**: 参考以下决策树:
-
-```
-需要修改处理器指令?
-├── Yes → 添加 arch 层
-└── No
-    ├── 需要修改芯片外设?
-    │   ├── Yes → 添加 soc 层
-    │   └── No
-    │       ├── 需要修改开发板 IO?
-    │       │   ├── Yes → 添加 board 层
-    │       │   └── No → 使用 generic
-```
-
-### Q: 如何调试 Port 实现?
-
-**A**: 使用主机模式测试:
-
-```bash
-# 启用调试输出
-cmake -B build -DAXIOM_PLATFORM=host -DAXIOM_DEBUG=ON
-```
-
-### Q: 如何验证时间戳精度?
-
-**A**: 使用 `axiom_port_timestamp()` 连续调用检查递增:
-
-```c
-uint32_t t1 = axiom_port_timestamp();
-uint32_t t2 = axiom_port_timestamp();
-assert(t2 > t1);  // 应始终成立
-```
-
----
-
-## 相关文档
-
-- [AxiomTrace README](../../README.md)
-- [平台参考实现](./platform_reference.md)
-
----
-
-## 更新日志
-
-| 版本 | 日期 | 说明 |
-|---|---|---|
-| 1.0 | 2026-04-30 | 初始版本, 三层架构设计 |
+最后一次修改 Port 后，应同步更新 `docs/reference/DIR_STRUCTURE.md`、README 的平台说明和 `docs/changelog/CHANGELOG*.md`。

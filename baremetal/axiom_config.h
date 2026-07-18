@@ -7,11 +7,11 @@
  * Library Version (SemVer 2.0.0)
  * Bump on release. Checked at compile-time by downstream consumers.
  * --------------------------------------------------------------------------- */
-#define AXIOMTRACE_VERSION_MAJOR 0u
-#define AXIOMTRACE_VERSION_MINOR 7u
+#define AXIOMTRACE_VERSION_MAJOR 1u
+#define AXIOMTRACE_VERSION_MINOR 0u
 #define AXIOMTRACE_VERSION_PATCH 0u
 
-/* Compile-time version check: AXIOMTRACE_VERSION_CHECK(0,7,0) */
+/* Compile-time version check: AXIOMTRACE_VERSION_CHECK(1,0,0) */
 #define AXIOMTRACE_VERSION_CHECK(ma, mi, pa) \
     ((AXIOMTRACE_VERSION_MAJOR > (ma)) ||    \
      (AXIOMTRACE_VERSION_MAJOR == (ma) && AXIOMTRACE_VERSION_MINOR > (mi)) || \
@@ -26,12 +26,24 @@
  * Example: AXIOM_DEPRECATED("use axiom_new_api() instead") */
 #if defined(__GNUC__) || defined(__clang__)
 #define AXIOM_DEPRECATED(msg) __attribute__((deprecated(msg)))
+#define AXIOM_COMPILER_PACKED __attribute__((packed))
+#if !defined(_WIN32)
+#define AXIOM_COMPILER_WEAK __attribute__((weak))
+#else
+#define AXIOM_COMPILER_WEAK
+#endif
 #elif defined(_MSC_VER)
 #define AXIOM_DEPRECATED(msg) __declspec(deprecated(msg))
+#define AXIOM_COMPILER_PACKED
+#define AXIOM_COMPILER_WEAK
 #elif defined(__IAR_SYSTEMS_ICC__)
 #define AXIOM_DEPRECATED(msg) _Pragma("message=\"" msg "\"")
+#define AXIOM_COMPILER_PACKED __packed
+#define AXIOM_COMPILER_WEAK __weak
 #else
 #define AXIOM_DEPRECATED(msg)
+#define AXIOM_COMPILER_PACKED
+#define AXIOM_COMPILER_WEAK
 #endif
 
 /* ---------------------------------------------------------------------------

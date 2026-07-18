@@ -23,7 +23,7 @@ The AxiomTrace decoder toolchain runs on the host (Linux/macOS/Windows) and conv
 
 ### 2.1 Raw Binary Stream
 
-A concatenation of complete v2.0 frames. Historical v1.0/v1.1 typed-payload frames remain structurally decodable. For UART/USB transports, the stream is COBS-encoded with `0x00` delimiters.
+A concatenation of complete raw v2.0 Frame Bodies. Historical v1.0/v1.1 typed-payload frames remain structurally decodable. Transport wrappers such as COBS are outside the decoder input contract and must be removed first.
 
 ```bash
 axiom-decoder trace.bin --bundle build/axiomtrace-bundle --format text

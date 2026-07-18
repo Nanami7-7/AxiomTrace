@@ -17,10 +17,6 @@
 #define CSR_MIE     0x304
 #define CSR_MTVEC   0x305
 
-/* mtime 寄存器 (需要根据具体 SoC 确定地址) */
-static volatile uint64_t * const MTIME = (uint64_t *)0x2000000;
-static volatile uint64_t * const MTIMECMP = (uint64_t *)0x2000008;
-
 /* 读取 mcycle CSR */
 static inline uint64_t __riscv_read_mcycle(void) {
     uint64_t val;

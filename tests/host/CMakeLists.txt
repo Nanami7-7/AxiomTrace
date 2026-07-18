@@ -137,15 +137,51 @@ add_executable(test_filter_dedicated test_filter.c)
 target_link_libraries(test_filter_dedicated PRIVATE axiomtrace)
 add_test(NAME test_filter_dedicated COMMAND test_filter_dedicated)
 
-add_executable(test_backend_deferred test_backend_deferred.c
-    ${CMAKE_SOURCE_DIR}/baremetal/backend/axiom_backend_deferred.c)
+add_executable(test_backend_deferred test_backend_deferred.c)
 target_link_libraries(test_backend_deferred PRIVATE axiomtrace)
 add_test(NAME test_backend_deferred COMMAND test_backend_deferred)
 
-add_executable(test_backend_memory test_backend_memory.c
-    ${CMAKE_SOURCE_DIR}/baremetal/backend/axiom_backend_memory.c)
+add_executable(test_backend_memory test_backend_memory.c)
 target_link_libraries(test_backend_memory PRIVATE axiomtrace)
 add_test(NAME test_backend_memory COMMAND test_backend_memory)
+
+add_library(axiomtrace_overwrite STATIC ${AXIOM_CORE_SOURCES} ${AXIOM_PORT_SOURCES})
+target_compile_features(axiomtrace_overwrite PUBLIC c_std_11)
+target_include_directories(axiomtrace_overwrite PUBLIC
+    ${CMAKE_SOURCE_DIR}/baremetal
+    ${CMAKE_SOURCE_DIR}/baremetal/include
+    ${CMAKE_SOURCE_DIR}/baremetal/port
+    ${CMAKE_SOURCE_DIR}/baremetal/core
+    ${CMAKE_SOURCE_DIR}/baremetal/frontend
+    ${CMAKE_SOURCE_DIR}/baremetal/backend)
+target_compile_definitions(axiomtrace_overwrite PUBLIC
+    AXIOM_PRESET=0
+    AXIOM_RING_BUFFER_POLICY=1
+    AXIOM_RING_BUFFER_SIZE=256u
+    AXIOM_CAPSULE_ENABLED=0
+    AXIOM_HOST_TESTING=1)
+add_executable(test_core_overwrite test_core_overwrite.c)
+target_link_libraries(test_core_overwrite PRIVATE axiomtrace_overwrite)
+add_test(NAME test_core_overwrite COMMAND test_core_overwrite)
+
+add_library(axiomtrace_small_payload STATIC ${AXIOM_CORE_SOURCES} ${AXIOM_PORT_SOURCES})
+target_compile_features(axiomtrace_small_payload PUBLIC c_std_11)
+target_include_directories(axiomtrace_small_payload PUBLIC
+    ${CMAKE_SOURCE_DIR}/baremetal
+    ${CMAKE_SOURCE_DIR}/baremetal/include
+    ${CMAKE_SOURCE_DIR}/baremetal/port
+    ${CMAKE_SOURCE_DIR}/baremetal/core
+    ${CMAKE_SOURCE_DIR}/baremetal/frontend
+    ${CMAKE_SOURCE_DIR}/baremetal/backend)
+target_compile_definitions(axiomtrace_small_payload PUBLIC
+    AXIOM_PRESET=0
+    AXIOM_MAX_PAYLOAD_LEN=7u
+    AXIOM_RING_BUFFER_SIZE=64u
+    AXIOM_CAPSULE_ENABLED=0
+    AXIOM_HOST_TESTING=1)
+add_executable(test_frontend_overflow test_frontend_overflow.c)
+target_link_libraries(test_frontend_overflow PRIVATE axiomtrace_small_payload)
+add_test(NAME test_frontend_overflow COMMAND test_frontend_overflow)
 # Encoder-backed generator for tracked wire-format golden vectors.
 add_executable(generate_golden generate_golden.c)
 target_link_libraries(generate_golden PRIVATE axiomtrace)
@@ -155,3 +191,74 @@ add_executable(test_benchmark test_benchmark.c)
 target_link_libraries(test_benchmark PRIVATE axiomtrace)
 # Host regression benchmark; target-MCU timing still requires platform measurement.
 add_test(NAME test_benchmark COMMAND test_benchmark)
+
+# Release single-header: one implementation TU plus two ordinary consumers.
+find_package(Python3 3.12 COMPONENTS Interpreter REQUIRED)
+set(AXIOM_SINGLE_HEADER_DIR ${CMAKE_CURRENT_BINARY_DIR}/single_header)
+set(AXIOM_SINGLE_HEADER ${AXIOM_SINGLE_HEADER_DIR}/axiomtrace.h)
+add_custom_command(
+    OUTPUT ${AXIOM_SINGLE_HEADER}
+    COMMAND ${Python3_EXECUTABLE} ${CMAKE_SOURCE_DIR}/tool/scripts/amalgamate.py
+            --output ${AXIOM_SINGLE_HEADER}
+    DEPENDS ${CMAKE_SOURCE_DIR}/tool/scripts/amalgamate.py
+            ${AXIOM_CORE_HEADERS} ${AXIOM_CORE_SOURCES}
+    VERBATIM)
+add_custom_target(generate_single_header DEPENDS ${AXIOM_SINGLE_HEADER})
+
+add_executable(test_single_header
+    single_header_impl.c single_header_consumer_a.c single_header_consumer_b.c
+    single_header_main.c ${AXIOM_SINGLE_HEADER})
+add_dependencies(test_single_header generate_single_header)
+target_include_directories(test_single_header PRIVATE ${AXIOM_SINGLE_HEADER_DIR})
+add_test(NAME test_single_header COMMAND test_single_header)
+
+add_executable(test_single_header_custom_port
+    single_header_custom_impl.c single_header_custom_port.c
+    single_header_consumer_a.c single_header_consumer_b.c single_header_main.c
+    ${AXIOM_SINGLE_HEADER})
+add_dependencies(test_single_header_custom_port generate_single_header)
+target_include_directories(test_single_header_custom_port PRIVATE ${AXIOM_SINGLE_HEADER_DIR})
+add_test(NAME test_single_header_custom_port COMMAND test_single_header_custom_port)
+
+# CMake consumption fixtures.
+set(AXIOM_ADDSUB_BUILD ${CMAKE_CURRENT_BINARY_DIR}/consumer-addsub-${CMAKE_C_COMPILER_ID})
+add_test(NAME cmake_add_subdirectory_configure
+    COMMAND ${CMAKE_COMMAND}
+        -G "${CMAKE_GENERATOR}"
+        -S ${CMAKE_SOURCE_DIR}/tests/consumer/add_subdirectory
+        -B ${AXIOM_ADDSUB_BUILD}
+        -DCMAKE_C_COMPILER=${CMAKE_C_COMPILER}
+        "-DCMAKE_C_FLAGS=${CMAKE_C_FLAGS}"
+        -DAXIOMTRACE_SOURCE=${CMAKE_SOURCE_DIR})
+set_tests_properties(cmake_add_subdirectory_configure PROPERTIES
+    FIXTURES_SETUP axiom_addsub)
+add_test(NAME cmake_add_subdirectory_build
+    COMMAND ${CMAKE_COMMAND} --build ${AXIOM_ADDSUB_BUILD})
+set_tests_properties(cmake_add_subdirectory_build PROPERTIES
+    FIXTURES_REQUIRED axiom_addsub)
+
+set(AXIOM_INSTALL_PREFIX ${CMAKE_CURRENT_BINARY_DIR}/installed)
+add_test(NAME cmake_install_package
+    COMMAND ${CMAKE_COMMAND} --install ${CMAKE_BINARY_DIR}
+        --prefix ${AXIOM_INSTALL_PREFIX})
+set_tests_properties(cmake_install_package PROPERTIES FIXTURES_SETUP axiom_install)
+set(AXIOM_FIND_PACKAGE_BUILD ${CMAKE_CURRENT_BINARY_DIR}/consumer-find-package-${CMAKE_C_COMPILER_ID})
+add_test(NAME cmake_find_package_configure
+    COMMAND ${CMAKE_COMMAND}
+        -G "${CMAKE_GENERATOR}"
+        -S ${CMAKE_SOURCE_DIR}/tests/consumer/find_package
+        -B ${AXIOM_FIND_PACKAGE_BUILD}
+        -DCMAKE_C_COMPILER=${CMAKE_C_COMPILER}
+        "-DCMAKE_C_FLAGS=${CMAKE_C_FLAGS}"
+        -DCMAKE_PREFIX_PATH=${AXIOM_INSTALL_PREFIX})
+set_tests_properties(cmake_find_package_configure PROPERTIES
+    FIXTURES_REQUIRED axiom_install FIXTURES_SETUP axiom_find_package)
+add_test(NAME cmake_find_package_build
+    COMMAND ${CMAKE_COMMAND} --build ${AXIOM_FIND_PACKAGE_BUILD})
+set_tests_properties(cmake_find_package_build PROPERTIES
+    FIXTURES_REQUIRED axiom_find_package)
+
+get_property(AXIOM_HOST_TESTS DIRECTORY PROPERTY TESTS)
+foreach(AXIOM_HOST_TEST IN LISTS AXIOM_HOST_TESTS)
+    axiom_configure_test_runtime(${AXIOM_HOST_TEST})
+endforeach()

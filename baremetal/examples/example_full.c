@@ -11,27 +11,10 @@
 
 #include "axiomtrace.h"
 #include <stdio.h>
-#include <string.h>
 
 /* Memory buffer for capturing events (host demonstration) */
 static uint8_t g_memory_buf[256];
-static uint32_t g_memory_head;
-
-/* Memory backend using new Backend API pattern */
-static int memory_write(const uint8_t *buf, uint16_t len, void *ctx) {
-    uint32_t *head = (uint32_t *)ctx;
-    if (*head + len > sizeof(g_memory_buf)) {
-        *head = 0; /* wrap */
-    }
-    memcpy(g_memory_buf + *head, buf, len);
-    *head += len;
-    return 0;
-}
-
-static int memory_ready(void *ctx) {
-    (void)ctx;
-    return 1;
-}
+static axiom_memory_backend_ctx_t g_memory_ctx;
 
 /* Simple stdout backend for real-time output */
 static int stdout_write(const uint8_t *buf, uint16_t len, void *ctx) {
@@ -54,12 +37,8 @@ int main(void) {
 
     /* 使用 AXIOM_BACKEND_INIT 宏初始化后端，自动填充 size 字段
      * 确保前向兼容的结构体演进机制正常工作 */
-    axiom_backend_t memory_be = AXIOM_BACKEND_INIT(
-        .name = "memory",
-        .write = memory_write,
-        .ready = memory_ready,
-        .ctx = &g_memory_head,
-    );
+    axiom_backend_t memory_be = axiom_backend_memory(
+        "memory", g_memory_buf, sizeof(g_memory_buf), &g_memory_ctx);
     axiom_backend_register(&memory_be);
 
     axiom_backend_t stdout_be = AXIOM_BACKEND_INIT(
@@ -84,7 +63,7 @@ int main(void) {
     AX_PROBE("adc", (uint16_t)4095);
 
     /* Flush to ensure all events are dispatched */
-    axiom_backend_flush_all();
+    axiom_flush();
 
     printf("Full example complete.\n");
     return 0;

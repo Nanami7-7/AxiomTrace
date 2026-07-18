@@ -4,16 +4,6 @@
 
 #include <string.h>
 
-/* Forward declaration for the memory backend factory */
-typedef struct {
-    uint8_t *buf;
-    uint32_t size;
-    uint32_t head;
-} axiom_memory_backend_ctx_t;
-
-extern axiom_backend_t axiom_backend_memory(const char *name, uint8_t *buf, uint32_t size,
-                                             axiom_memory_backend_ctx_t *ctx);
-
 static void test_valid_struct(void) {
     static uint8_t buf[256];
     axiom_memory_backend_ctx_t ctx;

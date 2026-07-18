@@ -2,7 +2,7 @@
 
 # AxiomTrace API 参考手册
 
-> 版本：v0.7.0 | 状态：**冻结中（v0.1-frontend 定稿）**
+> 版本：v1.0.0 | 状态：**已冻结**
 
 ---
 
@@ -10,7 +10,7 @@
 
 AxiomTrace 提供分层的 API 接口：
 
-- **第 0 层 — 快速开始**：硬编码 ID，零配置，单文件库。
+- **第 0 层 — 快速开始**：硬编码 ID、公开 Memory Backend 与单文件库。
 - **第 1 层 — 结构化**：X-Macro 事件定义，编译期 ID 管理。
 - **第 2 层 — 团队规模**：YAML 字典 + Python 代码生成，全语义控制。
 
@@ -221,7 +221,24 @@ uint32_t axiom_module_mask_get(void);
 void axiom_flush(void);
 ```
 
-显式地将环形缓冲区内容排出到所有已注册的后端。可选；后端也可以异步排出。
+用户侧唯一的常规刷新入口。它先排空并分发 Core ring 中的完整帧，对损坏字节执行重同步，然后调用每个 Backend 自身的 `flush` 回调。`axiom_backend_flush_all()` 保留为高级 Backend-only API，不会排空 Core ring。
+
+### 8.5 诊断
+
+```c
+typedef struct {
+    uint32_t filtered;
+    uint32_t ring_full;
+    uint32_t encode_overflow;
+    uint32_t invalid_input;
+    uint32_t backend;
+} axiom_diagnostics_t;
+
+void axiom_diagnostics_get(axiom_diagnostics_t *out);
+void axiom_diagnostics_reset(void);
+```
+
+快照与清零由 Port 临界区保护；`axiom_init()` 会重置计数。Core ingress 丢失由下一次成功发送的 `DROP_SUMMARY` 报告；Backend 特定丢失通过 `backend` 和 `on_drop` 报告，因为失败的 Backend 无法可靠承载自身丢失摘要。
 
 ---
 
@@ -275,8 +292,8 @@ void     axiom_capsule_clear(void);
 | `AXIOM_MAX_PAYLOAD_LEN` | 128 | 每个事件的最大有效载荷字节数 |
 | `AXIOM_MODULE_MAX` | 32 | 过滤器位掩码支持的最大模块 ID 数（0 .. MAX-1） |
 | `AXIOM_BACKEND_MAX` | 4 | 最大注册后端数量 |
-| `AXIOMTRACE_VERSION_MAJOR` | 0 | 库主版本号 |
-| `AXIOMTRACE_VERSION_MINOR` | 7 | 库次版本号 |
+| `AXIOMTRACE_VERSION_MAJOR` | 1 | 库主版本号 |
+| `AXIOMTRACE_VERSION_MINOR` | 0 | 库次版本号 |
 | `AXIOMTRACE_VERSION_PATCH` | 0 | 库补丁版本号 |
 | `AXIOM_PROFILE` | 由预设决定 | `DEV`, `FIELD` 或 `PROD` |
 | `AXIOM_CFG_LOCATION_MODE` | `NONE` | `NONE`、`HASH` 或 `FILE_ID` payload 定位元数据 |

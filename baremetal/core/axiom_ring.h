@@ -41,6 +41,10 @@ void axiom_ring_init(axiom_ring_t *ring, uint8_t *buf, uint32_t size);
 /* Write data to ring. Returns true on success, false if dropped. */
 bool axiom_ring_write(axiom_ring_t *ring, const uint8_t *data, uint16_t len);
 
+/* Write with an unconditional DROP-new policy, independent of the global
+ * AXIOM_RING_BUFFER_POLICY. Used by frame-preserving deferred queues. */
+bool axiom_ring_try_write(axiom_ring_t *ring, const uint8_t *data, uint16_t len);
+
 /* Write a chunk to the ring and optionally update CRC.
  * Internal use only, requires caller to handle critical section and capacity check. */
 void axiom_ring_write_chunk(axiom_ring_t *ring, const uint8_t *data, uint16_t len, uint16_t *crc);

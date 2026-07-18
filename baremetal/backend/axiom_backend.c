@@ -1,4 +1,5 @@
 #include "axiom_backend.h"
+#include "axiom_diagnostics.h"
 #include "axiom_port.h"
 #include <stdbool.h>
 
@@ -24,10 +25,9 @@ int axiom_backend_register(const axiom_backend_t *backend) {
     if (s_backend_count >= AXIOM_BACKEND_MAX) {
         return AXIOM_BACKEND_ERR_FULL;
     }
-    /* Backward compatibility: old backends may be zero-initialized with size==0.
-     * Treat size==0 as legacy layout (v1 without the size field).
-     * size > 0 but < current sizeof means a newer library compiled against
-     * an older struct — reject to prevent reading garbage. */
+    /* Source compatibility: descriptors zero-initialized with the current
+     * header may leave size==0. This does not make a descriptor compiled with
+     * an older binary layout ABI-compatible. Reject other undersized layouts. */
     if (backend->size != 0 && backend->size < sizeof(axiom_backend_t)) {
         return AXIOM_BACKEND_ERR_STRUCT;
     }
@@ -68,14 +68,18 @@ void axiom_backend_dispatch(const uint8_t *frame, uint16_t len) {
 #endif
 
         if (be->ready && !be->ready(be->ctx)) {
+            axiom_diagnostics_note_backend(1u);
             if (be->on_drop) {
                 be->on_drop(1, be->ctx);
             }
             continue;
         }
         int ret = be->write(frame, len, be->ctx);
-        if (ret < 0 && be->on_drop) {
-            be->on_drop(1, be->ctx);
+        if (ret < 0) {
+            axiom_diagnostics_note_backend(1u);
+            if (be->on_drop) {
+                be->on_drop(1, be->ctx);
+            }
         }
 
 #if AXIOM_BACKEND_DEGRADATION

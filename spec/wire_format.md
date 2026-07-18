@@ -36,7 +36,7 @@ The timestamp field is auto-inserted by `axiom_write()` for every event. It uses
 |---------------|-------|----------|
 | 0 – 127 | 1 | `0b0xxxxxxx` (7-bit value) |
 | 128 – 16,383 | 2 | `0b10xxxxxx` + 1 byte (13-bit value) |
-| 16,384 – 2,097,151 | 3 | `0b110xxxxx` + 2 bytes (19-bit value) |
+| 16,384 – 2,097,151 | 3 | `0b110xxxxx` + 2 bytes (21-bit value) |
 | 2,097,152 – 4,294,967,295 | 5 | `0xFE` + 4 bytes (full 32-bit) |
 
 The timestamp is included in the CRC-16 calculation (Header + Timestamp + Payload Length + Payload). Decoders must decode the variable-length timestamp field before locating `payload_len` at `frame[8 + ts_len]`.
@@ -56,7 +56,7 @@ Reserved system payloads are exceptions to application dictionary decoding: `AX_
 
 ### 2.3 Byte Order
 
-All multi-byte fields are **little-endian** unless the transport mandates otherwise (e.g., CAN-FD uses big-endian by convention; the CAN-FD backend performs byte swap).
+All multi-byte fields inside the Frame Body are **little-endian**. An external transport wrapper must not alter the CRC-covered Frame Body.
 
 ### 2.4 Alignment
 
@@ -64,24 +64,11 @@ Wire format is unaligned (packed). The encoder uses `memcpy` or byte-wise writes
 
 ---
 
-## 3. COBS Encoding (Byte-Stream Transports)
+## 3. Stream Framing and Resynchronization
 
-For UART and USB CDC, the entire Frame Body is **COBS-encoded** to eliminate `0x00` bytes inside the frame:
+Wire v2 emitted by Core is the raw Frame Body above; Core does not apply COBS or append a delimiter. A stream decoder searches for sync byte `0xA5`, validates version, level, timestamp length, payload length, maximum frame length, and CRC, and advances one byte after an invalid candidate. Core and Deferred flush use the same boundary checks.
 
-```c
-[ COBS Encoded Frame Body ]
-[ 0x00 Delimiter ]
-```
-
-**Properties**:
-
-- Worst-case overhead: `ceil(n/254)` bytes.
-- Guaranteed no `0x00` bytes inside the encoded block.
-- Single-pass encode/decode, no lookup tables required.
-- The final `0x00` delimiter guarantees resynchronization after frame loss.
-- **Blind Overwrite Compatibility**: Even if a frame is partially overwritten in a ring buffer, the next frame starting after a `0x00` delimiter can be reliably located.
-
-**Note**: COBS is applied to the **entire Frame Body** (Header + Timestamp + Payload Length + Payload + CRC). The delimiter is **not** part of the COBS block.
+Transport-specific framing may wrap the complete Frame Body outside AxiomTrace, but that wrapper is not part of Wire v2 and must be removed before using the standard decoder.
 
 ---
 
@@ -91,26 +78,13 @@ For UART and USB CDC, the entire Frame Body is **COBS-encoded** to eliminate `0x
 - **Coverage**: Header (8B) + Timestamp (1..5B) + Payload Length (1B) + Payload (N bytes).
 - **Computation**: Precomputed 256-byte ROM lookup table for O(n) speed.
 - **Verification**: Decoder recomputes CRC over the same range and compares with the trailing 2 bytes. Mismatch = `FRAME_INVALID`.
-- **Error Recovery**: In "Blind Overwrite" scenarios, CRC failure allows the host to detect partially overwritten frames and safely discard them without losing synchronization for subsequent frames.
+- **Error Recovery**: CRC failure rejects the candidate frame; byte-wise sync search then finds the next valid raw frame.
 
 ---
 
 ## 5. Transport Variations
 
-| Transport   | COBS | CRC  | Delimiter | Notes                                   |
-|-------------|------|------|-----------|-----------------------------------------|
-| UART        | Yes  | Yes  | `0x00`    | Full frame per DMA descriptor or IRQ    |
-| USB CDC     | Yes  | Yes  | `0x00`    | Bulk IN endpoint, 64-byte chunks        |
-| Memory Dump | No   | Yes  | N/A       | Sequential writes to RAM/Flash region   |
-| SWO/ITM     | No   | No   | N/A       | Stream of 32-bit stimulus words         |
-| SEGGER RTT  | No   | Optional | N/A   | Up-channel binary blob                  |
-| CAN-FD      | No   | Yes  | N/A       | Frame split across multiple IDs; BE swap|
-
-**Rules**:
-
-- Backends must not define private protocols. They only apply transport-specific wrappers.
-- The Frame Body (Header + Timestamp + Payload Length + Payload + CRC) is identical across all transports.
-- SWO/ITM omits CRC because the transport is assumed lossless within the debug probe channel.
+Memory and Deferred backends preserve the complete Frame Body byte-for-byte. Hardware transport sources in the repository are reference integrations; USB CDC, SWO/ITM, and CAN-FD contracts are outside v1.0. A custom backend must pass complete frames and must not alter the CRC-covered body.
 
 ---
 
@@ -132,7 +106,7 @@ A frame is valid if and only if:
 On any validation failure, the decoder must:
 
 1. Reject the frame explicitly (return `FRAME_INVALID` or equivalent)
-2. Advance to the next `0x00` delimiter (COBS transports) or next `0xA5` sync byte
+2. Advance one byte and search for the next `0xA5` sync candidate
 3. Resume decoding from the next candidate frame
 4. **Never crash or enter undefined state**
 

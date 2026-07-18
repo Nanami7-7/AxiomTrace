@@ -139,11 +139,8 @@ AxiomTrace/
 
 **交付**：
 - Memory Backend。
-- UART Backend Template (COBS + 0x00 delimiter)。
-- USB CDC Backend Template (bulk IN endpoint)。
-- RTT Backend Template (SEGGER RTT up-channel)。
-- SWO/ITM Backend Template (32-bit stimulus word 流)。
-- CAN-FD Backend Template (帧拆分与 ID 映射)。
+- Memory 与 Deferred Backend 链接进主库。
+- 硬件传输 Backend 不在 v1.0 收敛范围。
 - Flash Capsule Backend (故障时 commit，正常不写 Flash)。
 
 **Backend Contract**:
@@ -266,5 +263,5 @@ typedef struct {
 | API 设计 | 结构化宏 + Profile 裁剪 | 开发时好用 (AX_LOG)，量产时零开销 (PROD 裁剪)。 |
 | 类型安全 | C11 `_Generic` | 编译期检查，零运行时开销。 |
 | 扩展性 | Backend Contract + 弱符号 Port | 新增后端不修改库，新平台只需覆盖 port 函数。 |
-| 用户友好 | 单文件库 + 零配置起步 + 渐进式复杂度 | 5 分钟上手，按需升级工具链。 |
+| 用户友好 | 单文件库 + 最小 Backend 注册 + 渐进式复杂度 | 5 分钟跑通有效帧，按需升级工具链。 |
 | 可信 | Golden test + decoder 回归 + benchmark | 每次变更可验证，协议可追溯。 |

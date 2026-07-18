@@ -53,6 +53,21 @@ FAILED_STEPS=()
 # Options
 MODE="fast"  # Default mode
 DRY_RUN=false
+PYTHON_RUNNER_MODE="system"
+AXIOM_PYTHON_CMD="${AXIOM_PYTHON:-python}"
+AXIOM_UV_PYTHON_VERSION="${AXIOM_PYTHON_VERSION:-}"
+
+if [ -z "$AXIOM_UV_PYTHON_VERSION" ] && [ -f "$PROJECT_ROOT/tool/.python-version" ]; then
+    AXIOM_UV_PYTHON_VERSION="$(tr -d '\r\n' < "$PROJECT_ROOT/tool/.python-version")"
+fi
+
+run_python() {
+    if [ "$PYTHON_RUNNER_MODE" = "uv" ]; then
+        uv run --project tool --extra test --python "$AXIOM_UV_PYTHON_VERSION" python "$@"
+    else
+        "$AXIOM_PYTHON_CMD" "$@"
+    fi
+}
 
 # -----------------------------------------------------------------------------
 # Help function
@@ -66,7 +81,7 @@ Usage: ./scripts/ci.sh [OPTIONS]
 
 Options:
   --fast      Run fast mode (default)
-              Steps: CMake configure/build/test + Python compile/pytest/golden/CLI/amalgamate/doc-link
+              Steps: CMake configure/build/test + Python compile/pytest/golden/CLI/amalgamate/smoke/doc-link
   --full      Run full mode (includes fast mode + GCC build + preset smoke + integration test)
   --dry-run   Show commands without executing
   --help      Show this help message
@@ -78,7 +93,11 @@ Examples:
   ./scripts/ci.sh --dry-run      # Show what would be executed
   ./scripts/ci.sh --full --dry-run  # Show full mode commands
 
-Fast Mode Steps (1-9):
+Environment:
+  AXIOM_PYTHON          Override Python executable. Defaults to uv when available.
+  AXIOM_PYTHON_VERSION  Python version for uv. Defaults to tool/.python-version.
+
+Fast Mode Steps (1-10):
   1.  CMake configure (clang)
   2.  CMake build
   3.  CTest
@@ -86,16 +105,16 @@ Fast Mode Steps (1-9):
   5.  pytest
   6.  Golden check
   7.  CLI validate
-  8.  Amalgamate verify
-  9.  Doc link check
+  8.  Amalgamate generate
+  9.  Amalgamated header smoke compile
+  10. Doc link check
 
 Full Mode Steps (1-15, includes fast mode):
-  10. GCC configure
-  11. GCC build
-  12. GCC CTest
-  13. Preset smoke tests (custom/tiny/prod/field/dev)
-  14. Integration test
-  15. GNU11 smoke compile
+  11. GCC configure
+  12. GCC build
+  13. GCC CTest
+  14. Preset smoke tests (custom/tiny/prod/field/dev)
+  15. Integration test
 EOF
 }
 
@@ -113,9 +132,13 @@ check_dependencies() {
         missing+=("bash")
     fi
 
-    # Check python3
-    if ! command -v python3 &> /dev/null && ! command -v python &> /dev/null; then
-        missing+=("python3")
+    if [ -z "${AXIOM_PYTHON:-}" ] && command -v uv &> /dev/null; then
+        PYTHON_RUNNER_MODE="uv"
+        if [ -z "$AXIOM_UV_PYTHON_VERSION" ]; then
+            missing+=("tool/.python-version or AXIOM_PYTHON_VERSION")
+        fi
+    elif ! command -v "$AXIOM_PYTHON_CMD" &> /dev/null; then
+        missing+=("$AXIOM_PYTHON_CMD")
     fi
 
     # Check cmake
@@ -128,15 +151,31 @@ check_dependencies() {
         missing+=("ninja")
     fi
 
-    # Check clang or gcc
-    if ! command -v clang &> /dev/null && ! command -v gcc &> /dev/null; then
-        missing+=("clang or gcc")
+    # Fast mode configures and smoke-compiles with clang.
+    if ! command -v clang &> /dev/null; then
+        missing+=("clang")
+    fi
+
+    # Full mode adds an independent GCC build.
+    if [ "$MODE" = "full" ] && ! command -v gcc &> /dev/null; then
+        missing+=("gcc")
     fi
 
     if [ ${#missing[@]} -gt 0 ]; then
         log_fail "Missing dependencies: ${missing[*]}"
         echo "Please install the missing dependencies and try again."
         exit 1
+    fi
+
+    if ! run_python -c "import pytest, click" &> /dev/null; then
+        log_fail "Python runner is missing pytest/click. Use uv or install test dependencies."
+        exit 1
+    fi
+
+    if [ "$PYTHON_RUNNER_MODE" = "uv" ]; then
+        log_info "Python runner: uv project tool (Python $AXIOM_UV_PYTHON_VERSION)"
+    else
+        log_info "Python runner: $AXIOM_PYTHON_CMD"
     fi
 
     log_pass "All dependencies found"
@@ -197,31 +236,50 @@ run_fast_mode() {
 
     # Step 4: Python compile check
     run_step "Python compile check" \
-        "python -m compileall -q tool/src tests"
+        "run_python -m compileall -q tool/src tests"
 
     # Step 5: pytest
     run_step "pytest" \
-        "python -m pytest -q"
+        "run_python -m pytest -q"
 
     # Step 6: Golden check
     run_step "Golden check" \
-        "python tool/golden/update_golden.py --check"
+        "run_python tool/golden/update_golden.py --check"
 
     # Step 7: CLI validate
     run_step "CLI validate" \
-        "PYTHONPATH=tool/src python -m axiomtrace_tools.cli validate --golden tool/golden"
+        "PYTHONPATH=tool/src run_python -m axiomtrace_tools.cli validate --golden tool/golden"
 
-    # Step 8: Amalgamate verify
-    run_step "Amalgamate verify" \
-        "python tool/scripts/amalgamate.py && git diff --exit-code axiomtrace_amalgamated.h"
+    # Step 8: Generate the release header.
+    # dist/axiomtrace.h is an ignored generated artifact, so git diff
+    # cannot prove it is current. The next step compiles the generated output.
+    run_step "Amalgamate generate" \
+        "run_python tool/scripts/amalgamate.py && test -s dist/axiomtrace.h"
 
-    # Step 9: Doc link check
+    # Step 9: Smoke compile generated header
+    run_step "Amalgamated header smoke compile" \
+        "cat > /tmp/axiomtrace_smoke.c <<'SMOKE_EOF'
+#define AXIOMTRACE_IMPLEMENTATION
+#include \"axiomtrace.h\"
+int main(void) {
+    axiom_init();
+    AX_EVT(INFO, 0x01u, 0x0001u);
+    AX_EVT(INFO, 0x01u, 0x0002u, (uint8_t)1u);
+    AX_FAULT(0x02u, 0x0003u);
+    (void)axiom_capsule_commit();
+    axiom_flush();
+    return 0;
+}
+SMOKE_EOF
+clang -std=gnu11 -Wall -Wextra -Werror -Idist /tmp/axiomtrace_smoke.c -o /tmp/axiomtrace_smoke && /tmp/axiomtrace_smoke"
+
+    # Step 10: Doc link check
     run_step "Doc link check" \
-        "python .githooks/check_doc_links.py"
+        "run_python .githooks/check_doc_links.py"
 }
 
 # -----------------------------------------------------------------------------
-# Full mode steps (10-14)
+# Full mode steps (11-15)
 # -----------------------------------------------------------------------------
 
 run_full_mode() {
@@ -288,25 +346,9 @@ run_full_mode() {
         fi
     fi
 
-    # Step 14: Integration test
+    # Step 15: Integration test
     run_step "Integration test" \
         "bash ./tests/test_integration.sh"
-
-    # Step 15: GNU11 smoke compile
-    run_step "GNU11 smoke compile" \
-        "cat > /tmp/axiomtrace_smoke.c <<'SMOKE_EOF'
-#include \"axiomtrace_amalgamated.h\"
-int main(void) {
-    axiom_init();
-    AX_EVT(INFO, 0x01u, 0x0001u);
-    AX_EVT(INFO, 0x01u, 0x0002u, (uint8_t)1u);
-    AX_FAULT(0x02u, 0x0003u);
-    (void)axiom_capsule_commit();
-    axiom_flush();
-    return 0;
-}
-SMOKE_EOF
-gcc -std=gnu11 -Wall -Wextra -Werror -I. /tmp/axiomtrace_smoke.c -c -o /tmp/axiomtrace_smoke.o"
 }
 
 # -----------------------------------------------------------------------------

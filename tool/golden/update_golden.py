@@ -5,6 +5,8 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -47,7 +49,11 @@ def run() -> int:
 
     with tempfile.TemporaryDirectory() as temporary:
         emitted_dir = Path(temporary)
-        subprocess.run([str(encoder), str(emitted_dir)], check=True)
+        subprocess.run(
+            [str(encoder), str(emitted_dir)],
+            check=True,
+            env=_encoder_environment(),
+        )
         generated: dict[str, tuple[bytes, str]] = {}
         for name in FRAME_NAMES:
             frame = (emitted_dir / f"{name}.bin").read_bytes()
@@ -96,10 +102,38 @@ def _resolve_encoder(explicit: Path | None) -> Path:
             "generate_golden executable not found. Build tests first or pass "
             "--encoder build/tests/host/generate_golden[.exe]."
         )
-    candidates.sort(key=lambda path: path.stat().st_mtime, reverse=True)
+    # Prefer an ordinary build over a sanitizer build. Golden generation checks
+    # bytes, not instrumentation, and Windows ASan executables require an extra
+    # runtime DLL search path. A sanitizer build remains a valid fallback.
+    candidates.sort(
+        key=lambda path: (
+            any("san" in part.lower() for part in path.parts),
+            -path.stat().st_mtime,
+        )
+    )
     selected = candidates[0].resolve()
     print(f"Using encoder: {selected}", file=sys.stderr)
     return selected
+
+
+def _encoder_environment() -> dict[str, str]:
+    env = os.environ.copy()
+    if os.name != "nt":
+        return env
+
+    clang = shutil.which("clang")
+    if clang is None:
+        return env
+    result = subprocess.run(
+        [clang, "--print-runtime-dir"],
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+    runtime_dir = result.stdout.strip()
+    if result.returncode == 0 and Path(runtime_dir).is_dir():
+        env["PATH"] = runtime_dir + os.pathsep + env.get("PATH", "")
+    return env
 
 
 if __name__ == "__main__":

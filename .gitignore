@@ -44,6 +44,7 @@ Desktop.ini
 .cache/
 .ccls
 .ccls-cache/
+.codegraph/
 .code-workspace
 *.sublime-workspace
 .sublime-project

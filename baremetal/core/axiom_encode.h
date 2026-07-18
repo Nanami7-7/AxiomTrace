@@ -296,7 +296,7 @@ static inline void axiom_enc_meta_identity(uint8_t *buf, uint8_t *pos,
  * Note: double literals (e.g., 3.14) are NOT supported.
  * Use float literals (e.g., 3.14f) or explicit (float)3.14 cast.
  * --------------------------------------------------------------------------- */
-#define _AXIOM_ENCODE_ONE(buf, pos, arg) \
+#define AXIOM_INTERNAL_ENCODE_ONE(buf, pos, arg) \
     _Generic((arg), \
         bool:     axiom_enc_bool, \
         uint8_t:  axiom_enc_u8,  \
@@ -308,7 +308,7 @@ static inline void axiom_enc_meta_identity(uint8_t *buf, uint8_t *pos,
         float:    axiom_enc_f32  \
     )(buf, &(pos), arg)
 
-#define _AXIOM_ENCODE_TAGGED_ONE(buf, pos, arg) \
+#define AXIOM_INTERNAL_ENCODE_TAGGED_ONE(buf, pos, arg) \
     _Generic((arg), \
         bool:     axiom_enc_tagged_bool, \
         uint8_t:  axiom_enc_tagged_u8,  \
@@ -324,4 +324,167 @@ static inline void axiom_enc_meta_identity(uint8_t *buf, uint8_t *pos,
 }
 #endif
 
+/* ---------------------------------------------------------------------------
+ * Per-emission checked builder used by public frontend macros. The legacy
+ * axiom_enc_* functions above remain source-compatible for direct callers.
+ * --------------------------------------------------------------------------- */
+typedef struct {
+    uint8_t *data;
+    uint16_t pos;
+    bool valid;
+} axiom_payload_builder_t;
+
+static inline void axiom_payload_builder_init(axiom_payload_builder_t *builder,
+                                              uint8_t *data) {
+    builder->data = data;
+    builder->pos = 0u;
+    builder->valid = data != NULL;
+}
+
+static inline bool axiom_payload_builder_reserve(axiom_payload_builder_t *builder,
+                                                 uint16_t count) {
+    if (!builder->valid || builder->pos + count > AXIOM_MAX_PAYLOAD_LEN) {
+        builder->valid = false;
+        return false;
+    }
+    return true;
+}
+
+static inline void axiom_builder_u8(axiom_payload_builder_t *builder, uint8_t value) {
+    if (axiom_payload_builder_reserve(builder, 1u)) {
+        builder->data[builder->pos++] = value;
+    }
+}
+
+static inline void axiom_builder_bool(axiom_payload_builder_t *builder, bool value) {
+    axiom_builder_u8(builder, value ? 1u : 0u);
+}
+
+static inline void axiom_builder_i8(axiom_payload_builder_t *builder, int8_t value) {
+    axiom_builder_u8(builder, (uint8_t)value);
+}
+
+static inline void axiom_builder_u16(axiom_payload_builder_t *builder, uint16_t value) {
+    if (axiom_payload_builder_reserve(builder, 2u)) {
+        builder->data[builder->pos++] = (uint8_t)(value & 0xFFu);
+        builder->data[builder->pos++] = (uint8_t)(value >> 8u);
+    }
+}
+
+static inline void axiom_builder_i16(axiom_payload_builder_t *builder, int16_t value) {
+    axiom_builder_u16(builder, (uint16_t)value);
+}
+
+static inline void axiom_builder_u32(axiom_payload_builder_t *builder, uint32_t value) {
+    if (axiom_payload_builder_reserve(builder, 4u)) {
+        builder->data[builder->pos++] = (uint8_t)(value & 0xFFu);
+        builder->data[builder->pos++] = (uint8_t)((value >> 8u) & 0xFFu);
+        builder->data[builder->pos++] = (uint8_t)((value >> 16u) & 0xFFu);
+        builder->data[builder->pos++] = (uint8_t)(value >> 24u);
+    }
+}
+
+static inline void axiom_builder_i32(axiom_payload_builder_t *builder, int32_t value) {
+    axiom_builder_u32(builder, (uint32_t)value);
+}
+
+static inline void axiom_builder_f32(axiom_payload_builder_t *builder, float value) {
+    uint32_t raw = 0u;
+    memcpy(&raw, &value, sizeof(raw));
+    axiom_builder_u32(builder, raw);
+}
+
+static inline void axiom_builder_tagged_bool(axiom_payload_builder_t *builder, bool value) {
+    axiom_builder_u8(builder, AXIOM_TYPE_BOOL);
+    axiom_builder_bool(builder, value);
+}
+
+static inline void axiom_builder_tagged_u8(axiom_payload_builder_t *builder, uint8_t value) {
+    axiom_builder_u8(builder, AXIOM_TYPE_U8);
+    axiom_builder_u8(builder, value);
+}
+
+static inline void axiom_builder_tagged_i8(axiom_payload_builder_t *builder, int8_t value) {
+    axiom_builder_u8(builder, AXIOM_TYPE_I8);
+    axiom_builder_i8(builder, value);
+}
+
+static inline void axiom_builder_tagged_u16(axiom_payload_builder_t *builder, uint16_t value) {
+    axiom_builder_u8(builder, AXIOM_TYPE_U16);
+    axiom_builder_u16(builder, value);
+}
+
+static inline void axiom_builder_tagged_i16(axiom_payload_builder_t *builder, int16_t value) {
+    axiom_builder_u8(builder, AXIOM_TYPE_I16);
+    axiom_builder_i16(builder, value);
+}
+
+static inline void axiom_builder_tagged_u32(axiom_payload_builder_t *builder, uint32_t value) {
+    axiom_builder_u8(builder, AXIOM_TYPE_U32);
+    axiom_builder_u32(builder, value);
+}
+
+static inline void axiom_builder_tagged_i32(axiom_payload_builder_t *builder, int32_t value) {
+    axiom_builder_u8(builder, AXIOM_TYPE_I32);
+    axiom_builder_i32(builder, value);
+}
+
+static inline void axiom_builder_tagged_f32(axiom_payload_builder_t *builder, float value) {
+    axiom_builder_u8(builder, AXIOM_TYPE_F32);
+    axiom_builder_f32(builder, value);
+}
+
+static inline void axiom_builder_location_file_id(axiom_payload_builder_t *builder,
+                                                  uint16_t file_id, uint16_t line) {
+    axiom_builder_u8(builder, AXIOM_TYPE_META_LOCATION);
+    axiom_builder_u8(builder, AXIOM_CFG_LOCATION_MODE_FILE_ID);
+    axiom_builder_u16(builder, file_id);
+    axiom_builder_u16(builder, line);
+}
+
+static inline void axiom_builder_location_hash(axiom_payload_builder_t *builder,
+                                               uint16_t file_hash, uint16_t line,
+                                               uint16_t function_hash) {
+    axiom_builder_u8(builder, AXIOM_TYPE_META_LOCATION);
+    axiom_builder_u8(builder, AXIOM_CFG_LOCATION_MODE_HASH);
+    axiom_builder_u16(builder, file_hash);
+    axiom_builder_u16(builder, line);
+    axiom_builder_u16(builder, function_hash);
+}
+
+static inline void axiom_builder_metadata_identity(
+    axiom_payload_builder_t *builder,
+    const uint8_t metadata_id[AXIOM_METADATA_ID_LEN]) {
+    if (!metadata_id || !axiom_payload_builder_reserve(builder, 1u + AXIOM_METADATA_ID_LEN)) {
+        builder->valid = false;
+        return;
+    }
+    builder->data[builder->pos++] = AXIOM_TYPE_META_IDENTITY;
+    memcpy(builder->data + builder->pos, metadata_id, AXIOM_METADATA_ID_LEN);
+    builder->pos = (uint16_t)(builder->pos + AXIOM_METADATA_ID_LEN);
+}
+
+#define AXIOM_INTERNAL_BUILDER_ENCODE_ONE(builder, arg) \
+    _Generic((arg), \
+        bool:     axiom_builder_bool, \
+        uint8_t:  axiom_builder_u8,  \
+        int8_t:   axiom_builder_i8,  \
+        uint16_t: axiom_builder_u16, \
+        int16_t:  axiom_builder_i16, \
+        uint32_t: axiom_builder_u32, \
+        int32_t:  axiom_builder_i32, \
+        float:    axiom_builder_f32  \
+    )(&(builder), arg)
+
+#define AXIOM_INTERNAL_BUILDER_ENCODE_TAGGED_ONE(builder, arg) \
+    _Generic((arg), \
+        bool:     axiom_builder_tagged_bool, \
+        uint8_t:  axiom_builder_tagged_u8,  \
+        int8_t:   axiom_builder_tagged_i8,  \
+        uint16_t: axiom_builder_tagged_u16, \
+        int16_t:  axiom_builder_tagged_i16, \
+        uint32_t: axiom_builder_tagged_u32, \
+        int32_t:  axiom_builder_tagged_i32, \
+        float:    axiom_builder_tagged_f32  \
+    )(&(builder), arg)
 #endif /* AXIOM_ENCODE_H */

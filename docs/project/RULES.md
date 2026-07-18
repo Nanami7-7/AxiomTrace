@@ -42,7 +42,7 @@ The following behaviors are **strictly prohibited** in `axiom_write()` and all I
 
 **Allowed Items**:
 - Packed frame encoding with a short critical section.
-- Blind Overwrite strategy for O(1) deterministic latency when the ring is full.
+- Default DROP-new strategy for bounded O(1) ring-full handling; optional OVERWRITE may discard complete validated frames only and is bounded by maximum frame size.
 - Incremental CRC (streaming calculation without re-reading memory).
 - Writing to RAM Ring (single critical section).
 - Updating global drop counter (`volatile uint32_t` increment).
@@ -70,7 +70,7 @@ The following behaviors are **strictly prohibited** in `axiom_write()` and all I
 | Rule | Description |
 | :--- | :--- |
 | Event Record is the Only Log Entity | No distinction between "text logs" and "binary logs" in firmware; only Event Records exist. |
-| No Private Backend Protocols | All buffers received by backends must be unified Event Record frames. Backends handle transport adaptation (e.g., COBS, CAN-FD framing) but cannot change internal frame structure. |
+| No Private Backend Protocols | All buffers received by backends are complete raw Event Record frames. Any external transport wrapper stays outside Core and cannot change the CRC-covered body. |
 | Text is Just Rendering | Text output is rendered by the host decoder using dictionary templates. |
 | JSON is Just Export | JSON is converted from binary by host tools. |
 | Binary is Storage/Transport Form | Binary frame is the only data form crossing the firmware-host boundary. |
