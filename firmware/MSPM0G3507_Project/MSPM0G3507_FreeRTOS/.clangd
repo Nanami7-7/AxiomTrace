@@ -1,0 +1,25 @@
+CompileFlags:
+  Add:
+    - --target=arm-none-eabi
+    - -D__MSPM0G3507__
+    - -DLOG_LEVEL=LOG_LEVEL_INFO
+    - -I D:/msp_project/temp2/MSPM0G3507_Project/source
+    - -I D:/msp_project/temp2/MSPM0G3507_Project/MSPM0G3507_FreeRTOS
+    - -I D:/msp_project/temp2/MSPM0G3507_Project/MSPM0G3507_FreeRTOS/Application
+    - -I D:/msp_project/temp2/MSPM0G3507_Project/MSPM0G3507_FreeRTOS/Application/test
+    - -I D:/msp_project/temp2/MSPM0G3507_Project/MSPM0G3507_FreeRTOS/Application/Task
+    - -I D:/msp_project/temp2/MSPM0G3507_Project/MSPM0G3507_FreeRTOS/Application/Algorithm
+    - -I D:/msp_project/temp2/MSPM0G3507_Project/MSPM0G3507_FreeRTOS/Filter
+    - -I D:/msp_project/temp2/MSPM0G3507_Project/MSPM0G3507_FreeRTOS/BSP
+    - -I D:/msp_project/temp2/MSPM0G3507_Project/MSPM0G3507_FreeRTOS/BSP/Peripherals
+    - -I D:/msp_project/temp2/MSPM0G3507_Project/MSPM0G3507_FreeRTOS/BSP/IMU
+    - -I D:/msp_project/temp2/MSPM0G3507_Project/MSPM0G3507_FreeRTOS/BSP/IMU/Ports/mspm0g3507
+    - -I D:/msp_project/temp2/MSPM0G3507_Project/MSPM0G3507_FreeRTOS/Lib/OSAL
+    - -I D:/msp_project/temp2/MSPM0G3507_Project/MSPM0G3507_FreeRTOS/Config
+    - -I D:/msp_project/temp2/MSPM0G3507_Project/MSPM0G3507_FreeRTOS/Lib/AxiomTrace
+    - -I D:/msp_project/temp2/MSPM0G3507_Project/MSPM0G3507_FreeRTOS/Lib/Math
+    - -I D:/msp_project/temp2/MSPM0G3507_Project/MSPM0G3507_FreeRTOS/Lib/FreeRTOS/include
+    - -I D:/msp_project/temp2/MSPM0G3507_Project/MSPM0G3507_FreeRTOS/Lib/FreeRTOS/portable/MemMang
+    - -I D:/msp_project/temp2/MSPM0G3507_Project/MSPM0G3507_FreeRTOS/Lib/FreeRTOS/portable/GCC/ARM_CM0
+    - -I D:/msp_project/temp2/MSPM0G3507_Project/MSPM0G3507_FreeRTOS/Lib/FreeRTOS/src
+  Compiler: clang
