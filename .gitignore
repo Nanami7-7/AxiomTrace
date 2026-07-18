@@ -5,6 +5,7 @@
 # --- Build output ---
 build/
 build_*/
+build-*/
 Testing/
 bin/
 obj/
