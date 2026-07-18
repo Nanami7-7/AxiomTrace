@@ -22,6 +22,7 @@
 
 | 文档 | 用途 |
 |---|---|
+| [电机驱动双后端分层与切换指南.md](电机驱动双后端分层与切换指南.md) | `bsp_motor`统一门面、默认DRV8870、备用TB6612、编译切换、测试门禁与回滚 |
 | [DRV8870综合技术审查与安全重构方案.md](DRV8870综合技术审查与安全重构方案.md) | DRV8870硬件限制、保护边界、PWM策略、FactoryTest与TB6612兼容方案 |
 | [Plans/phase1_gate0_hardware_validation_protocol.md](Plans/phase1_gate0_hardware_validation_protocol.md) | 硬件映射、编码器、UART、PWM和电源门控验证流程 |
 

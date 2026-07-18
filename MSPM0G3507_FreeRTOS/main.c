@@ -16,7 +16,6 @@
 #include "task.h"
 #include "ti_msp_dl_config.h"
 #include "app_main.h"
-#include "bsp_drv8870.h"
 #include "bsp_timer.h"
 
 /* ======================== main入口 ======================== */

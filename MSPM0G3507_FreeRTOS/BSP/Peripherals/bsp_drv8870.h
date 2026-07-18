@@ -194,15 +194,6 @@ bsp_status_t bsp_drv8870_stop(bsp_drv8870_id_t motor,
  */
 void bsp_drv8870_stop_all(void);
 
-/* ======================== 兼容宏 ======================== */
-/*
- * 应用层历史代码使用 BSP_MOTOR_COUNT 作为数组大小/循环上限,
- * 切换到 DRV8870 驱动后通过此兼容宏保持源码兼容, 避免大面积改名.
- * 值与 BSP_DRV8870_COUNT 一致(=4).
- */
-#ifndef BSP_MOTOR_COUNT
-#define BSP_MOTOR_COUNT    BSP_DRV8870_COUNT
-#endif
 
 #ifdef __cplusplus
 }

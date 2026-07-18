@@ -5,6 +5,7 @@
 #include "bsp_adc.h"
 #include "bsp_uart.h"
 #include "bsp_timer.h"
+#include "bsp_motor.h"
 #include "bsp_drv8870.h"
 #include "app_model_id.h"
 #include "osal_api.h"
@@ -239,7 +240,7 @@ void app_debug_drv8870_scope_status(void)
     (void)printf("DRV8870 scope commands are disabled in this production build.\r\n");
 #else
     bool active = bsp_drv8870_hw_scope_is_active();
-    bool power_on = bsp_drv8870_power_is_enabled();
+    bool power_on = bsp_motor_power_is_enabled();
     uint32_t pwm_frequency_hz = 0U;
 
     if (PRJ_DRV8870_PWM_PERIOD != 0U) {

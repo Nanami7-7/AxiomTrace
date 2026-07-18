@@ -36,75 +36,124 @@ extern "C" {
 #define PRJ_UART_DEBUG_ID       HAL_UART_DEBUG
 
 /* ================================================================
- *  电机PWM配置 (TB6612 - 默认禁用)
- *  SysConfig已配置: TIMA0, 4通道PWM, 20MHz时钟, 20kHz周期
- *  每个电机1个PWM通道(控速) + 2个GPIO(IN1/IN2控方向)
- *  通道: C0=PA8/PINCM19, C1=PA9/PINCM20, C2=PB17/PINCM43, C3=PB2/PINCM15
- *  驱动芯片: TB6612FNG
- *  正转: IN1=1, IN2=0, PWM=duty
- *  反转: IN1=0, IN2=1, PWM=duty
- *  刹车: IN1=1, IN2=1, PWM=0
- *  滑行: IN1=0, IN2=0, PWM=0
+ *  电机驱动选择与统一业务命令
+ *
+ *  分层关系:
+ *    Application -> bsp_motor(统一门面) -> 芯片后端 -> HAL
+ *
+ *  默认使用 DRV8870；TB6612 是备用硬件后端。上层统一使用
+ *  -PRJ_MOTOR_COMMAND_MAX ~ +PRJ_MOTOR_COMMAND_MAX，切换后端不改变
+ *  PID、模型辨识和通信协议中的命令量纲。
  * ================================================================ */
-/* TB6612 驱动默认禁用, 改用 DRV8870 锁相驱动.
- * 启用方式: 定义 BSP_MOTOR_ENABLE 并恢复 ti_msp_dl_config.h
- * 中的 MOTOR_AIN1~DIN2 宏定义. */
-#ifdef BSP_MOTOR_ENABLE
+#define PRJ_MOTOR_DRIVER_DRV8870    (1U)
+#define PRJ_MOTOR_DRIVER_TB6612     (2U)
 
-/** 电机PWM定时器HAL实例 */
-#define PRJ_MOTOR_PWM_TIMER     HAL_TIMER_PWM_MOTOR
-/** PWM时钟频率(Hz) - 引用 sysconfig 暴露的宏，避免硬编码 */
-#define PRJ_MOTOR_PWM_CLK_HZ    ((unsigned long)(PWM_MOTOR_INST_CLK_FREQ))
-/** PWM周期值(20kHz = 1000个20MHz时钟周期) */
-#define PRJ_MOTOR_PWM_PERIOD    (1000U)
+#ifndef PRJ_MOTOR_DRIVER
+#define PRJ_MOTOR_DRIVER            PRJ_MOTOR_DRIVER_DRV8870
+#endif
 
-/* ---- 电机A(左前): CC0=PB8, IN1=PB24, IN2=PB20 ---- */
-#define PRJ_MOTOR_A_PWM_CH      (0U)
-#define PRJ_MOTOR_A_IN1_PORT    HAL_GPIO_PORT_B
-#define PRJ_MOTOR_A_IN1_PIN     MOTOR_AIN1_PIN
-#define PRJ_MOTOR_A_IN2_PORT    HAL_GPIO_PORT_B
-#define PRJ_MOTOR_A_IN2_PIN     MOTOR_AIN2_PIN
+#if (PRJ_MOTOR_DRIVER != PRJ_MOTOR_DRIVER_DRV8870) && \
+    (PRJ_MOTOR_DRIVER != PRJ_MOTOR_DRIVER_TB6612)
+#error "PRJ_MOTOR_DRIVER must select DRV8870 or TB6612"
+#endif
 
-/* ---- 电机B(左后): CC1=PA22, IN1=PA24, IN2=PA31 ---- */
-#define PRJ_MOTOR_B_PWM_CH      (1U)
-#define PRJ_MOTOR_B_IN1_PORT    HAL_GPIO_PORT_A
-#define PRJ_MOTOR_B_IN1_PIN     MOTOR_BIN1_PIN
-#define PRJ_MOTOR_B_IN2_PORT    HAL_GPIO_PORT_A
-#define PRJ_MOTOR_B_IN2_PIN     MOTOR_BIN2_PIN
+/** 后端无关的有符号业务命令最大绝对值。 */
+#define PRJ_MOTOR_COMMAND_MAX       (500U)
 
-/* ---- 电机C(右前): CC2=PA15, IN1=PA2, IN2=PA7 ---- */
-#define PRJ_MOTOR_C_PWM_CH      (2U)
-#define PRJ_MOTOR_C_IN1_PORT    HAL_GPIO_PORT_A
-#define PRJ_MOTOR_C_IN1_PIN     MOTOR_CIN1_PIN
-#define PRJ_MOTOR_C_IN2_PORT    HAL_GPIO_PORT_A
-#define PRJ_MOTOR_C_IN2_PIN     MOTOR_CIN2_PIN
+/** 电机安装方向；正命令必须统一对应车体前进方向。 */
+#define PRJ_MOTOR_A_INSTALL_DIR_SIGN  (+1)
+#define PRJ_MOTOR_B_INSTALL_DIR_SIGN  (+1)
+#define PRJ_MOTOR_C_INSTALL_DIR_SIGN  (+1)
+#define PRJ_MOTOR_D_INSTALL_DIR_SIGN  (+1)
 
-/* ---- 电机D(右后): CC3=PA17, IN1=PB6, IN2=PB7 ---- */
-#define PRJ_MOTOR_D_PWM_CH      (3U)
-#define PRJ_MOTOR_D_IN1_PORT    HAL_GPIO_PORT_B
-#define PRJ_MOTOR_D_IN1_PIN     MOTOR_DIN1_PIN
-#define PRJ_MOTOR_D_IN2_PORT    HAL_GPIO_PORT_B
-#define PRJ_MOTOR_D_IN2_PIN     MOTOR_DIN2_PIN
+/* ================================================================
+ *  TB6612 备用后端配置
+ *
+ *  当前 Config/empty.syscfg 是 DRV8870 默认板级配置，不包含以下8个
+ *  方向GPIO。选择 TB6612 前必须在独立 SysConfig 板级配置中恢复
+ *  MOTOR_AIN1~MOTOR_DIN2，并重新生成 ti_msp_dl_config.c/h。
+ * ================================================================ */
+#define PRJ_TB6612_PWM_TIMER        HAL_TIMER_PWM_MOTOR
+#define PRJ_TB6612_PWM_CLK_HZ       ((unsigned long)(PWM_MOTOR_INST_CLK_FREQ))
+#define PRJ_TB6612_PWM_PERIOD       (1000U)
+#define PRJ_TB6612_POWER_STARTUP_MS (1U)
 
-/** 电机方向修正(+1/-1, 0视为+1) */
-#define PRJ_MOTOR_A_DIR_SIGN    (1)
-#define PRJ_MOTOR_B_DIR_SIGN    (1)
-#define PRJ_MOTOR_C_DIR_SIGN    (1)
-#define PRJ_MOTOR_D_DIR_SIGN    (1)
+/** 设为1时由软件控制TB6612 STBY；0表示STBY已由硬件固定为有效。 */
+#ifndef PRJ_TB6612_STANDBY_CONTROL_ENABLE
+#define PRJ_TB6612_STANDBY_CONTROL_ENABLE (0U)
+#endif
 
-/** 电机配置表(顺序需与BSP_MOTOR_x一致) */
-#define PRJ_MOTOR_CONFIGS { \
-		{ PRJ_MOTOR_A_PWM_CH, PRJ_MOTOR_A_IN1_PORT, PRJ_MOTOR_A_IN1_PIN, \
-			PRJ_MOTOR_A_IN2_PORT, PRJ_MOTOR_A_IN2_PIN, PRJ_MOTOR_A_DIR_SIGN }, \
-		{ PRJ_MOTOR_B_PWM_CH, PRJ_MOTOR_B_IN1_PORT, PRJ_MOTOR_B_IN1_PIN, \
-			PRJ_MOTOR_B_IN2_PORT, PRJ_MOTOR_B_IN2_PIN, PRJ_MOTOR_B_DIR_SIGN }, \
-		{ PRJ_MOTOR_C_PWM_CH, PRJ_MOTOR_C_IN1_PORT, PRJ_MOTOR_C_IN1_PIN, \
-			PRJ_MOTOR_C_IN2_PORT, PRJ_MOTOR_C_IN2_PIN, PRJ_MOTOR_C_DIR_SIGN }, \
-		{ PRJ_MOTOR_D_PWM_CH, PRJ_MOTOR_D_IN1_PORT, PRJ_MOTOR_D_IN1_PIN, \
-			PRJ_MOTOR_D_IN2_PORT, PRJ_MOTOR_D_IN2_PIN, PRJ_MOTOR_D_DIR_SIGN }, \
+/** 仅供编译门面判断板级引脚与STBY配置是否完整；禁止手工强制置1。 */
+#define PRJ_TB6612_BOARD_CONFIG_AVAILABLE (0U)
+
+#if (PRJ_MOTOR_DRIVER == PRJ_MOTOR_DRIVER_TB6612)
+#if !defined(MOTOR_AIN1_PIN) || !defined(MOTOR_AIN2_PIN) || \
+    !defined(MOTOR_BIN1_PIN) || !defined(MOTOR_BIN2_PIN) || \
+    !defined(MOTOR_CIN1_PIN) || !defined(MOTOR_CIN2_PIN) || \
+    !defined(MOTOR_DIN1_PIN) || !defined(MOTOR_DIN2_PIN)
+#error "TB6612 selected: restore MOTOR_AIN1..MOTOR_DIN2 in SysConfig and regenerate ti_msp_dl_config"
+#else
+
+/* 历史TB6612板级方向GPIO；若备用板改版，只修改本节。 */
+#define PRJ_TB6612_A_PWM_CH      (0U) /* M1 / 右后 */
+#define PRJ_TB6612_A_IN1_PORT    HAL_GPIO_PORT_B
+#define PRJ_TB6612_A_IN1_PIN     MOTOR_AIN1_PIN  /* PB24 */
+#define PRJ_TB6612_A_IN2_PORT    HAL_GPIO_PORT_B
+#define PRJ_TB6612_A_IN2_PIN     MOTOR_AIN2_PIN  /* PB20 */
+
+#define PRJ_TB6612_B_PWM_CH      (1U) /* M2 / 右前 */
+#define PRJ_TB6612_B_IN1_PORT    HAL_GPIO_PORT_A
+#define PRJ_TB6612_B_IN1_PIN     MOTOR_BIN1_PIN  /* PA24 */
+#define PRJ_TB6612_B_IN2_PORT    HAL_GPIO_PORT_A
+#define PRJ_TB6612_B_IN2_PIN     MOTOR_BIN2_PIN  /* PA31 */
+
+#define PRJ_TB6612_C_PWM_CH      (2U) /* M3 / 左前 */
+#define PRJ_TB6612_C_IN1_PORT    HAL_GPIO_PORT_A
+#define PRJ_TB6612_C_IN1_PIN     MOTOR_CIN1_PIN  /* PA3 */
+#define PRJ_TB6612_C_IN2_PORT    HAL_GPIO_PORT_A
+#define PRJ_TB6612_C_IN2_PIN     MOTOR_CIN2_PIN  /* PA7 */
+
+#define PRJ_TB6612_D_PWM_CH      (3U) /* M4 / 左后 */
+#define PRJ_TB6612_D_IN1_PORT    HAL_GPIO_PORT_B
+#define PRJ_TB6612_D_IN1_PIN     MOTOR_DIN1_PIN  /* PB6 */
+#define PRJ_TB6612_D_IN2_PORT    HAL_GPIO_PORT_B
+#define PRJ_TB6612_D_IN2_PIN     MOTOR_DIN2_PIN  /* PB7 */
+
+#define PRJ_TB6612_CONFIGS { \
+    { PRJ_TB6612_A_PWM_CH, PRJ_TB6612_A_IN1_PORT, PRJ_TB6612_A_IN1_PIN, \
+      PRJ_TB6612_A_IN2_PORT, PRJ_TB6612_A_IN2_PIN, \
+      PRJ_MOTOR_A_INSTALL_DIR_SIGN }, \
+    { PRJ_TB6612_B_PWM_CH, PRJ_TB6612_B_IN1_PORT, PRJ_TB6612_B_IN1_PIN, \
+      PRJ_TB6612_B_IN2_PORT, PRJ_TB6612_B_IN2_PIN, \
+      PRJ_MOTOR_B_INSTALL_DIR_SIGN }, \
+    { PRJ_TB6612_C_PWM_CH, PRJ_TB6612_C_IN1_PORT, PRJ_TB6612_C_IN1_PIN, \
+      PRJ_TB6612_C_IN2_PORT, PRJ_TB6612_C_IN2_PIN, \
+      PRJ_MOTOR_C_INSTALL_DIR_SIGN }, \
+    { PRJ_TB6612_D_PWM_CH, PRJ_TB6612_D_IN1_PORT, PRJ_TB6612_D_IN1_PIN, \
+      PRJ_TB6612_D_IN2_PORT, PRJ_TB6612_D_IN2_PIN, \
+      PRJ_MOTOR_D_INSTALL_DIR_SIGN }, \
 }
 
-#endif /* BSP_MOTOR_ENABLE */
+#if (PRJ_TB6612_STANDBY_CONTROL_ENABLE != 0U)
+#if !defined(PRJ_TB6612_STANDBY_PORT) || \
+    !defined(PRJ_TB6612_STANDBY_PIN) || \
+    !defined(PRJ_TB6612_STANDBY_ACTIVE_LEVEL)
+#error "TB6612 STBY control enabled: define port, pin and active level"
+#else
+#define PRJ_TB6612_POWER_CONFIG { \
+    true, PRJ_TB6612_STANDBY_PORT, PRJ_TB6612_STANDBY_PIN, \
+    PRJ_TB6612_STANDBY_ACTIVE_LEVEL \
+}
+#undef PRJ_TB6612_BOARD_CONFIG_AVAILABLE
+#define PRJ_TB6612_BOARD_CONFIG_AVAILABLE (1U)
+#endif
+#else
+#define PRJ_TB6612_POWER_CONFIG { false, HAL_GPIO_PORT_A, 0U, true }
+#undef PRJ_TB6612_BOARD_CONFIG_AVAILABLE
+#define PRJ_TB6612_BOARD_CONFIG_AVAILABLE (1U)
+#endif
+#endif /* direction GPIO macros available */
+#endif /* selected TB6612 */
 
 /* ================================================================
  *  编码器捕获配置
@@ -433,8 +482,7 @@ extern "C" {
 /** PWM周期值(20kHz = 1000个20MHz时钟周期) */
 #define PRJ_DRV8870_PWM_PERIOD    (1000U)
 /** 有符号速度命令最大绝对值；业务层、PID和模型辨识均应保持一致。 */
-#define PRJ_DRV8870_SPEED_COMMAND_MAX \
-    (PRJ_DRV8870_PWM_PERIOD / 2U)
+#define PRJ_DRV8870_SPEED_COMMAND_MAX PRJ_MOTOR_COMMAND_MAX
 
 /**
  * 实测机械死区边界（绝对PWM占空比百分数）。
@@ -495,14 +543,6 @@ extern "C" {
 /* ---- 电机D/M4(左后): CC3=PB2 ---- */
 #define PRJ_DRV8870_D_PWM_CH      (3U)
 
-/**
- * 电机安装方向修正：正速度命令必须对应车体前进方向。
- * 某一路正命令反向时只把该路改为-1；不要同时交换编码器符号。
- */
-#define PRJ_MOTOR_A_INSTALL_DIR_SIGN  (+1)
-#define PRJ_MOTOR_B_INSTALL_DIR_SIGN  (+1)
-#define PRJ_MOTOR_C_INSTALL_DIR_SIGN  (+1)
-#define PRJ_MOTOR_D_INSTALL_DIR_SIGN  (+1)
 
 /** 兼容原DRV8870配置宏名称。 */
 #define PRJ_DRV8870_A_DIR_SIGN  PRJ_MOTOR_A_INSTALL_DIR_SIGN
@@ -529,6 +569,29 @@ extern "C" {
       PRJ_DRV8870_DEADBAND_LOW_PERCENT, PRJ_DRV8870_NEUTRAL_PERCENT, \
       PRJ_DRV8870_DEADBAND_HIGH_PERCENT }, \
 }
+#if (PRJ_DRV8870_SPEED_COMMAND_MAX != (PRJ_DRV8870_PWM_PERIOD / 2U))
+#error "DRV8870 backend requires command max equal to half of PWM period"
+#endif
+
+/* 上层只使用这些所选后端别名，不直接引用芯片专用参数。 */
+#if (PRJ_MOTOR_DRIVER == PRJ_MOTOR_DRIVER_DRV8870)
+#define PRJ_MOTOR_PWM_TIMER         PRJ_DRV8870_PWM_TIMER
+#define PRJ_MOTOR_PWM_CLK_HZ        PRJ_DRV8870_PWM_CLK_HZ
+#define PRJ_MOTOR_PWM_PERIOD        PRJ_DRV8870_PWM_PERIOD
+#define PRJ_MOTOR_POWER_STARTUP_MS  PRJ_DRV8870_POWER_STARTUP_MS
+#define PRJ_MOTOR_POWER_SETTLE_MS   PRJ_DRV8870_POWER_SETTLE_MS
+#else
+#define PRJ_MOTOR_PWM_TIMER         PRJ_TB6612_PWM_TIMER
+#define PRJ_MOTOR_PWM_CLK_HZ        PRJ_TB6612_PWM_CLK_HZ
+#define PRJ_MOTOR_PWM_PERIOD        PRJ_TB6612_PWM_PERIOD
+#define PRJ_MOTOR_POWER_STARTUP_MS  PRJ_TB6612_POWER_STARTUP_MS
+#define PRJ_MOTOR_POWER_SETTLE_MS   (0U)
+#endif
+
+#if (PRJ_DRV8870_FACTORY_TEST_ENABLE != 0U) && \
+    (PRJ_MOTOR_DRIVER != PRJ_MOTOR_DRIVER_DRV8870)
+#error "DRV8870 factory-test target requires the DRV8870 motor backend"
+#endif
 
 #ifdef __cplusplus
 }

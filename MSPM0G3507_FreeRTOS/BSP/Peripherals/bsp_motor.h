@@ -1,123 +1,97 @@
 /**
  * @file    bsp_motor.h
- * @brief   电机驱动接口
- * @note    基于hal_timer(PWM控速) + hal_gpio(IN1/IN2控方向)实现
- *          四电机驱动(TB6612FNG), 每个电机1个PWM通道 + 2个方向引脚
- *          PWM由TIMA0产生(4通道CC0~CC3)
- *
- *          驱动逻辑(TB6612FNG):
- *          | IN1 | IN2 | PWM  | 模式 |
- *          |-----|-----|------|------|
- *          |  1  |  0  | >0   | 正转 |
- *          |  0  |  1  | >0   | 反转 |
- *          |  1  |  1  |  0   | 刹车 |
- *          |  0  |  0  |  0   | 滑行 |
+ * @brief   电机驱动统一门面
+ * @note    应用层只依赖本文件；具体后端由 project_config.h 的
+ *          PRJ_MOTOR_DRIVER 在编译期选择。默认后端为 DRV8870，
+ *          TB6612 作为备用板级配置保留。
  */
 #ifndef BSP_MOTOR_H
 #define BSP_MOTOR_H
-
-/* TB6612 驱动默认禁用, 改用 DRV8870 锁相驱动(bsp_drv8870.c/h).
- * 启用方式: 在 project_config.h 或 Keil 编译选项中定义 BSP_MOTOR_ENABLE.
- * 启用前需恢复 ti_msp_dl_config.h 中的 MOTOR_AIN1~DIN2 宏定义. */
-#ifdef BSP_MOTOR_ENABLE
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-/* ======================== 包含 ======================== */
 #include "bsp_common.h"
-#include "hal_gpio.h"
-#include "hal_timer.h"
 
-/* ======================== 类型定义 ======================== */
-
-/** 电机编号枚举 */
+/** 统一电机编号；顺序固定为板上 M1~M4。 */
 typedef enum {
-    BSP_MOTOR_A = 0,   /**< 电机A(左前): CC0=PB8, IN1=PB24, IN2=PB20 */
-    BSP_MOTOR_B,       /**< 电机B(左后): CC1=PA22, IN1=PA24, IN2=PA31 */
-    BSP_MOTOR_C,       /**< 电机C(右前): CC2=PA15, IN1=PA2, IN2=PA7 */
-    BSP_MOTOR_D,       /**< 电机D(右后): CC3=PA17, IN1=PB6, IN2=PB7 */
-    BSP_MOTOR_COUNT    /**< 电机总数 */
+    BSP_MOTOR_A = 0, /**< M1 / 右后轮 */
+    BSP_MOTOR_B,     /**< M2 / 右前轮 */
+    BSP_MOTOR_C,     /**< M3 / 左前轮 */
+    BSP_MOTOR_D,     /**< M4 / 左后轮 */
+    BSP_MOTOR_COUNT
 } bsp_motor_id_t;
 
-/** 电机停止模式 */
+/** 编译期可选的电机驱动后端。 */
 typedef enum {
-    BSP_MOTOR_MODE_COAST = 0, /**< 滑行(自由停止, IN1=0,IN2=0) */
-    BSP_MOTOR_MODE_BRAKE,     /**< 刹车(短接制动, IN1=1,IN2=1) */
+    BSP_MOTOR_DRIVER_DRV8870 = 1,
+    BSP_MOTOR_DRIVER_TB6612  = 2,
+} bsp_motor_driver_t;
+
+/** 统一停止语义；不支持的模式由后端安全降级。 */
+typedef enum {
+    BSP_MOTOR_MODE_COAST = 0,
+    BSP_MOTOR_MODE_BRAKE,
 } bsp_motor_stop_mode_t;
 
-/** 电机配置结构体 */
-typedef struct {
-    uint32_t        pwm_ch;    /**< PWM通道索引(CC0~CC3) */
-    hal_gpio_port_t in1_port;  /**< IN1引脚端口 */
-    uint32_t        in1_pin;   /**< IN1引脚编号 */
-    hal_gpio_port_t in2_port;  /**< IN2引脚端口 */
-    uint32_t        in2_pin;   /**< IN2引脚编号 */
-    int8_t          dir_sign;  /**< 方向修正(+1/-1, 0视为+1) */
-} bsp_motor_config_t;
-
-/* ======================== 函数接口 ======================== */
+/** 后端能力位。 */
+typedef enum {
+    BSP_MOTOR_CAP_POWER_GATE       = (1UL << 0),
+    BSP_MOTOR_CAP_TRUE_COAST       = (1UL << 1),
+    BSP_MOTOR_CAP_TRUE_BRAKE       = (1UL << 2),
+    BSP_MOTOR_CAP_LOCKED_ANTIPHASE = (1UL << 3),
+    BSP_MOTOR_CAP_DIRECTION_GPIO   = (1UL << 4),
+} bsp_motor_capability_t;
 
 /**
- * @brief  初始化电机驱动
- * @param  cfg       电机配置表
- * @param  count     配置数量(<=BSP_MOTOR_COUNT)
- * @param  pwm_timer PWM定时器实例
- * @param  pwm_period PWM周期(占空比最大值)
- * @note   启动PWM定时器, 设置方向引脚为滑行状态, PWM清零
- *         PWM定时器已由SYSCFG_DL_init()配置
- * @retval BSP_OK 初始化成功
+ * @brief 初始化已选择的电机后端，并保持所有电机处于安全停止状态。
+ * @note  本函数不会自动使能电机功率；必须显式调用
+ *        bsp_motor_power_enable() 并等待 PRJ_MOTOR_POWER_STARTUP_MS。
  */
-bsp_status_t bsp_motor_init(const bsp_motor_config_t *cfg,
-                             uint32_t count,
-                             hal_timer_id_t pwm_timer,
-                             uint32_t pwm_period);
+bsp_status_t bsp_motor_init(void);
+
+/** 以安全停止输出为前置条件，使能所选后端的电机功率/待机控制。 */
+bsp_status_t bsp_motor_power_enable(void);
+
+/** 先停止全部电机，再关闭所选后端的电机功率/待机控制。 */
+void bsp_motor_power_disable(void);
+
+/** 返回软件命令状态；有反馈的后端同时检查输出锁存器。 */
+bool bsp_motor_power_is_enabled(void);
 
 /**
- * @brief  获取PWM占空比最大值
- * @retval 占空比最大值(未初始化返回0)
+ * @brief 设置有符号电机命令。
+ * @param motor M1~M4 对应 BSP_MOTOR_A~D。
+ * @param command 范围为 -bsp_motor_get_command_max() 到正最大值；
+ *                正值统一表示车体前进方向，负值表示后退，0表示停止。
  */
-uint32_t bsp_motor_get_duty_max(void);
+bsp_status_t bsp_motor_set_speed(bsp_motor_id_t motor, int32_t command);
 
-/**
- * @brief  占空比百分比换算: percent(0~100) -> duty值
- * @param  percent 占空比百分比
- * @retval duty值
- */
-uint32_t bsp_motor_percent_to_duty(uint32_t percent);
-
-/**
- * @brief  设置电机速度和方向
- * @param  motor  电机编号
- * @param  speed  速度值(0~PWM周期)
- *                正值=正转(IN1=1,IN2=0), 负值=反转(IN1=0,IN2=1)
- *                0=刹车(IN1=1,IN2=1, PWM=0)
- * @retval BSP_OK           设置成功
- * @retval BSP_ERR_INVALID_PARAM 电机编号越界
- */
-bsp_status_t bsp_motor_set_speed(bsp_motor_id_t motor,
-                                  int32_t speed);
-
-/**
- * @brief  停止电机
- * @param  motor 电机编号
- * @param  mode  停止模式(滑行/刹车)
- * @retval BSP_OK           停止成功
- * @retval BSP_ERR_INVALID_PARAM 参数无效
- */
+/** 停止单个电机。DRV8870 锁相硬件会把两种模式降级为中性主动阻尼。 */
 bsp_status_t bsp_motor_stop(bsp_motor_id_t motor,
-                             bsp_motor_stop_mode_t mode);
+                            bsp_motor_stop_mode_t mode);
 
-/**
- * @brief  停止所有电机(刹车模式)
- */
+/** 使用 BRAKE 语义停止全部电机。 */
 void bsp_motor_stop_all(void);
+
+/** 返回统一业务命令最大绝对值；未初始化时返回0。 */
+uint32_t bsp_motor_get_command_max(void);
+
+/** 将0~100百分比换算为统一业务命令幅值。 */
+uint32_t bsp_motor_percent_to_command(uint32_t percent);
+
+/** 返回当前编译选择的驱动后端。 */
+bsp_motor_driver_t bsp_motor_get_driver(void);
+
+/** 返回稳定的英文后端名称："DRV8870" 或 "TB6612"。 */
+const char *bsp_motor_get_driver_name(void);
+
+/** 返回当前后端能力位集合。 */
+uint32_t bsp_motor_get_capabilities(void);
 
 #ifdef __cplusplus
 }
 #endif
-
-#endif /* BSP_MOTOR_ENABLE */
 
 #endif /* BSP_MOTOR_H */
