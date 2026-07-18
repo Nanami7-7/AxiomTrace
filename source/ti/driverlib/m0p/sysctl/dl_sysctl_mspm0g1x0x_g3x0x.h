@@ -1972,6 +1972,26 @@ __STATIC_INLINE void DL_SYSCTL_disableSYSPLL(void)
 }
 
 /**
+ *  @brief      Enable the SYSPLL
+ *
+ *  Enables the SYSPLL. After enabling, application software must verify
+ *  that the SYSPLLGOOD indication in the CLKSTATUS register was asserted
+ *  by hardware before using the SYSPLL as a clock source.
+ *
+ *  @note  driverlib 官方未提供此内联函数, 但 SysConfig 生成的代码
+ *         (SYSPLL_ERR_01 workaround) 会调用 DL_SYSCTL_enableSYSPLL().
+ *         此处补丁补全声明, 与 disable 对称, 避免每次 SysConfig
+ *         重新生成后都需要手动修改 ti_msp_dl_config.c.
+ *         实现参考 driverlib 源码 dl_sysctl_mspm0g1x0x_g3x0x.c:100.
+ *
+ *  @sa DL_SYSCTL_disableSYSPLL, DL_SYSCTL_getClockStatus
+ */
+__STATIC_INLINE void DL_SYSCTL_enableSYSPLL(void)
+{
+    SYSCTL->SOCLOCK.HSCLKEN |= SYSCTL_HSCLKEN_SYSPLLEN_ENABLE;
+}
+
+/**
  *  @brief      Disable the HFXT
  *
  *  If HFXT is already enabled, application software must verify that either an

@@ -1,6 +1,50 @@
-# ========================
-# Keil µVision 编译产物
-# ========================
+# Project Git ignore policy
+# Track source, configuration, documentation and versioned release artifacts.
+# Ignore local indexes, IDE state, generated build outputs and runtime caches.
+
+# -----------------------------------------------------------------------------
+# Operating system and editor metadata
+# -----------------------------------------------------------------------------
+Thumbs.db
+Desktop.ini
+ehthumbs.db
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# -----------------------------------------------------------------------------
+# Local analysis/index tools
+# -----------------------------------------------------------------------------
+.codegraph/
+.codebuddy/
+.metadata/
+.omo/
+.opencode/
+
+# -----------------------------------------------------------------------------
+# Python GUI: keep project source, ignore local environments and caches
+# -----------------------------------------------------------------------------
+tools/*
+!tools/mspm0_configurator/
+!tools/mspm0_configurator/**
+.venv/
+**/.venv/
+__pycache__/
+**/__pycache__/
+*.py[cod]
+.pytest_cache/
+**/.pytest_cache/
+*.egg-info/
+**/*.egg-info/
+build/
+dist/
+
+# -----------------------------------------------------------------------------
+# Keil MDK generated outputs and per-user state
+# Keep .uvprojx; ignore .uvoptx/.uvguix and compiler products.
+# -----------------------------------------------------------------------------
 *.o
 *.d
 *.axf
@@ -11,6 +55,9 @@
 *.crf
 *.dep
 *.sct
+# Required linker command files are source/configuration, not build products.
+!MSPM0G3507_FreeRTOS/keil/mspm0g3507.sct
+!source/**/linker_files/**/*.sct
 *.tra
 *.iex
 *.fed
@@ -19,76 +66,67 @@
 *.brf
 *.uvoptx
 *.uvprojx.bak
-# Keil Listings 和 Objects 目录
-**/listings/
-**/Listings/
-**/objects/
-**/Objects/
-**/RTE/
-# Keil 调试文件
 *.uvguix.*
+*._ac
+*._ia
+*.__i
+**/Listings/
+**/listings/
+**/Objects/
+**/objects/
+**/RTE/
+MSPM0G3507_FreeRTOS/keil/FactoryTest/
+MSPM0G3507_FreeRTOS/keil/JLinkLog.txt
+MSPM0G3507_FreeRTOS/keil/build_log.txt
 
-# ========================
-# SysConfig 临时文件
-# ========================
+# Versioned firmware is intentionally retained only here.
+!MSPM0G3507_FreeRTOS/keil/Release/
+!MSPM0G3507_FreeRTOS/keil/Release/*.hex
+!MSPM0G3507_FreeRTOS/keil/Release/README.md
+
+# -----------------------------------------------------------------------------
+# TI SysConfig backups and generated temporary files
+# -----------------------------------------------------------------------------
 *.cfg.bak
 
-# ========================
-# Windows 系统文件
-# ========================
-Thumbs.db
-Desktop.ini
-ehthumbs.db
-
-# ========================
-# 日志和临时文件
-# ========================
+# -----------------------------------------------------------------------------
+# Logs, diagnostics, coverage and temporary files
+# -----------------------------------------------------------------------------
 *.log
-uninstall.dat
-uninstall.exe
+*.tmp
+*.temp
+*.cache
+.coverage
+htmlcov/
 
-# ========================
-# 压缩包 (备份/临时)
-# ========================
+# -----------------------------------------------------------------------------
+# Archives and local backups
+# -----------------------------------------------------------------------------
 *.rar
 *.zip
 *.7z
+*.tar
 *.tar.gz
+*.bak
 
-# ========================
-# 发布说明 HTML (SDK 自带, 无需跟踪)
-# ========================
+# -----------------------------------------------------------------------------
+# SDK/reference material not used by this application target
+# -----------------------------------------------------------------------------
+examples/
+imports.mak
+AxiomTrace-main/
 release_notes_*.html
 known_issues_FAQ.html
 manifest_*.html
 license_*.txt
 mspm0sdk_*.log
 
-# ========================
-# TI SDK 非项目目录 (参考代码, 不参与编译)
-# ========================
-examples/
-tools/
-imports.mak
-
-# ========================
-# AxiomTrace 参考源码 (仅提取部分到 lib/)
-# ========================
-AxiomTrace-main/
-
-# ========================
-# IDE / 工具元数据
-# ========================
-.codebuddy/
-.metadata/
-
-# ========================
-# 工程中未使用的辅助文件
-# ========================
+# -----------------------------------------------------------------------------
+# Project-local unused templates and generated documentation
+# -----------------------------------------------------------------------------
 MSPM0G3507_FreeRTOS/Event.dot
 MSPM0G3507_FreeRTOS/README.html
 MSPM0G3507_FreeRTOS/BSP/_bsp_template.c
 MSPM0G3507_FreeRTOS/BSP/_bsp_template.h
 MSPM0G3507_FreeRTOS/HAL/_hal_template.c
-MSPM0G3507_FreeRTOS/keil/.vscode/
 MSPM0G3507_FreeRTOS/keil/EventRecorderStub.scvd

@@ -33,6 +33,8 @@ typedef enum {
     BSP_ERR_BUF_FULL      = -7,  /**< 缓冲区已满 */
     BSP_ERR_BUF_EMPTY     = -8,  /**< 缓冲区为空 */
     BSP_ERR_HW_FAULT      = -9,  /**< 硬件故障 */
+    BSP_ERR_UNSUPPORTED   = -10, /**< 当前硬件或构建配置不支持 */
+    BSP_ERR_NOT_READY     = -11, /**< 已初始化，但电源/前置条件尚未就绪 */
 } bsp_status_t;
 
 /* ======================== 通用宏 ======================== */
