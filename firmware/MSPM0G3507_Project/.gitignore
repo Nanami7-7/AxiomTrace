@@ -29,6 +29,8 @@ ehthumbs.db
 tools/*
 !tools/mspm0_configurator/
 !tools/mspm0_configurator/**
+!tools/release/
+!tools/release/**
 .venv/
 **/.venv/
 __pycache__/

@@ -1,4 +1,4 @@
-﻿# MSPM0G3507 四电机控制器
+# MSPM0G3507 四电机控制器
 
 当前发布版本：**v0.1.0**（2026-07-18）
 目标硬件：TI MSPM0G3507 + 四路 DRV8870 + 四路正交编码器 + LSM6DSR。
@@ -33,11 +33,29 @@ MSPM0G3507_FreeRTOS/keil/Release/MSPM0G3507_DRV8870_FactoryTest_v0.1.0.hex
 
 ### 2. 启动 GUI
 
+**方式 A：使用预编译可执行文件（推荐）**
+
+```text
+tools\release\mspm0-configurator\mspm0-configurator.exe
+```
+
+预编译产物由 GitHub Actions 自动构建，详见 [tools/release/README.md](tools/release/README.md)。
+
+**方式 B：开发模式运行**
+
 ```powershell
 cd tools\mspm0_configurator
 python -m venv .venv
 .venv\Scripts\python.exe -m pip install -e .
 .venv\Scripts\python.exe -m mspm0_configurator
+```
+
+**方式 C：本地构建可执行文件**
+
+```powershell
+cd tools\mspm0_configurator
+python build_release.py --clean
+# 产物输出到 tools\release\mspm0-configurator\
 ```
 
 选择串口并以 **115200 8-N-1** 连接。首次运行必须悬空车轮并使用限流电源。GUI 0.1 只把配置保存为 PC 端 JSON，不会写入 MCU Flash。
@@ -59,15 +77,30 @@ StopAll
 
 ```text
 MSPM0G3507_FreeRTOS/
-├─ Config/                  版本、机械参数、引脚与生成配置
-├─ HAL/                     DriverLib 薄封装
-├─ BSP/                     板级外设和 DRV8870/编码器/IMU
-├─ Application/             任务、控制算法、协议与应用入口
-├─ Middleware/              OSAL、滤波和日志
-├─ Docs/                    架构、接口、协议、外设手册与Plans阶段记录
-└─ keil/                    Keil 工程、FactoryTest、发布 HEX
-tools/mspm0_configurator/   PySide6 配置与绘图软件
+├─ Config/                          版本、机械参数、引脚与生成配置
+├─ BSP/                             板级支持包（驱动层级全部在此）
+│  ├─ Common/                       BSP 公共定义
+│  ├─ Platform/                     平台抽象
+│  ├─ HAL/                          DriverLib 薄封装
+│  ├─ Peripherals/                  外设板级驱动
+│  ├─ Motor/                        电机驱动子系统（DRV8870/TB6612）
+│  └─ IMU/                          LSM6DSR 驱动
+├─ Application/                     应用层
+│  ├─ Algorithm/                    控制算法（PID/前馈/规划/位置控制/辨识）
+│  ├─ Filter/                       滤波算法（互补/Madgwick/EKF/Mahony/KF/LKF/LPF）
+│  ├─ Tasks/                         FreeRTOS 任务（控制/IMU/菜单）
+│  ├─ Tests/                        测试代码
+│  ├─ app_main.c/h                  应用入口与共享上下文
+│  ├─ app_vofa.c/h                  串口协议
+│  └─ app_debug.c/h                 调试诊断
+├─ Lib/                             OSAL、FreeRTOS、AxiomTrace、Math
+├─ Docs/                            架构、接口、协议、外设手册与Plans阶段记录
+└─ keil/                            Keil 工程、FactoryTest、发布 HEX
+tools/mspm0_configurator/           PySide6 配置与绘图软件
+tools/release/                      预编译可执行文件产物
 ```
+
+详见 [架构目录图](MSPM0G3507_FreeRTOS/README_ARCH.md)。
 
 ## 文档入口
 
