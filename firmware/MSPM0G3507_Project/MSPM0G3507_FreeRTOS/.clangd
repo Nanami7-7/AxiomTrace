@@ -3,27 +3,27 @@ CompileFlags:
     - --target=arm-none-eabi
     - -D__MSPM0G3507__
     - -DLOG_LEVEL=LOG_LEVEL_INFO
-    - -I D:/msp_project/temp2/MSPM0G3507_Project/source
-    - -I D:/msp_project/temp2/MSPM0G3507_Project/MSPM0G3507_FreeRTOS
-    - -I D:/msp_project/temp2/MSPM0G3507_Project/MSPM0G3507_FreeRTOS/Application
-    - -I D:/msp_project/temp2/MSPM0G3507_Project/MSPM0G3507_FreeRTOS/Application/Tests
-    - -I D:/msp_project/temp2/MSPM0G3507_Project/MSPM0G3507_FreeRTOS/Application/Tasks
-    - -I D:/msp_project/temp2/MSPM0G3507_Project/MSPM0G3507_FreeRTOS/Application/Algorithm
-    - -I D:/msp_project/temp2/MSPM0G3507_Project/MSPM0G3507_FreeRTOS/Application/Filter
-    - -I D:/msp_project/temp2/MSPM0G3507_Project/MSPM0G3507_FreeRTOS/BSP
-    - -I D:/msp_project/temp2/MSPM0G3507_Project/MSPM0G3507_FreeRTOS/BSP/Common
-    - -I D:/msp_project/temp2/MSPM0G3507_Project/MSPM0G3507_FreeRTOS/BSP/Platform
-    - -I D:/msp_project/temp2/MSPM0G3507_Project/MSPM0G3507_FreeRTOS/BSP/HAL
-    - -I D:/msp_project/temp2/MSPM0G3507_Project/MSPM0G3507_FreeRTOS/BSP/Peripherals
-    - -I D:/msp_project/temp2/MSPM0G3507_Project/MSPM0G3507_FreeRTOS/BSP/Motor
-    - -I D:/msp_project/temp2/MSPM0G3507_Project/MSPM0G3507_FreeRTOS/BSP/IMU
-    - -I D:/msp_project/temp2/MSPM0G3507_Project/MSPM0G3507_FreeRTOS/BSP/IMU/Ports/mspm0g3507
-    - -I D:/msp_project/temp2/MSPM0G3507_Project/MSPM0G3507_FreeRTOS/Lib/OSAL
-    - -I D:/msp_project/temp2/MSPM0G3507_Project/MSPM0G3507_FreeRTOS/Config
-    - -I D:/msp_project/temp2/MSPM0G3507_Project/MSPM0G3507_FreeRTOS/Lib/AxiomTrace
-    - -I D:/msp_project/temp2/MSPM0G3507_Project/MSPM0G3507_FreeRTOS/Lib/Math
-    - -I D:/msp_project/temp2/MSPM0G3507_Project/MSPM0G3507_FreeRTOS/Lib/FreeRTOS/include
-    - -I D:/msp_project/temp2/MSPM0G3507_Project/MSPM0G3507_FreeRTOS/Lib/FreeRTOS/portable/MemMang
-    - -I D:/msp_project/temp2/MSPM0G3507_Project/MSPM0G3507_FreeRTOS/Lib/FreeRTOS/portable/GCC/ARM_CM0
-    - -I D:/msp_project/temp2/MSPM0G3507_Project/MSPM0G3507_FreeRTOS/Lib/FreeRTOS/src
+    - -I../source
+    - -I.
+    - -IApplication
+    - -IApplication/Tests
+    - -IApplication/Tasks
+    - -IApplication/Algorithm
+    - -IApplication/Filter
+    - -IBSP
+    - -IBSP/Common
+    - -IBSP/Platform
+    - -IBSP/HAL
+    - -IBSP/Peripherals
+    - -IBSP/Motor
+    - -IBSP/IMU
+    - -IBSP/IMU/Ports/mspm0g3507
+    - -ILib/OSAL
+    - -IConfig
+    - -ILib/AxiomTrace
+    - -ILib/Math
+    - -ILib/FreeRTOS/include
+    - -ILib/FreeRTOS/portable/MemMang
+    - -ILib/FreeRTOS/portable/GCC/ARM_CM0
+    - -ILib/FreeRTOS/src
   Compiler: clang
