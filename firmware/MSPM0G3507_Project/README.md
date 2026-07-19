@@ -3,7 +3,7 @@
 当前发布版本：**v0.1.0**（2026-07-18）
 目标硬件：TI MSPM0G3507 + 四路 DRV8870 + 四路正交编码器 + LSM6DSR。
 
-本仓库包含实时控制固件、硬件诊断 Target、协议文档，以及一个基于 PySide6 的中英双语配置与实时绘图软件。
+本仓库包含实时控制固件、协议文档，以及一个基于 PySide6 的中英双语配置与实时绘图软件。
 
 ## 主要能力
 
@@ -13,22 +13,14 @@
 - PID、前馈、模型辨识、位置/角度控制与 IMU 基础能力；
 - UART0 115200 文本协议 v1 与 11 通道 FireWater 遥测；
 - PySide6 中英双语 GUI：串口配置、参数设置、控制命令、实时曲线、CSV 导出和原始终端；
-- 生产固件与 DRV8870 FactoryTest 独立 Keil Target。
+- 单一 Keil Target，编译配置集中管理。
 
 ## 快速开始
 
-### 1. 烧录生产固件
-
-推荐使用版本化产物：
+### 1. 烧录固件
 
 ```text
 MSPM0G3507_FreeRTOS/keil/Release/MSPM0G3507_MotorController_v0.1.0.hex
-```
-
-FactoryTest 仅用于受控台架诊断，不应作为车辆正常运行固件：
-
-```text
-MSPM0G3507_FreeRTOS/keil/Release/MSPM0G3507_DRV8870_FactoryTest_v0.1.0.hex
 ```
 
 ### 2. 启动 GUI
@@ -95,7 +87,7 @@ MSPM0G3507_FreeRTOS/
 │  └─ app_debug.c/h                 调试诊断
 ├─ Lib/                             OSAL、FreeRTOS、AxiomTrace、Math
 ├─ Docs/                            架构、接口、协议、外设手册与Plans阶段记录
-└─ keil/                            Keil 工程、FactoryTest、发布 HEX
+└─ keil/                            Keil 工程与发布 HEX
 tools/mspm0_configurator/           PySide6 配置与绘图软件
 tools/release/                      预编译可执行文件产物
 ```
