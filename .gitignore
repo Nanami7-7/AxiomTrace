@@ -115,3 +115,7 @@ build_baseline/
 # --- CTest output ---
 Testing/Temporary/
 Testing/Temporary/***
+
+# --- Allow release artifacts under firmware tools ---
+!firmware/MSPM0G3507_Project/tools/release/**
+

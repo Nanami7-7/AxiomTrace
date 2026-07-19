@@ -50,19 +50,11 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: mspm0-configurator-windows
-          path: firmware/MSPM0G3507_Project/tools/release/mspm0-configurator-windows.zip
+          path: |
+            firmware/MSPM0G3507_Project/tools/release/mspm0-configurator/
+            firmware/MSPM0G3507_Project/tools/release/mspm0-configurator-windows.zip
+            firmware/MSPM0G3507_Project/tools/release/RELEASE_INFO.txt
           retention-days: 30
-
-      - name: Commit release to repo
-        if: github.ref == 'refs/heads/main' && github.event_name == 'push'
-        run: |
-          cd "${{ github.workspace }}"
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add firmware/MSPM0G3507_Project/tools/release/
-          git commit -m "ci: build mspm0-configurator Windows release [skip ci]" || echo "No changes to commit"
-          git remote set-url origin https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}
-          git push
 
   build-linux:
     name: Build Linux Binary
@@ -104,3 +96,33 @@ jobs:
           name: mspm0-configurator-linux
           path: firmware/MSPM0G3507_Project/tools/release/mspm0-configurator-linux.tar.gz
           retention-days: 30
+
+  commit-release:
+    name: Commit Release to Repo
+    needs: [build-windows, build-linux]
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download Windows Release
+        uses: actions/download-artifact@v4
+        with:
+          name: mspm0-configurator-windows
+          path: .
+
+      - name: Download Linux Release
+        uses: actions/download-artifact@v4
+        with:
+          name: mspm0-configurator-linux
+          path: .
+
+      - name: Commit and Push Release
+        run: |
+          cd "${{ github.workspace }}"
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add firmware/MSPM0G3507_Project/tools/release/
+          git commit -m "ci: commit mspm0-configurator pre-built releases [skip ci]" || echo "No changes to commit"
+          git remote set-url origin https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}
+          git push

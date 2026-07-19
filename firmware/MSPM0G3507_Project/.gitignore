@@ -132,3 +132,7 @@ MSPM0G3507_FreeRTOS/BSP/Peripherals/_bsp_template.c
 MSPM0G3507_FreeRTOS/BSP/Peripherals/_bsp_template.h
 MSPM0G3507_FreeRTOS/BSP/HAL/_hal_template.c
 MSPM0G3507_FreeRTOS/keil/EventRecorderStub.scvd
+
+# --- Allow release artifacts under tools/release ---
+!tools/release/**
+
