@@ -126,7 +126,7 @@ mspm0sdk_*.log
 # -----------------------------------------------------------------------------
 MSPM0G3507_FreeRTOS/Event.dot
 MSPM0G3507_FreeRTOS/README.html
-MSPM0G3507_FreeRTOS/BSP/_bsp_template.c
-MSPM0G3507_FreeRTOS/BSP/_bsp_template.h
-MSPM0G3507_FreeRTOS/HAL/_hal_template.c
+MSPM0G3507_FreeRTOS/BSP/Peripherals/_bsp_template.c
+MSPM0G3507_FreeRTOS/BSP/Peripherals/_bsp_template.h
+MSPM0G3507_FreeRTOS/BSP/HAL/_hal_template.c
 MSPM0G3507_FreeRTOS/keil/EventRecorderStub.scvd
