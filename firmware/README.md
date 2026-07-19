@@ -20,9 +20,39 @@ The firmware is imported as a content snapshot under this subdirectory because t
 ## Entry points / 使用入口
 
 - Firmware overview: [`MSPM0G3507_Project/README.md`](MSPM0G3507_Project/README.md)
+- Architecture directory map: [`MSPM0G3507_Project/MSPM0G3507_FreeRTOS/README_ARCH.md`](MSPM0G3507_Project/MSPM0G3507_FreeRTOS/README_ARCH.md)
 - Release notes: [`MSPM0G3507_Project/RELEASE_NOTES_v0.1.0.md`](MSPM0G3507_Project/RELEASE_NOTES_v0.1.0.md)
 - Keil project: `MSPM0G3507_Project/MSPM0G3507_FreeRTOS/keil/empty_LP_MSPM0G3507_nortos_keil.uvprojx`
 - Motor backend guide: `MSPM0G3507_Project/MSPM0G3507_FreeRTOS/Docs/电机驱动双后端分层与切换指南.md`
+- GUI tool source: [`MSPM0G3507_Project/tools/mspm0_configurator/`](MSPM0G3507_Project/tools/mspm0_configurator/)
+- GUI pre-built release: [`MSPM0G3507_Project/tools/release/`](MSPM0G3507_Project/tools/release/)
+
+## GUI tool / GUI 工具
+
+The MSPM0 Configurator is a PySide6 bilingual configuration and real-time plotting tool.
+
+MSPM0 Configurator 是基于 PySide6 的中英双语配置与实时绘图工具。
+
+### Run pre-built executable / 运行预编译可执行文件
+
+```text
+MSPM0G3507_Project/tools/release/mspm0-configurator/mspm0-configurator.exe
+```
+
+### Build locally / 本地构建
+
+```powershell
+cd MSPM0G3507_Project\tools\mspm0_configurator
+python build_release.py --clean
+```
+
+### CI build / CI 构建
+
+GitHub Actions automatically builds Windows and Linux executables on push to `main`.
+See [`.github/workflows/build-mspm0-configurator.yml`](../.github/workflows/build-mspm0-configurator.yml).
+
+GitHub Actions 会在 push 到 `main` 时自动构建 Windows 和 Linux 可执行文件。
+详见 [`.github/workflows/build-mspm0-configurator.yml`](../.github/workflows/build-mspm0-configurator.yml)。
 
 ## Safety status / 安全状态
 
