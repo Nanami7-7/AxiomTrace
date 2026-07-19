@@ -341,7 +341,7 @@
               <MiscControls></MiscControls>
               <Define>__MSPM0G3507__;LOG_LEVEL=LOG_LEVEL_INFO;TEST_MATHACL_ENABLE=1;TEST_MATHACL_INCLUDE_FULL_BENCHMARK=1;TEST_MATHACL_MATRIX_ENABLE=0;EKF_NIS_MONITOR=1;EKF_MANEUVER_DETECT=1</Define>
               <Undefine></Undefine>
-              <IncludePath>..\..\source\third_party\CMSIS\Core\Include;..\..\source;..\;..\Application;..\Application\test;..\Application\Task;..\Application\Algorithm;..\Filter;..\BSP;..\BSP\Peripherals;..\BSP\IMU;..\BSP\IMU\Ports\mspm0g3507;..\Lib\OSAL;..\Config;..\Lib\AxiomTrace;..\Lib\Math;..\Lib\FreeRTOS\include;..\Lib\FreeRTOS\portable\MemMang;..\Lib\FreeRTOS\portable\GCC\ARM_CM0;..\Lib\FreeRTOS\src</IncludePath>
+              <IncludePath>..\..\source\third_party\CMSIS\Core\Include;..\..\source;..\;..\Application;..\Application\Tests;..\Application\Tasks;..\Application\Algorithm;..\Application\Filter;..\BSP;..\BSP\Common;..\BSP\Platform;..\BSP\HAL;..\BSP\Peripherals;..\BSP\Motor;..\BSP\IMU;..\BSP\IMU\Ports\mspm0g3507;..\Lib\OSAL;..\Config;..\Lib\AxiomTrace;..\Lib\Math;..\Lib\FreeRTOS\include;..\Lib\FreeRTOS\portable\MemMang;..\Lib\FreeRTOS\portable\GCC\ARM_CM0;..\Lib\FreeRTOS\src</IncludePath>
             </VariousControls>
           </Cads>
           <Aads>
@@ -508,32 +508,32 @@
             <File>
               <FileName>task_control.c</FileName>
               <FileType>1</FileType>
-              <FilePath>..\Application\Task\task_control.c</FilePath>
+              <FilePath>..\Application\Tasks\task_control.c</FilePath>
             </File>
             <File>
               <FileName>task_control.h</FileName>
               <FileType>5</FileType>
-              <FilePath>..\Application\Task\task_control.h</FilePath>
+              <FilePath>..\Application\Tasks\task_control.h</FilePath>
             </File>
             <File>
               <FileName>task_menu.c</FileName>
               <FileType>1</FileType>
-              <FilePath>..\Application\Task\task_menu.c</FilePath>
+              <FilePath>..\Application\Tasks\task_menu.c</FilePath>
             </File>
             <File>
               <FileName>task_menu.h</FileName>
               <FileType>5</FileType>
-              <FilePath>..\Application\Task\task_menu.h</FilePath>
+              <FilePath>..\Application\Tasks\task_menu.h</FilePath>
             </File>
             <File>
               <FileName>task_imu.c</FileName>
               <FileType>1</FileType>
-              <FilePath>..\Application\Task\task_imu.c</FilePath>
+              <FilePath>..\Application\Tasks\task_imu.c</FilePath>
             </File>
             <File>
               <FileName>task_imu.h</FileName>
               <FileType>5</FileType>
-              <FilePath>..\Application\Task\task_imu.h</FilePath>
+              <FilePath>..\Application\Tasks\task_imu.h</FilePath>
             </File>
             <File>
               <FileName>app_complementary_filter.c</FileName>
@@ -548,57 +548,57 @@
             <File>
               <FileName>filter.h</FileName>
               <FileType>5</FileType>
-              <FilePath>..\Filter\filter.h</FilePath>
+              <FilePath>..\Application\Filter\filter.h</FilePath>
             </File>
             <File>
               <FileName>filter_config.h</FileName>
               <FileType>5</FileType>
-              <FilePath>..\Filter\filter_config.h</FilePath>
+              <FilePath>..\Application\Filter\filter_config.h</FilePath>
             </File>
             <File>
               <FileName>filter_config.c</FileName>
               <FileType>1</FileType>
-              <FilePath>..\Filter\filter_config.c</FilePath>
+              <FilePath>..\Application\Filter\filter_config.c</FilePath>
             </File>
             <File>
               <FileName>filter_core.c</FileName>
               <FileType>1</FileType>
-              <FilePath>..\Filter\filter_core.c</FilePath>
+              <FilePath>..\Application\Filter\filter_core.c</FilePath>
             </File>
             <File>
               <FileName>filter_complementary.c</FileName>
               <FileType>1</FileType>
-              <FilePath>..\Filter\filter_complementary.c</FilePath>
+              <FilePath>..\Application\Filter\filter_complementary.c</FilePath>
             </File>
             <File>
               <FileName>filter_lpf.c</FileName>
               <FileType>1</FileType>
-              <FilePath>..\Filter\filter_lpf.c</FilePath>
+              <FilePath>..\Application\Filter\filter_lpf.c</FilePath>
             </File>
             <File>
               <FileName>filter_ekf.c</FileName>
               <FileType>1</FileType>
-              <FilePath>..\Filter\filter_ekf.c</FilePath>
+              <FilePath>..\Application\Filter\filter_ekf.c</FilePath>
             </File>
             <File>
               <FileName>filter_lkf.c</FileName>
               <FileType>1</FileType>
-              <FilePath>..\Filter\filter_lkf.c</FilePath>
+              <FilePath>..\Application\Filter\filter_lkf.c</FilePath>
             </File>
             <File>
               <FileName>filter_mahony.c</FileName>
               <FileType>1</FileType>
-              <FilePath>..\Filter\filter_mahony.c</FilePath>
+              <FilePath>..\Application\Filter\filter_mahony.c</FilePath>
             </File>
             <File>
               <FileName>filter_madgwick.c</FileName>
               <FileType>1</FileType>
-              <FilePath>..\Filter\filter_madgwick.c</FilePath>
+              <FilePath>..\Application\Filter\filter_madgwick.c</FilePath>
             </File>
             <File>
               <FileName>filter_kf.c</FileName>
               <FileType>1</FileType>
-              <FilePath>..\Filter\filter_kf.c</FilePath>
+              <FilePath>..\Application\Filter\filter_kf.c</FilePath>
             </File>
             <File>
               <FileName>app_debug.c</FileName>
@@ -613,22 +613,22 @@
             <File>
               <FileName>app_test_runner.c</FileName>
               <FileType>1</FileType>
-              <FilePath>..\Application\test\app_test_runner.c</FilePath>
+              <FilePath>..\Application\Tests\app_test_runner.c</FilePath>
             </File>
             <File>
               <FileName>app_test_runner.h</FileName>
               <FileType>5</FileType>
-              <FilePath>..\Application\test\app_test_runner.h</FilePath>
+              <FilePath>..\Application\Tests\app_test_runner.h</FilePath>
             </File>
             <File>
               <FileName>app_test_timer.c</FileName>
               <FileType>1</FileType>
-              <FilePath>..\Application\test\app_test_timer.c</FilePath>
+              <FilePath>..\Application\Tests\app_test_timer.c</FilePath>
             </File>
             <File>
               <FileName>app_test_timer.h</FileName>
               <FileType>5</FileType>
-              <FilePath>..\Application\test\app_test_timer.h</FilePath>
+              <FilePath>..\Application\Tests\app_test_timer.h</FilePath>
             </File>
           </Files>
         </Group>
@@ -638,47 +638,47 @@
             <File>
               <FileName>hal_adc.c</FileName>
               <FileType>1</FileType>
-              <FilePath>..\BSP\Peripherals\hal_adc.c</FilePath>
+              <FilePath>..\BSP\HAL\hal_adc.c</FilePath>
             </File>
             <File>
               <FileName>hal_adc.h</FileName>
               <FileType>5</FileType>
-              <FilePath>..\BSP\Peripherals\hal_adc.h</FilePath>
+              <FilePath>..\BSP\HAL\hal_adc.h</FilePath>
             </File>
             <File>
               <FileName>hal_common.h</FileName>
               <FileType>5</FileType>
-              <FilePath>..\BSP\Peripherals\hal_common.h</FilePath>
+              <FilePath>..\BSP\HAL\hal_common.h</FilePath>
             </File>
             <File>
               <FileName>hal_gpio.c</FileName>
               <FileType>1</FileType>
-              <FilePath>..\BSP\Peripherals\hal_gpio.c</FilePath>
+              <FilePath>..\BSP\HAL\hal_gpio.c</FilePath>
             </File>
             <File>
               <FileName>hal_gpio.h</FileName>
               <FileType>5</FileType>
-              <FilePath>..\BSP\Peripherals\hal_gpio.h</FilePath>
+              <FilePath>..\BSP\HAL\hal_gpio.h</FilePath>
             </File>
             <File>
               <FileName>hal_timer.c</FileName>
               <FileType>1</FileType>
-              <FilePath>..\BSP\Peripherals\hal_timer.c</FilePath>
+              <FilePath>..\BSP\HAL\hal_timer.c</FilePath>
             </File>
             <File>
               <FileName>hal_timer.h</FileName>
               <FileType>5</FileType>
-              <FilePath>..\BSP\Peripherals\hal_timer.h</FilePath>
+              <FilePath>..\BSP\HAL\hal_timer.h</FilePath>
             </File>
             <File>
               <FileName>hal_uart.c</FileName>
               <FileType>1</FileType>
-              <FilePath>..\BSP\Peripherals\hal_uart.c</FilePath>
+              <FilePath>..\BSP\HAL\hal_uart.c</FilePath>
             </File>
             <File>
               <FileName>hal_uart.h</FileName>
               <FileType>5</FileType>
-              <FilePath>..\BSP\Peripherals\hal_uart.h</FilePath>
+              <FilePath>..\BSP\HAL\hal_uart.h</FilePath>
             </File>
           </Files>
         </Group>
@@ -783,17 +783,17 @@
             <File>
               <FileName>bsp_motor.c</FileName>
               <FileType>1</FileType>
-              <FilePath>..\BSP\Peripherals\bsp_motor.c</FilePath>
+              <FilePath>..\BSP\Motor\bsp_motor.c</FilePath>
             </File>
             <File>
               <FileName>bsp_drv8870.c</FileName>
               <FileType>1</FileType>
-              <FilePath>..\BSP\Peripherals\bsp_drv8870.c</FilePath>
+              <FilePath>..\BSP\Motor\bsp_drv8870.c</FilePath>
             </File>
             <File>
               <FileName>bsp_tb6612.c</FileName>
               <FileType>1</FileType>
-              <FilePath>..\BSP\Peripherals\bsp_tb6612.c</FilePath>
+              <FilePath>..\BSP\Motor\bsp_tb6612.c</FilePath>
             </File>
             <File>
               <FileName>bsp_timer.c</FileName>
@@ -813,17 +813,17 @@
             <File>
               <FileName>bsp_common.h</FileName>
               <FileType>5</FileType>
-              <FilePath>..\BSP\bsp_common.h</FilePath>
+              <FilePath>..\BSP\Common\bsp_common.h</FilePath>
             </File>
             <File>
               <FileName>platform.c</FileName>
               <FileType>1</FileType>
-              <FilePath>..\BSP\platform.c</FilePath>
+              <FilePath>..\BSP\Platform\platform.c</FilePath>
             </File>
             <File>
               <FileName>platform.h</FileName>
               <FileType>5</FileType>
-              <FilePath>..\BSP\platform.h</FilePath>
+              <FilePath>..\BSP\Platform\platform.h</FilePath>
             </File>
             <File>
               <FileName>bsp_encoder.c</FileName>
@@ -848,17 +848,17 @@
             <File>
               <FileName>bsp_motor.h</FileName>
               <FileType>5</FileType>
-              <FilePath>..\BSP\Peripherals\bsp_motor.h</FilePath>
+              <FilePath>..\BSP\Motor\bsp_motor.h</FilePath>
             </File>
             <File>
               <FileName>bsp_drv8870.h</FileName>
               <FileType>5</FileType>
-              <FilePath>..\BSP\Peripherals\bsp_drv8870.h</FilePath>
+              <FilePath>..\BSP\Motor\bsp_drv8870.h</FilePath>
             </File>
             <File>
               <FileName>bsp_tb6612.h</FileName>
               <FileType>5</FileType>
-              <FilePath>..\BSP\Peripherals\bsp_tb6612.h</FilePath>
+              <FilePath>..\BSP\Motor\bsp_tb6612.h</FilePath>
             </File>
             <File>
               <FileName>bsp_uart.c</FileName>
@@ -873,7 +873,7 @@
             <File>
               <FileName>bsp_mathacl.h</FileName>
               <FileType>5</FileType>
-              <FilePath>..\BSP\Peripherals\bsp_mathacl.h</FilePath>
+              <FilePath>..\BSP\Common\bsp_mathacl.h</FilePath>
             </File>
           </Files>
         </Group>
@@ -1299,7 +1299,7 @@
               <MiscControls></MiscControls>
               <Define>__MSPM0G3507__;LOG_LEVEL=LOG_LEVEL_INFO;TEST_MATHACL_ENABLE=1;TEST_MATHACL_INCLUDE_FULL_BENCHMARK=1;TEST_MATHACL_MATRIX_ENABLE=0;EKF_NIS_MONITOR=1;EKF_MANEUVER_DETECT=1;PRJ_DRV8870_FACTORY_TEST_ENABLE=1</Define>
               <Undefine></Undefine>
-              <IncludePath>..\..\source\third_party\CMSIS\Core\Include;..\..\source;..\;..\Application;..\Application\test;..\Application\Task;..\Application\Algorithm;..\Filter;..\BSP;..\BSP\Peripherals;..\BSP\IMU;..\BSP\IMU\Ports\mspm0g3507;..\Lib\OSAL;..\Config;..\Lib\AxiomTrace;..\Lib\Math;..\Lib\FreeRTOS\include;..\Lib\FreeRTOS\portable\MemMang;..\Lib\FreeRTOS\portable\GCC\ARM_CM0;..\Lib\FreeRTOS\src</IncludePath>
+              <IncludePath>..\..\source\third_party\CMSIS\Core\Include;..\..\source;..\;..\Application;..\Application\Tests;..\Application\Tasks;..\Application\Algorithm;..\Application\Filter;..\BSP;..\BSP\Common;..\BSP\Platform;..\BSP\HAL;..\BSP\Peripherals;..\BSP\Motor;..\BSP\IMU;..\BSP\IMU\Ports\mspm0g3507;..\Lib\OSAL;..\Config;..\Lib\AxiomTrace;..\Lib\Math;..\Lib\FreeRTOS\include;..\Lib\FreeRTOS\portable\MemMang;..\Lib\FreeRTOS\portable\GCC\ARM_CM0;..\Lib\FreeRTOS\src</IncludePath>
             </VariousControls>
           </Cads>
           <Aads>
@@ -1466,32 +1466,32 @@
             <File>
               <FileName>task_control.c</FileName>
               <FileType>1</FileType>
-              <FilePath>..\Application\Task\task_control.c</FilePath>
+              <FilePath>..\Application\Tasks\task_control.c</FilePath>
             </File>
             <File>
               <FileName>task_control.h</FileName>
               <FileType>5</FileType>
-              <FilePath>..\Application\Task\task_control.h</FilePath>
+              <FilePath>..\Application\Tasks\task_control.h</FilePath>
             </File>
             <File>
               <FileName>task_menu.c</FileName>
               <FileType>1</FileType>
-              <FilePath>..\Application\Task\task_menu.c</FilePath>
+              <FilePath>..\Application\Tasks\task_menu.c</FilePath>
             </File>
             <File>
               <FileName>task_menu.h</FileName>
               <FileType>5</FileType>
-              <FilePath>..\Application\Task\task_menu.h</FilePath>
+              <FilePath>..\Application\Tasks\task_menu.h</FilePath>
             </File>
             <File>
               <FileName>task_imu.c</FileName>
               <FileType>1</FileType>
-              <FilePath>..\Application\Task\task_imu.c</FilePath>
+              <FilePath>..\Application\Tasks\task_imu.c</FilePath>
             </File>
             <File>
               <FileName>task_imu.h</FileName>
               <FileType>5</FileType>
-              <FilePath>..\Application\Task\task_imu.h</FilePath>
+              <FilePath>..\Application\Tasks\task_imu.h</FilePath>
             </File>
             <File>
               <FileName>app_complementary_filter.c</FileName>
@@ -1506,57 +1506,57 @@
             <File>
               <FileName>filter.h</FileName>
               <FileType>5</FileType>
-              <FilePath>..\Filter\filter.h</FilePath>
+              <FilePath>..\Application\Filter\filter.h</FilePath>
             </File>
             <File>
               <FileName>filter_config.h</FileName>
               <FileType>5</FileType>
-              <FilePath>..\Filter\filter_config.h</FilePath>
+              <FilePath>..\Application\Filter\filter_config.h</FilePath>
             </File>
             <File>
               <FileName>filter_config.c</FileName>
               <FileType>1</FileType>
-              <FilePath>..\Filter\filter_config.c</FilePath>
+              <FilePath>..\Application\Filter\filter_config.c</FilePath>
             </File>
             <File>
               <FileName>filter_core.c</FileName>
               <FileType>1</FileType>
-              <FilePath>..\Filter\filter_core.c</FilePath>
+              <FilePath>..\Application\Filter\filter_core.c</FilePath>
             </File>
             <File>
               <FileName>filter_complementary.c</FileName>
               <FileType>1</FileType>
-              <FilePath>..\Filter\filter_complementary.c</FilePath>
+              <FilePath>..\Application\Filter\filter_complementary.c</FilePath>
             </File>
             <File>
               <FileName>filter_lpf.c</FileName>
               <FileType>1</FileType>
-              <FilePath>..\Filter\filter_lpf.c</FilePath>
+              <FilePath>..\Application\Filter\filter_lpf.c</FilePath>
             </File>
             <File>
               <FileName>filter_ekf.c</FileName>
               <FileType>1</FileType>
-              <FilePath>..\Filter\filter_ekf.c</FilePath>
+              <FilePath>..\Application\Filter\filter_ekf.c</FilePath>
             </File>
             <File>
               <FileName>filter_lkf.c</FileName>
               <FileType>1</FileType>
-              <FilePath>..\Filter\filter_lkf.c</FilePath>
+              <FilePath>..\Application\Filter\filter_lkf.c</FilePath>
             </File>
             <File>
               <FileName>filter_mahony.c</FileName>
               <FileType>1</FileType>
-              <FilePath>..\Filter\filter_mahony.c</FilePath>
+              <FilePath>..\Application\Filter\filter_mahony.c</FilePath>
             </File>
             <File>
               <FileName>filter_madgwick.c</FileName>
               <FileType>1</FileType>
-              <FilePath>..\Filter\filter_madgwick.c</FilePath>
+              <FilePath>..\Application\Filter\filter_madgwick.c</FilePath>
             </File>
             <File>
               <FileName>filter_kf.c</FileName>
               <FileType>1</FileType>
-              <FilePath>..\Filter\filter_kf.c</FilePath>
+              <FilePath>..\Application\Filter\filter_kf.c</FilePath>
             </File>
             <File>
               <FileName>app_debug.c</FileName>
@@ -1571,22 +1571,22 @@
             <File>
               <FileName>app_test_runner.c</FileName>
               <FileType>1</FileType>
-              <FilePath>..\Application\test\app_test_runner.c</FilePath>
+              <FilePath>..\Application\Tests\app_test_runner.c</FilePath>
             </File>
             <File>
               <FileName>app_test_runner.h</FileName>
               <FileType>5</FileType>
-              <FilePath>..\Application\test\app_test_runner.h</FilePath>
+              <FilePath>..\Application\Tests\app_test_runner.h</FilePath>
             </File>
             <File>
               <FileName>app_test_timer.c</FileName>
               <FileType>1</FileType>
-              <FilePath>..\Application\test\app_test_timer.c</FilePath>
+              <FilePath>..\Application\Tests\app_test_timer.c</FilePath>
             </File>
             <File>
               <FileName>app_test_timer.h</FileName>
               <FileType>5</FileType>
-              <FilePath>..\Application\test\app_test_timer.h</FilePath>
+              <FilePath>..\Application\Tests\app_test_timer.h</FilePath>
             </File>
           </Files>
         </Group>
@@ -1596,47 +1596,47 @@
             <File>
               <FileName>hal_adc.c</FileName>
               <FileType>1</FileType>
-              <FilePath>..\BSP\Peripherals\hal_adc.c</FilePath>
+              <FilePath>..\BSP\HAL\hal_adc.c</FilePath>
             </File>
             <File>
               <FileName>hal_adc.h</FileName>
               <FileType>5</FileType>
-              <FilePath>..\BSP\Peripherals\hal_adc.h</FilePath>
+              <FilePath>..\BSP\HAL\hal_adc.h</FilePath>
             </File>
             <File>
               <FileName>hal_common.h</FileName>
               <FileType>5</FileType>
-              <FilePath>..\BSP\Peripherals\hal_common.h</FilePath>
+              <FilePath>..\BSP\HAL\hal_common.h</FilePath>
             </File>
             <File>
               <FileName>hal_gpio.c</FileName>
               <FileType>1</FileType>
-              <FilePath>..\BSP\Peripherals\hal_gpio.c</FilePath>
+              <FilePath>..\BSP\HAL\hal_gpio.c</FilePath>
             </File>
             <File>
               <FileName>hal_gpio.h</FileName>
               <FileType>5</FileType>
-              <FilePath>..\BSP\Peripherals\hal_gpio.h</FilePath>
+              <FilePath>..\BSP\HAL\hal_gpio.h</FilePath>
             </File>
             <File>
               <FileName>hal_timer.c</FileName>
               <FileType>1</FileType>
-              <FilePath>..\BSP\Peripherals\hal_timer.c</FilePath>
+              <FilePath>..\BSP\HAL\hal_timer.c</FilePath>
             </File>
             <File>
               <FileName>hal_timer.h</FileName>
               <FileType>5</FileType>
-              <FilePath>..\BSP\Peripherals\hal_timer.h</FilePath>
+              <FilePath>..\BSP\HAL\hal_timer.h</FilePath>
             </File>
             <File>
               <FileName>hal_uart.c</FileName>
               <FileType>1</FileType>
-              <FilePath>..\BSP\Peripherals\hal_uart.c</FilePath>
+              <FilePath>..\BSP\HAL\hal_uart.c</FilePath>
             </File>
             <File>
               <FileName>hal_uart.h</FileName>
               <FileType>5</FileType>
-              <FilePath>..\BSP\Peripherals\hal_uart.h</FilePath>
+              <FilePath>..\BSP\HAL\hal_uart.h</FilePath>
             </File>
           </Files>
         </Group>
@@ -1741,17 +1741,17 @@
             <File>
               <FileName>bsp_motor.c</FileName>
               <FileType>1</FileType>
-              <FilePath>..\BSP\Peripherals\bsp_motor.c</FilePath>
+              <FilePath>..\BSP\Motor\bsp_motor.c</FilePath>
             </File>
             <File>
               <FileName>bsp_drv8870.c</FileName>
               <FileType>1</FileType>
-              <FilePath>..\BSP\Peripherals\bsp_drv8870.c</FilePath>
+              <FilePath>..\BSP\Motor\bsp_drv8870.c</FilePath>
             </File>
             <File>
               <FileName>bsp_tb6612.c</FileName>
               <FileType>1</FileType>
-              <FilePath>..\BSP\Peripherals\bsp_tb6612.c</FilePath>
+              <FilePath>..\BSP\Motor\bsp_tb6612.c</FilePath>
             </File>
             <File>
               <FileName>bsp_timer.c</FileName>
@@ -1771,17 +1771,17 @@
             <File>
               <FileName>bsp_common.h</FileName>
               <FileType>5</FileType>
-              <FilePath>..\BSP\bsp_common.h</FilePath>
+              <FilePath>..\BSP\Common\bsp_common.h</FilePath>
             </File>
             <File>
               <FileName>platform.c</FileName>
               <FileType>1</FileType>
-              <FilePath>..\BSP\platform.c</FilePath>
+              <FilePath>..\BSP\Platform\platform.c</FilePath>
             </File>
             <File>
               <FileName>platform.h</FileName>
               <FileType>5</FileType>
-              <FilePath>..\BSP\platform.h</FilePath>
+              <FilePath>..\BSP\Platform\platform.h</FilePath>
             </File>
             <File>
               <FileName>bsp_encoder.c</FileName>
@@ -1806,17 +1806,17 @@
             <File>
               <FileName>bsp_motor.h</FileName>
               <FileType>5</FileType>
-              <FilePath>..\BSP\Peripherals\bsp_motor.h</FilePath>
+              <FilePath>..\BSP\Motor\bsp_motor.h</FilePath>
             </File>
             <File>
               <FileName>bsp_drv8870.h</FileName>
               <FileType>5</FileType>
-              <FilePath>..\BSP\Peripherals\bsp_drv8870.h</FilePath>
+              <FilePath>..\BSP\Motor\bsp_drv8870.h</FilePath>
             </File>
             <File>
               <FileName>bsp_tb6612.h</FileName>
               <FileType>5</FileType>
-              <FilePath>..\BSP\Peripherals\bsp_tb6612.h</FilePath>
+              <FilePath>..\BSP\Motor\bsp_tb6612.h</FilePath>
             </File>
             <File>
               <FileName>bsp_uart.c</FileName>
@@ -1831,7 +1831,7 @@
             <File>
               <FileName>bsp_mathacl.h</FileName>
               <FileType>5</FileType>
-              <FilePath>..\BSP\Peripherals\bsp_mathacl.h</FilePath>
+              <FilePath>..\BSP\Common\bsp_mathacl.h</FilePath>
             </File>
           </Files>
         </Group>
