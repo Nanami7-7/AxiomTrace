@@ -12,9 +12,9 @@
 #include "app_main.h"
 #include "project_version.h"
 #include "app_vofa.h"
-#include "Task/task_control.h"
-#include "Task/task_menu.h"
-#include "Task/task_imu.h"
+#include "Tasks/task_control.h"
+#include "Tasks/task_menu.h"
+#include "Tasks/task_imu.h"
 #include "osal_api.h"
 #include <stdio.h>
 #include "bsp_led.h"

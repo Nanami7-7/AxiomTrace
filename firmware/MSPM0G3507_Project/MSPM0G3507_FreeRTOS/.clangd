@@ -6,12 +6,16 @@ CompileFlags:
     - -I D:/msp_project/temp2/MSPM0G3507_Project/source
     - -I D:/msp_project/temp2/MSPM0G3507_Project/MSPM0G3507_FreeRTOS
     - -I D:/msp_project/temp2/MSPM0G3507_Project/MSPM0G3507_FreeRTOS/Application
-    - -I D:/msp_project/temp2/MSPM0G3507_Project/MSPM0G3507_FreeRTOS/Application/test
-    - -I D:/msp_project/temp2/MSPM0G3507_Project/MSPM0G3507_FreeRTOS/Application/Task
+    - -I D:/msp_project/temp2/MSPM0G3507_Project/MSPM0G3507_FreeRTOS/Application/Tests
+    - -I D:/msp_project/temp2/MSPM0G3507_Project/MSPM0G3507_FreeRTOS/Application/Tasks
     - -I D:/msp_project/temp2/MSPM0G3507_Project/MSPM0G3507_FreeRTOS/Application/Algorithm
-    - -I D:/msp_project/temp2/MSPM0G3507_Project/MSPM0G3507_FreeRTOS/Filter
+    - -I D:/msp_project/temp2/MSPM0G3507_Project/MSPM0G3507_FreeRTOS/Application/Filter
     - -I D:/msp_project/temp2/MSPM0G3507_Project/MSPM0G3507_FreeRTOS/BSP
+    - -I D:/msp_project/temp2/MSPM0G3507_Project/MSPM0G3507_FreeRTOS/BSP/Common
+    - -I D:/msp_project/temp2/MSPM0G3507_Project/MSPM0G3507_FreeRTOS/BSP/Platform
+    - -I D:/msp_project/temp2/MSPM0G3507_Project/MSPM0G3507_FreeRTOS/BSP/HAL
     - -I D:/msp_project/temp2/MSPM0G3507_Project/MSPM0G3507_FreeRTOS/BSP/Peripherals
+    - -I D:/msp_project/temp2/MSPM0G3507_Project/MSPM0G3507_FreeRTOS/BSP/Motor
     - -I D:/msp_project/temp2/MSPM0G3507_Project/MSPM0G3507_FreeRTOS/BSP/IMU
     - -I D:/msp_project/temp2/MSPM0G3507_Project/MSPM0G3507_FreeRTOS/BSP/IMU/Ports/mspm0g3507
     - -I D:/msp_project/temp2/MSPM0G3507_Project/MSPM0G3507_FreeRTOS/Lib/OSAL
