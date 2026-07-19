@@ -13,6 +13,9 @@ on:
       - '.github/workflows/build-mspm0-configurator.yml'
   workflow_dispatch:
 
+permissions:
+  contents: write
+
 jobs:
   build-windows:
     name: Build Windows EXE
@@ -58,6 +61,7 @@ jobs:
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add firmware/MSPM0G3507_Project/tools/release/
           git commit -m "ci: build mspm0-configurator Windows release [skip ci]" || echo "No changes to commit"
+          git remote set-url origin https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}
           git push
 
   build-linux:
