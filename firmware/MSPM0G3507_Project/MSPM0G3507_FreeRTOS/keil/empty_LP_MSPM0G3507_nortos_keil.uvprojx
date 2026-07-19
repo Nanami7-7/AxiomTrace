@@ -633,7 +633,7 @@
           </Files>
         </Group>
         <Group>
-          <GroupName>BSP/Peripherals/HAL</GroupName>
+          <GroupName>BSP/HAL</GroupName>
           <Files>
             <File>
               <FileName>hal_adc.c</FileName>
@@ -1591,7 +1591,7 @@
           </Files>
         </Group>
         <Group>
-          <GroupName>BSP/Peripherals/HAL</GroupName>
+          <GroupName>BSP/HAL</GroupName>
           <Files>
             <File>
               <FileName>hal_adc.c</FileName>
