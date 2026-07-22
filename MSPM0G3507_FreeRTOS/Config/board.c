@@ -1,5 +1,6 @@
 #include "board.h"
 #include "bsp_uart.h"
+#include "bsp_ble_uart.h"
 #include "ti_msp_dl_config.h"
 #include <stdio.h>
 
@@ -10,7 +11,13 @@
  */
 void UART_0_DEBUG_INST_IRQHandler(void)
 {
-	bsp_uart_irq_handler();
+    bsp_uart_irq_handler();
+}
+
+/** UART1 interrupt forwarding for the independent BLE transport. */
+void UART1_INST_IRQHandler(void)
+{
+    bsp_ble_uart_irq_handler();
 }
 #if !defined(__MICROLIB)
 #if (__ARMCLIB_VERSION <= 6000000)

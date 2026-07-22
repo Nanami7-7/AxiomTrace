@@ -21,6 +21,7 @@
 #include "bsp_motor.h"
 #include "bsp_encoder.h"
 #include "bsp_uart.h"
+#include "app_ble_service.h"
 #include "app_complementary_filter.h"
 #include "app_model_id.h"
 #include "app_position_control.h"
@@ -71,6 +72,9 @@ static int32_t bsp_modules_init(void)
 
     ret = bsp_uart_init();
     if (ret != BSP_OK) { return -2; }
+
+    /* UART1/BLE is optional at runtime: initialization does not probe or block. */
+    (void)app_ble_service_init();
 
     ret = bsp_motor_init();
     if (ret != BSP_OK) { return -3; }

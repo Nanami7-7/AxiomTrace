@@ -36,6 +36,14 @@ extern "C" {
 #define PRJ_UART_DEBUG_ID       HAL_UART_DEBUG
 
 /* ================================================================
+ *  JDY-23 BLE UART??
+ *  SysConfig: UART1, TX=PB6, RX=PB7, 9600-8-N-1, no flow control.
+ *  JDY-23 protocol code is isolated from this hardware mapping.
+ * ================================================================ */
+#define PRJ_UART_BLE_ID         HAL_UART_BLE
+#define PRJ_JDY23_UART_BAUD     (9600U)
+
+/* ================================================================
  *  电机驱动选择与统一业务命令
  *
  *  分层关系:

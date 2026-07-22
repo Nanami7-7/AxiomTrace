@@ -16,6 +16,7 @@
 #include "bsp_motor.h"
 #include "bsp_uart.h"
 #include "app_debug.h"
+#include "app_ble_service.h"
 #include "app_test_runner.h"
 #include "axiomtrace.h"
 #include <stdio.h>
@@ -418,6 +419,363 @@ static void menu_data_output_loop(app_shared_ctx_t *ctx,
 
 /* ======================== 公共函数实现 ======================== */
 
+/* ======================== JDY-23 BLE console helpers ======================== */
+
+static const char *menu_ble_status_name(jdy23_status_t status)
+{
+    switch (status) {
+    case JDY23_OK:                    return "OK";
+    case JDY23_ERR_INVALID_PARAM:     return "INVALID_PARAM";
+    case JDY23_ERR_NOT_INIT:          return "NOT_INIT";
+    case JDY23_ERR_IO:                return "IO_ERROR";
+    case JDY23_ERR_TIMEOUT:           return "TIMEOUT";
+    case JDY23_ERR_RESPONSE_TOO_LONG: return "RESPONSE_TOO_LONG";
+    case JDY23_ERR_UNEXPECTED_RESPONSE: return "UNEXPECTED_RESPONSE";
+    default:                          return "UNKNOWN";
+    }
+}
+
+static void menu_print_ble_usage(void)
+{
+    (void)printf("\r\nJDY-23 BLE commands (UART1: PB6 TX, PB7 RX, 9600 8N1):\r\n");
+    (void)printf("  ble status                    Show transport/module status.\r\n");
+    (void)printf("  ble probe                     Probe with AT+VER\\r\\n, then AT fallback.\r\n");
+    (void)printf("  ble query <key>               Run one wrapped read-only AT query.\r\n");
+    (void)printf("  ble inspect                   Query every known read-only item.\r\n");
+    (void)printf("  ble action <key> CONFIRM      Run RST/DISC/SLEEP explicitly.\r\n");
+    (void)printf("  ble at <command>              Send arbitrary AT plus CRLF.\r\n");
+    (void)printf("  ble atraw <command>           Compatibility mode: no line ending.\r\n");
+    (void)printf("  ble send <text>               Send transparent data to BLE peer.\r\n");
+    (void)printf("  ble rx                        Drain received BLE bytes once.\r\n");
+    (void)printf("  ble monitor on|off            Print received BLE bytes each menu cycle.\r\n");
+    (void)printf("  ble flush                     Discard buffered BLE RX bytes.\r\n");
+    (void)printf("Queries: VER STAT MAC BAUD NAME STARTEN ADVIN HOSTEN IBUUID MAJOR MINOR.\r\n");
+    (void)printf("Actions: RST DISC SLEEP (confirmation is mandatory).\r\n");
+    (void)printf("Safety: BLE RX is NOT forwarded to the motor/VOFA command parser.\r\n");
+    (void)printf("Disconnect the BLE peer before AT commands; all wrapped commands add CRLF.\r\n");
+}
+
+static void menu_print_ble_bytes(const uint8_t *data, uint16_t len)
+{
+    uint16_t i;
+
+    for (i = 0U; i < len; i++) {
+        uint8_t ch = data[i];
+        if (ch == (uint8_t)'\r') {
+            (void)printf("\\r");
+        } else if (ch == (uint8_t)'\n') {
+            (void)printf("\\n");
+        } else if ((ch >= 0x20U) && (ch <= 0x7EU)) {
+            (void)printf("%c", (int)ch);
+        } else {
+            (void)printf("\\x%02X", (unsigned int)ch);
+        }
+    }
+}
+
+static bool menu_ble_drain_rx(void)
+{
+    uint8_t data[64];
+    uint16_t received = 0U;
+    jdy23_status_t status = app_ble_receive(data, (uint16_t)sizeof(data),
+                                            &received);
+
+    if (status != JDY23_OK) {
+        (void)printf("[BLE RX] error=%s (%d)\r\n",
+                     menu_ble_status_name(status), (int)status);
+        return false;
+    }
+    if (received == 0U) {
+        return false;
+    }
+
+    (void)printf("[BLE RX %u] ", (unsigned int)received);
+    menu_print_ble_bytes(data, received);
+    (void)printf("\r\n");
+    return true;
+}
+
+static const char *menu_ble_argument(const char *line, uint32_t prefix_len)
+{
+    const char *arg = &line[prefix_len];
+    while (*arg == ' ') {
+        arg++;
+    }
+    return arg;
+}
+
+static bool menu_ble_prefix_matches(const char *line, const char *prefix)
+{
+    size_t prefix_len = strlen(prefix);
+
+    return (strncmp(line, prefix, prefix_len) == 0) &&
+           ((line[prefix_len] == '\0') || (line[prefix_len] == ' '));
+}
+
+static const char *menu_ble_response_format_name(
+    const jdy23_command_info_t *info, const app_ble_command_result_t *result)
+{
+    if (result == NULL) {
+        return "NONE";
+    }
+    if (result->format == APP_BLE_RESPONSE_FORMAT_RAW_FALLBACK) {
+        return "RAW_FALLBACK";
+    }
+    if (result->format == APP_BLE_RESPONSE_FORMAT_PREFIX_MATCHED) {
+        return ((info != NULL) && info->response_prefix_verified) ?
+               "PREFIX_MATCHED/VERIFIED" :
+               "PREFIX_MATCHED/UNVERIFIED";
+    }
+    return "NONE";
+}
+
+static void menu_print_ble_command_result(
+    const char *operation, jdy23_command_t command,
+    const app_ble_command_result_t *result)
+{
+    const jdy23_command_info_t *info = app_ble_get_command_info(command);
+
+    if ((operation == NULL) || (info == NULL) || (result == NULL)) {
+        (void)printf("BLE command result: invalid internal parameter.\r\n");
+        return;
+    }
+
+    (void)printf("\r\nBLE %s %s [%s]: %s (%d)\r\n",
+                 operation, info->name, info->at_command,
+                 menu_ble_status_name(result->transfer_status),
+                 (int)result->transfer_status);
+    (void)printf("  raw    : ");
+    if (result->raw_response[0] != '\0') {
+        menu_print_ble_bytes((const uint8_t *)result->raw_response,
+                             (uint16_t)strlen(result->raw_response));
+    } else {
+        (void)printf("<none>");
+    }
+    (void)printf("\r\n");
+
+    (void)printf("  value  : ");
+    if (result->parse_status == JDY23_OK) {
+        menu_print_ble_bytes((const uint8_t *)result->value,
+                             (uint16_t)strlen(result->value));
+    } else {
+        (void)printf("<not parsed: %s (%d)>",
+                     menu_ble_status_name(result->parse_status),
+                     (int)result->parse_status);
+    }
+    (void)printf("\r\n");
+    (void)printf("  format : %s\r\n",
+                 menu_ble_response_format_name(info, result));
+    if (info->response_prefix != NULL) {
+        (void)printf("  prefix : %s (%s)\r\n", info->response_prefix,
+                     info->response_prefix_verified ?
+                     "hardware verified" : "assumed; collect raw reply");
+    } else {
+        (void)printf("  prefix : <unknown/action response>\r\n");
+    }
+}
+
+static jdy23_status_t menu_ble_execute_and_print(
+    const char *operation, jdy23_command_t command, uint32_t timeout_ms)
+{
+    app_ble_command_result_t result;
+    jdy23_status_t status = app_ble_execute_command(command, &result,
+                                                    timeout_ms);
+    menu_print_ble_command_result(operation, command, &result);
+    return status;
+}
+
+static void menu_ble_inspect_all(void)
+{
+    uint32_t i;
+
+    (void)printf("\r\n===== JDY-23 READ-ONLY AT INSPECTION =====\r\n");
+    (void)printf("All commands append \\r\\n. Raw replies are retained.\r\n");
+    (void)printf("Expected prefixes not yet hardware-verified are marked UNVERIFIED.\r\n");
+
+    for (i = 0U; i < (uint32_t)JDY23_COMMAND_COUNT; i++) {
+        jdy23_command_t command = (jdy23_command_t)i;
+        const jdy23_command_info_t *info =
+            app_ble_get_command_info(command);
+        if ((info != NULL) && (info->kind == JDY23_COMMAND_KIND_QUERY)) {
+            (void)menu_ble_execute_and_print("inspect", command, 800U);
+        }
+    }
+    (void)printf("===== JDY-23 INSPECTION COMPLETE =====\r\n");
+}
+
+static bool menu_handle_ble_command(const char *line,
+                                    bool *monitor_enabled)
+{
+    char response[APP_BLE_RESPONSE_MAX];
+    char key[16];
+    char token[16];
+    char extra[2];
+    jdy23_status_t status;
+    jdy23_command_t command;
+    const jdy23_command_info_t *info;
+    const char *arg;
+    int parsed;
+
+    if ((line == NULL) || (monitor_enabled == NULL)) {
+        return false;
+    }
+    if ((strcmp(line, "ble") == 0) || (strcmp(line, "ble help") == 0)) {
+        menu_print_ble_usage();
+        return true;
+    }
+    if (strcmp(line, "ble status") == 0) {
+        app_ble_status_t ble;
+        app_ble_get_status(&ble);
+        (void)printf("\r\nBLE/JDY-23 status:\r\n");
+        (void)printf("  UART1 mapping : TX=PB6, RX=PB7, %lu 8N1\r\n",
+                     (unsigned long)ble.baud_rate);
+        (void)printf("  initialized   : %s\r\n",
+                     ble.initialized ? "YES" : "NO");
+        (void)printf("  AT detected   : %s\r\n",
+                     ble.detected ? "YES" : "NO/not probed");
+        (void)printf("  monitor       : %s\r\n",
+                     *monitor_enabled ? "ON" : "OFF");
+        (void)printf("  RX pending    : %lu\r\n",
+                     (unsigned long)ble.rx_pending);
+        (void)printf("  RX bytes/overflow: %lu/%lu\r\n",
+                     (unsigned long)ble.uart_diag.rx_bytes,
+                     (unsigned long)ble.uart_diag.rx_overflow);
+        (void)printf("  IRQ/ignored   : %lu/%lu\r\n",
+                     (unsigned long)ble.uart_diag.irq_count,
+                     (unsigned long)ble.uart_diag.ignored_irq_count);
+        return true;
+    }
+    if (strcmp(line, "ble probe") == 0) {
+        status = app_ble_probe(response, (uint16_t)sizeof(response), 500U);
+        (void)printf("BLE probe: %s (%d)", menu_ble_status_name(status),
+                     (int)status);
+        if (response[0] != '\0') {
+            (void)printf("; response=");
+            menu_print_ble_bytes((const uint8_t *)response,
+                                 (uint16_t)strlen(response));
+        }
+        (void)printf("\r\n");
+        return true;
+    }
+    if (menu_ble_prefix_matches(line, "ble query")) {
+        arg = menu_ble_argument(line, 9U);
+        parsed = sscanf(arg, "%15s %1s", key, extra);
+        if ((parsed != 1) || !app_ble_find_command(key, &command)) {
+            (void)printf("Usage: ble query <VER|STAT|MAC|BAUD|NAME|STARTEN|ADVIN|HOSTEN|IBUUID|MAJOR|MINOR>\r\n");
+            return true;
+        }
+        info = app_ble_get_command_info(command);
+        if ((info == NULL) || (info->kind != JDY23_COMMAND_KIND_QUERY)) {
+            (void)printf("BLE %s is an action; use: ble action %s CONFIRM\r\n",
+                         key, key);
+            return true;
+        }
+        (void)menu_ble_execute_and_print("query", command, 800U);
+        return true;
+    }
+    if (strcmp(line, "ble inspect") == 0) {
+        menu_ble_inspect_all();
+        return true;
+    }
+    if (menu_ble_prefix_matches(line, "ble action")) {
+        arg = menu_ble_argument(line, 10U);
+        parsed = sscanf(arg, "%15s %15s %1s", key, token, extra);
+        if ((parsed != 2) || (strcmp(token, "CONFIRM") != 0) ||
+            !app_ble_find_command(key, &command)) {
+            (void)printf("Usage: ble action <RST|DISC|SLEEP> CONFIRM\r\n");
+            return true;
+        }
+        info = app_ble_get_command_info(command);
+        if ((info == NULL) || (info->kind != JDY23_COMMAND_KIND_ACTION)) {
+            (void)printf("BLE %s is read-only; use: ble query %s\r\n",
+                         key, key);
+            return true;
+        }
+        status = menu_ble_execute_and_print("action", command, 1000U);
+        if ((status == JDY23_ERR_TIMEOUT) &&
+            ((command == JDY23_COMMAND_RST) ||
+             (command == JDY23_COMMAND_DISC) ||
+             (command == JDY23_COMMAND_SLEEP))) {
+            (void)printf("Note: timeout may be expected if the module reset, disconnected, or slept before replying.\r\n");
+        }
+        return true;
+    }
+    if (menu_ble_prefix_matches(line, "ble atraw")) {
+        arg = menu_ble_argument(line, 9U);
+        if (*arg == '\0') {
+            menu_print_ble_usage();
+            return true;
+        }
+        status = app_ble_send_at(arg, JDY23_LINE_END_NONE, response,
+                                 (uint16_t)sizeof(response), 800U);
+        (void)printf("BLE AT(raw): %s (%d)", menu_ble_status_name(status),
+                     (int)status);
+        if (response[0] != '\0') {
+            (void)printf("; response=");
+            menu_print_ble_bytes((const uint8_t *)response,
+                                 (uint16_t)strlen(response));
+        }
+        (void)printf("\r\n");
+        return true;
+    }
+    if (menu_ble_prefix_matches(line, "ble at")) {
+        arg = menu_ble_argument(line, 6U);
+        if (*arg == '\0') {
+            menu_print_ble_usage();
+            return true;
+        }
+        status = app_ble_send_at(arg, JDY23_LINE_END_CRLF, response,
+                                 (uint16_t)sizeof(response), 800U);
+        (void)printf("BLE AT: %s (%d)", menu_ble_status_name(status),
+                     (int)status);
+        if (response[0] != '\0') {
+            (void)printf("; response=");
+            menu_print_ble_bytes((const uint8_t *)response,
+                                 (uint16_t)strlen(response));
+        }
+        (void)printf("\r\n");
+        return true;
+    }
+    if (menu_ble_prefix_matches(line, "ble send")) {
+        arg = menu_ble_argument(line, 8U);
+        if (*arg == '\0') {
+            menu_print_ble_usage();
+            return true;
+        }
+        status = app_ble_send((const uint8_t *)arg, (uint16_t)strlen(arg));
+        (void)printf("BLE TX: %s (%d), %u byte(s)\r\n",
+                     menu_ble_status_name(status), (int)status,
+                     (unsigned int)strlen(arg));
+        return true;
+    }
+    if (strcmp(line, "ble rx") == 0) {
+        if (!menu_ble_drain_rx()) {
+            (void)printf("[BLE RX] no buffered data.\r\n");
+        }
+        return true;
+    }
+    if (strcmp(line, "ble monitor on") == 0) {
+        *monitor_enabled = true;
+        (void)printf("BLE RX monitor: ON\r\n");
+        return true;
+    }
+    if (strcmp(line, "ble monitor off") == 0) {
+        *monitor_enabled = false;
+        (void)printf("BLE RX monitor: OFF\r\n");
+        return true;
+    }
+    if (strcmp(line, "ble flush") == 0) {
+        app_ble_flush_rx();
+        (void)printf("BLE RX buffer flushed.\r\n");
+        return true;
+    }
+    if (menu_ble_prefix_matches(line, "ble")) {
+        menu_print_ble_usage();
+        return true;
+    }
+    return false;
+}
+
 void app_menu_task(void *param)
 {
     app_shared_ctx_t *ctx = (app_shared_ctx_t *)param;
@@ -426,10 +784,12 @@ void app_menu_task(void *param)
     uint32_t line_pos = 0U;
     uint32_t led_cnt = 0U;
     bool need_refresh = true;  /* 初始显示 */
+    bool ble_monitor_enabled = false;
 
     (void)printf("\r\n=== MSPM0G3507 Motor Control ===\r\n");
     (void)printf("Send VOFA+ commands to control.\r\n");
     (void)printf("Type 'bench' to run MATHACL benchmark.\r\n");
+    (void)printf("Type 'ble help' for JDY-23 UART1/BLE commands.\r\n");
     (void)printf("Type 'encdiag' for one read-only hardware/encoder snapshot.\r\n");
     (void)printf("Type 'drvscope start' for the persistent DRV8870 oscilloscope session.\r\n");
     (void)printf("Type 'drvscope status' for scope command help/status.\r\n");
@@ -453,7 +813,9 @@ void app_menu_task(void *param)
         if (menu_read_line(line_buf, MENU_LINE_BUF_SIZE, &line_pos)) {
             menu_drvscope_cmd_t scope_cmd;
 
-            if (menu_parse_drvscope(line_buf, &scope_cmd)) {
+            if (menu_handle_ble_command(line_buf, &ble_monitor_enabled)) {
+                need_refresh = true;
+            } else if (menu_parse_drvscope(line_buf, &scope_cmd)) {
                 switch (scope_cmd.action) {
                 case MENU_DRVSCOPE_START:
                     app_debug_drv8870_scope_start(ctx);
@@ -549,6 +911,10 @@ void app_menu_task(void *param)
         }
 
         /* LED心跳 */
+        if (ble_monitor_enabled) {
+            (void)menu_ble_drain_rx();
+        }
+
         led_cnt += MENU_LED_PERIOD_MS;
         if (led_cnt >= LED_TOGGLE_THRESH) {
             led_cnt = 0U;

@@ -341,7 +341,7 @@
               <MiscControls></MiscControls>
               <Define>__MSPM0G3507__;LOG_LEVEL=LOG_LEVEL_INFO;TEST_MATHACL_ENABLE=1;TEST_MATHACL_INCLUDE_FULL_BENCHMARK=1;TEST_MATHACL_MATRIX_ENABLE=0;EKF_NIS_MONITOR=1;EKF_MANEUVER_DETECT=1</Define>
               <Undefine></Undefine>
-              <IncludePath>..\..\source\third_party\CMSIS\Core\Include;..\..\source;..\;..\Application;..\Application\test;..\Application\Task;..\Application\Algorithm;..\Filter;..\BSP;..\BSP\Peripherals;..\BSP\IMU;..\BSP\IMU\Ports\mspm0g3507;..\Lib\OSAL;..\Config;..\Lib\AxiomTrace;..\Lib\Math;..\Lib\FreeRTOS\include;..\Lib\FreeRTOS\portable\MemMang;..\Lib\FreeRTOS\portable\GCC\ARM_CM0;..\Lib\FreeRTOS\src</IncludePath>
+              <IncludePath>..\..\source\third_party\CMSIS\Core\Include;..\..\source;..\;..\Application;..\Application\test;..\Application\Task;..\Application\Algorithm;..\Filter;..\BSP;..\BSP\Peripherals;..\BSP\Devices;..\BSP\IMU;..\BSP\IMU\Ports\mspm0g3507;..\Lib\OSAL;..\Config;..\Lib\AxiomTrace;..\Lib\Math;..\Lib\FreeRTOS\include;..\Lib\FreeRTOS\portable\MemMang;..\Lib\FreeRTOS\portable\GCC\ARM_CM0;..\Lib\FreeRTOS\src</IncludePath>
             </VariousControls>
           </Cads>
           <Aads>
@@ -611,6 +611,16 @@
               <FilePath>..\Application\app_debug.h</FilePath>
             </File>
             <File>
+              <FileName>app_ble_service.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\Application\app_ble_service.c</FilePath>
+            </File>
+            <File>
+              <FileName>app_ble_service.h</FileName>
+              <FileType>5</FileType>
+              <FilePath>..\Application\app_ble_service.h</FilePath>
+            </File>
+            <File>
               <FileName>app_test_runner.c</FileName>
               <FileType>1</FileType>
               <FilePath>..\Application\test\app_test_runner.c</FilePath>
@@ -869,6 +879,26 @@
               <FileName>bsp_uart.h</FileName>
               <FileType>5</FileType>
               <FilePath>..\BSP\Peripherals\bsp_uart.h</FilePath>
+            </File>
+            <File>
+              <FileName>bsp_ble_uart.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\BSP\Peripherals\bsp_ble_uart.c</FilePath>
+            </File>
+            <File>
+              <FileName>bsp_ble_uart.h</FileName>
+              <FileType>5</FileType>
+              <FilePath>..\BSP\Peripherals\bsp_ble_uart.h</FilePath>
+            </File>
+            <File>
+              <FileName>jdy23.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\BSP\Devices\jdy23.c</FilePath>
+            </File>
+            <File>
+              <FileName>jdy23.h</FileName>
+              <FileType>5</FileType>
+              <FilePath>..\BSP\Devices\jdy23.h</FilePath>
             </File>
             <File>
               <FileName>bsp_mathacl.h</FileName>
@@ -1299,7 +1329,7 @@
               <MiscControls></MiscControls>
               <Define>__MSPM0G3507__;LOG_LEVEL=LOG_LEVEL_INFO;TEST_MATHACL_ENABLE=1;TEST_MATHACL_INCLUDE_FULL_BENCHMARK=1;TEST_MATHACL_MATRIX_ENABLE=0;EKF_NIS_MONITOR=1;EKF_MANEUVER_DETECT=1;PRJ_DRV8870_FACTORY_TEST_ENABLE=1</Define>
               <Undefine></Undefine>
-              <IncludePath>..\..\source\third_party\CMSIS\Core\Include;..\..\source;..\;..\Application;..\Application\test;..\Application\Task;..\Application\Algorithm;..\Filter;..\BSP;..\BSP\Peripherals;..\BSP\IMU;..\BSP\IMU\Ports\mspm0g3507;..\Lib\OSAL;..\Config;..\Lib\AxiomTrace;..\Lib\Math;..\Lib\FreeRTOS\include;..\Lib\FreeRTOS\portable\MemMang;..\Lib\FreeRTOS\portable\GCC\ARM_CM0;..\Lib\FreeRTOS\src</IncludePath>
+              <IncludePath>..\..\source\third_party\CMSIS\Core\Include;..\..\source;..\;..\Application;..\Application\test;..\Application\Task;..\Application\Algorithm;..\Filter;..\BSP;..\BSP\Peripherals;..\BSP\Devices;..\BSP\IMU;..\BSP\IMU\Ports\mspm0g3507;..\Lib\OSAL;..\Config;..\Lib\AxiomTrace;..\Lib\Math;..\Lib\FreeRTOS\include;..\Lib\FreeRTOS\portable\MemMang;..\Lib\FreeRTOS\portable\GCC\ARM_CM0;..\Lib\FreeRTOS\src</IncludePath>
             </VariousControls>
           </Cads>
           <Aads>
@@ -1569,6 +1599,16 @@
               <FilePath>..\Application\app_debug.h</FilePath>
             </File>
             <File>
+              <FileName>app_ble_service.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\Application\app_ble_service.c</FilePath>
+            </File>
+            <File>
+              <FileName>app_ble_service.h</FileName>
+              <FileType>5</FileType>
+              <FilePath>..\Application\app_ble_service.h</FilePath>
+            </File>
+            <File>
               <FileName>app_test_runner.c</FileName>
               <FileType>1</FileType>
               <FilePath>..\Application\test\app_test_runner.c</FilePath>
@@ -1827,6 +1867,26 @@
               <FileName>bsp_uart.h</FileName>
               <FileType>5</FileType>
               <FilePath>..\BSP\Peripherals\bsp_uart.h</FilePath>
+            </File>
+            <File>
+              <FileName>bsp_ble_uart.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\BSP\Peripherals\bsp_ble_uart.c</FilePath>
+            </File>
+            <File>
+              <FileName>bsp_ble_uart.h</FileName>
+              <FileType>5</FileType>
+              <FilePath>..\BSP\Peripherals\bsp_ble_uart.h</FilePath>
+            </File>
+            <File>
+              <FileName>jdy23.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\BSP\Devices\jdy23.c</FilePath>
+            </File>
+            <File>
+              <FileName>jdy23.h</FileName>
+              <FileType>5</FileType>
+              <FilePath>..\BSP\Devices\jdy23.h</FilePath>
             </File>
             <File>
               <FileName>bsp_mathacl.h</FileName>

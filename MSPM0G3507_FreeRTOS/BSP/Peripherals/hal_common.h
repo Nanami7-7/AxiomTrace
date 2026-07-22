@@ -102,7 +102,8 @@ typedef enum {
  * @note  隐藏UART_Regs*指针，上层通过枚举值指定串口
  */
 typedef enum {
-    HAL_UART_DEBUG = 0,   /**< UART0 - 调试串口 */
+    HAL_UART_DEBUG = 0,   /**< UART0 - 调试/上位机串口 */
+    HAL_UART_BLE,         /**< UART1 - JDY-23 BLE串口(PB6/PB7) */
     HAL_UART_COUNT        /**< 实例总数(用于数组大小定义) */
 } hal_uart_id_t;
 

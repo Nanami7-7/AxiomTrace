@@ -16,6 +16,7 @@
  */
 static UART_Regs *const s_uart_inst_map[HAL_UART_COUNT] = {
     UART0,  /**< HAL_UART_DEBUG -> UART0 */
+    UART1,  /**< HAL_UART_BLE   -> UART1 */
 };
 
 /**
@@ -24,12 +25,13 @@ static UART_Regs *const s_uart_inst_map[HAL_UART_COUNT] = {
  */
 static const IRQn_Type s_uart_irq_map[HAL_UART_COUNT] = {
     UART0_INT_IRQn,  /**< HAL_UART_DEBUG -> UART0中断 */
+    UART1_INT_IRQn,  /**< HAL_UART_BLE   -> UART1中断 */
 };
 
 /* ======================== 私有常量 ======================== */
 
-/** UART发送超时循环计数(115200baud@80MHz约7000周期,留余量) */
-#define HAL_UART_TX_TIMEOUT  (10000U)
+/** UART TX FIFO等待超时循环计数（兼容9600baud，防止硬件异常时永久阻塞） */
+#define HAL_UART_TX_TIMEOUT  (1000000U)
 
 /* ======================== 内联辅助函数 ======================== */
 
@@ -66,7 +68,7 @@ hal_status_t hal_uart_enable_irq(hal_uart_id_t id)
     }
 
     /* 清除挂起的中断标志后再使能NVIC */
-   // NVIC_ClearPendingIRQ(s_uart_irq_map[id]);
+    NVIC_ClearPendingIRQ(s_uart_irq_map[id]);
     NVIC_EnableIRQ(s_uart_irq_map[id]);
 
     return HAL_OK;
@@ -89,10 +91,10 @@ hal_status_t hal_uart_transmit(hal_uart_id_t id, uint8_t data)
         return HAL_ERR_INVALID_PARAM;
     }
 
-    /* 阻塞等待UART空闲后发送单字节(带超时) */
+    /* 阻塞等待TX FIFO可写后发送单字节（带超时） */
     uint32_t timeout = HAL_UART_TX_TIMEOUT;
 
-    while (DL_UART_isBusy(regs) == true) {
+    while (DL_UART_isTXFIFOFull(regs) == true) {
         if (timeout == 0U) {
             return HAL_ERR_TIMEOUT;
         }
@@ -186,6 +188,10 @@ hal_status_t hal_uart_transmit_dma(hal_uart_id_t id,
     if (regs == NULL || data == NULL || len == 0U) {
         return HAL_ERR_INVALID_PARAM;
     }
+    if (id != HAL_UART_DEBUG) {
+        /* DMA CH1 is reserved for UART0. UART1 uses polling TX for now. */
+        return HAL_ERR_UNSUPPORTED;
+    }
 
     /* 配置DMA传输: 源=缓冲区, 目标=UART TX寄存器 */
     DL_DMA_setSrcAddr(DMA, DMA_CH1_CHAN_ID, (uint32_t)data);
@@ -201,7 +207,9 @@ hal_status_t hal_uart_transmit_dma(hal_uart_id_t id,
 
 hal_status_t hal_uart_abort_tx_dma(hal_uart_id_t id)
 {
-    (void)id;
+    if (id != HAL_UART_DEBUG) {
+        return is_uart_valid(id) ? HAL_ERR_UNSUPPORTED : HAL_ERR_INVALID_PARAM;
+    }
     DL_DMA_disableChannel(DMA, DMA_CH1_CHAN_ID);
     return HAL_OK;
 }
