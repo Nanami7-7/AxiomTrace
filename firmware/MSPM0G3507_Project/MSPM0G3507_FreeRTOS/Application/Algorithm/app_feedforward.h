@@ -2,7 +2,7 @@
  * @file    app_feedforward.h
  * @brief   前馈控制器接口(纯算法,无硬件依赖)
  * @note    前馈+PID复合控制: PID增量式从FF基线起步, 逐步修正残差和扰动
- *          启动时: pid->integral = FF(target), PID增量补偿
+ *          启动时: pid->last_output = FF(target), PID增量补偿
  *
  *          支持两种前馈模型:
  *          1. 简单线性: FF = k × RPM + b
@@ -106,8 +106,8 @@ void app_ff_set_enabled(app_ff_params_t *ff, bool enabled);
 
 /**
  * @brief  将前馈值应用到PID积分(电机启动/目标变化时调用)
- * @note   FF使能时: pid->integral = FF(target), is_first_run = false
- *         FF禁用时: pid->integral = 0, is_first_run = true
+ * @note   FF使能时: pid->last_output = FF(target)，首帧在此前馈基线上叠加比例项
+ *         FF禁用时: pid->last_output = 0, is_first_run = true
  * @param  ff     前馈参数指针
  * @param  pid    PID控制器指针
  * @param  target 目标RPM

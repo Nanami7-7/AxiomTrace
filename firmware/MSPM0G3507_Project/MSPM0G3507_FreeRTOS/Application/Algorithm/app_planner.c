@@ -79,8 +79,14 @@ void app_planner_start(app_planner_t *p, float target,
         return;
     }
 
-    /* 加速度必须为正 */
+    /* 加速度与巡航速度必须有效；零速度无法完成非零位移。 */
     if (p->accel <= 0.0f) {
+        p->state         = APP_PLANNER_STATE_IDLE;
+        p->current_pos   = 0.0f;
+        p->current_speed = 0.0f;
+        return;
+    }
+    if (fabsf(cruise_speed) < 1e-6f) {
         p->state         = APP_PLANNER_STATE_IDLE;
         p->current_pos   = 0.0f;
         p->current_speed = 0.0f;
@@ -114,7 +120,7 @@ void app_planner_start(app_planner_t *p, float target,
 
 float app_planner_update(app_planner_t *p, float dt)
 {
-    if (p == NULL || dt <= 0.0f) {
+    if (p == NULL || !isfinite(dt) || dt <= 0.0f) {
         return 0.0f;
     }
 

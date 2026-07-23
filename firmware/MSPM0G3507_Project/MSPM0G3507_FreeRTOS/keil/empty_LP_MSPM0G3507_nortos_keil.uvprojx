@@ -576,9 +576,9 @@
               <FilePath>..\Application\Filter\filter_lpf.c</FilePath>
             </File>
             <File>
-              <FileName>filter_ekf.c</FileName>
+              <FileName>filter_eskf.c</FileName>
               <FileType>1</FileType>
-              <FilePath>..\Application\Filter\filter_ekf.c</FilePath>
+              <FilePath>..\Application\Filter\filter_eskf.c</FilePath>
             </File>
             <File>
               <FileName>filter_lkf.c</FileName>
@@ -1534,9 +1534,9 @@
               <FilePath>..\Application\Filter\filter_lpf.c</FilePath>
             </File>
             <File>
-              <FileName>filter_ekf.c</FileName>
+              <FileName>filter_eskf.c</FileName>
               <FileType>1</FileType>
-              <FilePath>..\Application\Filter\filter_ekf.c</FilePath>
+              <FilePath>..\Application\Filter\filter_eskf.c</FilePath>
             </File>
             <File>
               <FileName>filter_lkf.c</FileName>

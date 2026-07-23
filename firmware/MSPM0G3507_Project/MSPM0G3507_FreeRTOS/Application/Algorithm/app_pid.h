@@ -6,7 +6,7 @@
  *
  *          支持两种PID模式:
  *          1. 位置式PID: output = Kp*e + Ki*∫e + Kd*de/dt
- *          2. 增量式PID: Δoutput = Kp*Δe + Ki*e + Kd*Δ²e
+ *          2. 增量式PID: Δoutput = Kp*Δe + Ki*e*dt + Kd*Δ²e/dt
  *
  *          抗积分饱和: 积分项限幅,防止超调
  *          微分项滤波: 一阶低通滤波,抑制高频噪声
@@ -64,6 +64,7 @@ typedef struct {
     float last_error;      /**< 上次偏差 */
     float last_last_error; /**< 上上次偏差(增量式) */
     float integral;        /**< 积分累计 */
+    float last_output;     /**< 上次输出（增量式累加及异常周期保持） */
     float last_derivative; /**< 上次微分项(滤波) */
     bool  is_first_run;    /**< 首次运行标志 */
 } app_pid_t;
@@ -123,11 +124,12 @@ void app_pid_set_setpoint(app_pid_t *pid, float setpoint);
  * @brief  执行一次PID计算
  * @param  pid        PID控制器指针
  * @param  feedback   当前反馈值
- * @param  dt_s       采样周期(秒), 0则使用上次间隔
+ * @param  dt_s       采样周期(秒, 必须有限且 >0)
  * @retval PID输出值(已限幅)
  * @note   位置式: out = Kp*e + Ki*∫e + Kd*de/dt
- *         增量式: Δout = Kp*(e-e') + Ki*e +
- *                        Kd*(e-2*e'+e'')
+ *         增量式: Δout = Kp*(e-e') + Ki*e*dt +
+ *                        Kd*(e-2*e'+e'')/dt
+ *         dt 无效时保持上次输出且不改变内部状态。
  */
 float app_pid_compute(app_pid_t *pid, float feedback,
                        float dt_s);

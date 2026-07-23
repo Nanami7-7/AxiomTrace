@@ -27,7 +27,7 @@ MSPM0G3507_FreeRTOS/
 │   │   ├── filter_complementary.c  # 互补滤波实现
 │   │   ├── filter_madgwick.c       # Madgwick 算法
 │   │   ├── filter_mahony.c         # Mahony 算法
-│   │   ├── filter_ekf.c            # 扩展卡尔曼滤波
+│   │   ├── filter_eskf.c           # MCU 优化误差状态卡尔曼滤波
 │   │   ├── filter_kf.c             # 卡尔曼滤波
 │   │   ├── filter_lkf.c            # 线性卡尔曼滤波
 │   │   └── filter_lpf.c            # 低通滤波
@@ -37,7 +37,8 @@ MSPM0G3507_FreeRTOS/
 │   │   └── task_menu.c/h           # 菜单任务
 │   └── Tests/                      # 测试代码
 │       ├── app_test_runner.c/h     # 测试运行器
-│       └── app_test_timer.c/h      # 测试计时器
+│       ├── app_test_timer.c/h      # 测试计时器
+│       └── host/                   # 控制/滤波主机回归测试
 │
 ├── BSP/                            # 板级支持包
 │   ├── Common/                     # 公共定义
@@ -114,6 +115,14 @@ Config (SysConfig 生成 + 项目配置)
 Lib (FreeRTOS + OSAL + AxiomTrace + Math)
 ```
 
+### IMU 滤波生命周期
+
+- `task_imu` 持有 `filter_static_storage_t`，生产路径不使用堆内存；
+- `bsp_lsm6dsr_init_ctx_with_filter()` 只保留调用方滤波器引用，存储必须覆盖上下文生命周期；
+- BSP 通过 `filter_update_checked()` 发布结果，输入或输出数值异常时保留上一帧共享状态；
+- 兼容 API `bsp_lsm6dsr_init_ctx()` 仍可创建默认互补滤波器；运行时切换采用“先创建、后替换”，创建失败不会销毁当前实例；
+- 参数统一经 `filter_set_param_checked()` 做范围和滤波器能力检查，废弃或不支持的参数返回错误。
+
 ## 添加新模块指南
 
 1. 确定模块所属层级：
@@ -135,7 +144,7 @@ Lib (FreeRTOS + OSAL + AxiomTrace + Math)
 | `task_` | FreeRTOS 任务 | `task_control.c`, `task_imu.c` |
 | `app_test_` | 测试代码 | `app_test_runner.c` |
 | `app_pid/ff/planner` | 控制算法 | `app_pid.c`, `app_feedforward.c` |
-| `filter_` | 滤波算法 | `filter_ekf.c`, `filter_madgwick.c` |
+| `filter_` | 滤波算法 | `filter_eskf.c`, `filter_madgwick.c` |
 | `bsp_` | 板级支持包 | `bsp_motor.c`, `bsp_encoder.c` |
 | `hal_` | 硬件抽象层 | `hal_gpio.c`, `hal_uart.c` |
 | `osal_` | 操作系统抽象 | `osal_api.h`, `osal_task.c` |

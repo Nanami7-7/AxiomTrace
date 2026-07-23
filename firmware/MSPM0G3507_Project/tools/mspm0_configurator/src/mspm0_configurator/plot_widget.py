@@ -21,12 +21,16 @@ COLORS = [
 class TelemetryPlot(QWidget):
     """Plot four measured RPM and four target RPM channels."""
 
+    REDRAW_INTERVAL_S = 0.04
+
     def __init__(self, parent=None):
         super().__init__(parent)
         self.window_s = 15.0
         self.paused = False
         self.started = time.monotonic()
         self.rows: deque[tuple[float, tuple[float, ...]]] = deque(maxlen=20_000)
+        self.visible_rows: deque[tuple[float, tuple[float, ...]]] = deque()
+        self.last_redraw = 0.0
 
         self.chart = QChart()
         self.chart.legend().setVisible(True)
@@ -55,21 +59,36 @@ class TelemetryPlot(QWidget):
 
     def set_window(self, seconds: int) -> None:
         self.window_s = float(seconds)
+        if self.rows:
+            cutoff = self.rows[-1][0] - self.window_s
+            self.visible_rows = deque(
+                row for row in self.rows if row[0] >= cutoff
+            )
 
     def clear(self) -> None:
         self.rows.clear()
+        self.visible_rows.clear()
         self.started = time.monotonic()
+        self.last_redraw = 0.0
         for series in self.series:
             series.clear()
 
     def add_frame(self, frame: TelemetryFrame) -> None:
         t = time.monotonic() - self.started
-        self.rows.append((t, frame.values))
+        row = (t, frame.values)
+        self.rows.append(row)
+        self.visible_rows.append(row)
+        cutoff = t - self.window_s
+        while self.visible_rows and self.visible_rows[0][0] < cutoff:
+            self.visible_rows.popleft()
         if self.paused:
             return
+        now = time.monotonic()
+        if now - self.last_redraw < self.REDRAW_INTERVAL_S:
+            return
+        self.last_redraw = now
 
-        cutoff = t - self.window_s
-        visible = [row for row in self.rows if row[0] >= cutoff]
+        visible = self.visible_rows
         for index, series in enumerate(self.series):
             points = [QPointF(x, values[index]) for x, values in visible]
             series.replace(points)

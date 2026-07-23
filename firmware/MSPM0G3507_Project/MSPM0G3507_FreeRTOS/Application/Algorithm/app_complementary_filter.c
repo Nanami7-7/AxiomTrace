@@ -87,7 +87,9 @@ void app_cf_update(float encoder_vx_mps, float imu_accel_x_g,
     }
 
     /* 参数保护 */
-    if (dt_s <= 0.0f || dt_s > 1.0f) {
+    if (!isfinite(encoder_vx_mps) || !isfinite(imu_accel_x_g) ||
+        !isfinite(imu_yaw_deg) || !isfinite(dt_s) ||
+        dt_s <= 0.0f || dt_s > 1.0f) {
         return;  /* 异常采样周期, 跳过 */
     }
 
@@ -99,15 +101,13 @@ void app_cf_update(float encoder_vx_mps, float imu_accel_x_g,
     s_vx = s_cfg.alpha * encoder_vx_mps + (1.0f - s_cfg.alpha) * v_imu;
 
     /* ---- 航向角估计(DMP偏航角) ---- */
-    s_heading_rad = imu_yaw_deg * DEG2RAD;
-
-    /* 角度归一化到[-π, π] */
-    while (s_heading_rad > M_PI) {
-        s_heading_rad -= 2.0f * M_PI;
+    float heading_deg = imu_yaw_deg;
+    if (heading_deg > 180.0f || heading_deg < -180.0f) {
+        heading_deg = fmodf(heading_deg, 360.0f);
+        if (heading_deg > 180.0f) heading_deg -= 360.0f;
+        if (heading_deg < -180.0f) heading_deg += 360.0f;
     }
-    while (s_heading_rad < -M_PI) {
-        s_heading_rad += 2.0f * M_PI;
-    }
+    s_heading_rad = heading_deg * DEG2RAD;
 
     /* ---- 位移积分 ---- */
     s_x += s_vx * mathacl_cosf(s_heading_rad) * dt_s;

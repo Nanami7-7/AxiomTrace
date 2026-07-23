@@ -34,7 +34,7 @@ void lpf_update(filter_t *self, const filter_input_t *in, filter_output_t *out)
         out->pitch = p->pitch;
         out->roll  = p->roll;
         out->yaw   = p->yaw;
-        out->q0 = out->q1 = out->q2 = out->q3 = 0.0f;
+        out->q0 = 1.0f; out->q1 = out->q2 = out->q3 = 0.0f;
         return;
     }
     /* 计算 ACC 姿态角 */
@@ -44,7 +44,7 @@ void lpf_update(filter_t *self, const filter_input_t *in, filter_output_t *out)
     /* 退化模式检查 */
     if (self->degrade == FILTER_DEGRADE_HOLD_LAST) {
         out->pitch = p->pitch; out->roll = p->roll; out->yaw = p->yaw;
-        out->q0 = out->q1 = out->q2 = out->q3 = 0.0f;
+        out->q0 = 1.0f; out->q1 = out->q2 = out->q3 = 0.0f;
         return;
     }
 
@@ -77,7 +77,7 @@ void lpf_update(filter_t *self, const filter_input_t *in, filter_output_t *out)
     out->pitch = p->pitch;
     out->roll  = p->roll;
     out->yaw   = p->yaw;
-    out->q0 = out->q1 = out->q2 = out->q3 = 0.0f;
+    out->q0 = 1.0f; out->q1 = out->q2 = out->q3 = 0.0f;
 }
 
 void lpf_reset(filter_t *self)

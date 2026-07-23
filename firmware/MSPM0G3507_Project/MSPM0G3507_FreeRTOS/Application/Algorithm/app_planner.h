@@ -83,7 +83,7 @@ void app_planner_init(app_planner_t *p, float accel,
  * @param  target        目标位置(相对位移, 可正可负)
  * @param  cruise_speed  巡航速度(>0, 符号自动跟随target)
  * @note   清零内部状态, 进入加速段
- *         若 |target| < done_threshold, 直接进入 DONE
+ *         若 |target| < done_threshold, 直接进入 DONE；零/非有限速度拒绝启动并保持 IDLE
  */
 void app_planner_start(app_planner_t *p, float target,
                        float cruise_speed);

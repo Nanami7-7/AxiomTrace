@@ -35,6 +35,7 @@ void app_pid_init(app_pid_t *pid, float kp, float ki,
                    float kd, app_pid_mode_t mode,
                    float out_min, float out_max)
 {
+    if (!pid) { return; }
     pid->kp   = kp;
     pid->ki   = ki;
     pid->kd   = kd;
@@ -89,6 +90,11 @@ void app_pid_set_setpoint(app_pid_t *pid, float setpoint)
 float app_pid_compute(app_pid_t *pid, float feedback,
                        float dt_s)
 {
+    if (!pid) { return 0.0f; }
+    if (!isfinite(feedback) || !isfinite(dt_s) || dt_s <= 0.0f) {
+        return isfinite(pid->last_output) ? pid->last_output : 0.0f;
+    }
+
     float error = pid->setpoint - feedback;
     float output = 0.0f;
 
@@ -177,38 +183,29 @@ float app_pid_compute(app_pid_t *pid, float feedback,
          * 与输出限幅一致的原因.
          */
         if (pid->is_first_run) {
-            /*
-             * 首次运行: 无历史偏差, 用当前偏差估算初始输出
-             * output ≈ Kp*e + Ki*e (等效 P+I 启动)
-             */
-            output = kp * error + ki * error;
+            /* 首帧无差分历史，仅施加比例项；积分从下一帧按 dt 累加。 */
+            output = pid->last_output + kp * error;
         } else {
             /* 计算偏差增量和二阶差分 */
             float delta_error =
                 error - pid->last_error;
-            float delta2_error = 0.0f;
-            if (dt_s > 0.0f) {
-                delta2_error =
-                    error - 2.0f * pid->last_error
-                    + pid->last_last_error;
-            }
+            float delta2_error = error - 2.0f * pid->last_error
+                               + pid->last_last_error;
 
             /* 计算输出增量 Δu */
             float delta_out =
                 kp * delta_error
-              + ki * error
-              + kd * delta2_error;
+              + ki * error * dt_s
+              + kd * delta2_error / dt_s;
 
             /* 累加到上次输出, 先限幅再累加(抗饱和) */
-            pid->integral = clamp_f(
-                pid->integral + delta_out,
+            pid->last_output = clamp_f(
+                pid->last_output + delta_out,
                 int_min, int_max);
             output = clamp_f(
-                pid->integral,
+                pid->last_output,
                 pid->out_min, pid->out_max);
         }
-        /* 保存本次输出为下次的 u(k-1) */
-        pid->integral = output;
         pid->last_last_error = pid->last_error;
     }
 
@@ -218,6 +215,7 @@ float app_pid_compute(app_pid_t *pid, float feedback,
 
     /* 输出限幅 */
     output = clamp_f(output, pid->out_min, pid->out_max);
+    pid->last_output = output;
 
     /*
      * NaN/Inf 保护:
@@ -225,6 +223,7 @@ float app_pid_compute(app_pid_t *pid, float feedback,
      * 重置PID状态并返回0, 防止异常值传播到电机驱动.
      */
     if (!isfinite(output) || !isfinite(pid->integral) ||
+        !isfinite(pid->last_output) ||
         !isfinite(pid->last_error)) {
         app_pid_reset(pid);
         output = 0.0f;
@@ -238,6 +237,7 @@ void app_pid_reset(app_pid_t *pid)
     pid->last_error      = 0.0f;
     pid->last_last_error = 0.0f;
     pid->integral        = 0.0f;
+    pid->last_output     = 0.0f;
     pid->last_derivative = 0.0f;
     pid->is_first_run    = true;
 }

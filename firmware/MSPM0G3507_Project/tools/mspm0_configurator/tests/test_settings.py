@@ -19,6 +19,18 @@ class SettingsTests(unittest.TestCase):
     def test_rejects_invalid_motor(self):
         with self.assertRaises(ValueError):
             AppSettings(motor=4)
+        with self.assertRaises(ValueError):
+            AppSettings(motor=1.5)
+
+    def test_rejects_values_outside_firmware_limits(self):
+        with self.assertRaises(ValueError):
+            AppSettings(kp=101)
+        with self.assertRaises(ValueError):
+            AppSettings(target_rpm=801)
+        with self.assertRaises(ValueError):
+            AppSettings(ff_enabled="false")
+        with self.assertRaises(ValueError):
+            AppSettings(baud=230400)
 
     def test_rejects_non_object_json(self):
         with tempfile.TemporaryDirectory() as directory:

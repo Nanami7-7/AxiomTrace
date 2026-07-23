@@ -34,7 +34,7 @@ void complementary_update(filter_t *self, const filter_input_t *in, filter_outpu
         out->pitch = p->pitch;
         out->roll  = p->roll;
         out->yaw   = p->yaw;
-        out->q0 = out->q1 = out->q2 = out->q3 = 0.0f;
+        out->q0 = 1.0f; out->q1 = out->q2 = out->q3 = 0.0f;
         return;
     }
 
@@ -44,7 +44,7 @@ void complementary_update(filter_t *self, const filter_input_t *in, filter_outpu
         out->pitch = p->pitch;
         out->roll  = p->roll;
         out->yaw   = p->yaw;
-        out->q0 = out->q1 = out->q2 = out->q3 = 0.0f;
+        out->q0 = 1.0f; out->q1 = out->q2 = out->q3 = 0.0f;
         return;
     }
 
@@ -90,7 +90,7 @@ void complementary_update(filter_t *self, const filter_input_t *in, filter_outpu
     out->pitch = p->pitch;
     out->roll  = p->roll;
     out->yaw   = p->yaw;
-    out->q0 = out->q1 = out->q2 = out->q3 = 0.0f;
+    out->q0 = 1.0f; out->q1 = out->q2 = out->q3 = 0.0f;
 }
 
 void complementary_reset(filter_t *self)

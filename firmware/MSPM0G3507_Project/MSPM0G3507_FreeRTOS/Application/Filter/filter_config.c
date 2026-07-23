@@ -40,9 +40,9 @@ static const filter_param_desc_t lpf_params[] = {
 };
 
 /* ============================================================
- * 参数描述表 - EKF
+ * 参数描述表 - ESKF
  * ============================================================ */
-static const filter_param_desc_t ekf_params[] = {
+static const filter_param_desc_t eskf_params[] = {
     {
         .param = FILTER_PARAM_Q_ANGLE,
         .default_value = EKF_Q_ANGLE_DEFAULT,
@@ -82,36 +82,6 @@ static const filter_param_desc_t ekf_params[] = {
         .source_name = "LSM6DSR Datasheet",
         .source_detail = "陀螺仪偏置稳定性±10dps，设20dps留余量防发散",
         .unit = "dps"
-    },
-    {
-        .param = FILTER_PARAM_CHI2_THRESHOLD,
-        .default_value = EKF_CHI2_THRESHOLD_DEFAULT,
-        .min_value = EKF_CHI2_THRESHOLD_MIN,
-        .max_value = EKF_CHI2_THRESHOLD_MAX,
-        .source_type = PARAM_SOURCE_PAPER,
-        .source_name = "Chi-squared distribution, df=3, 99% confidence",
-        .source_detail = "自由度=3的卡方分布在99%置信度下的阈值≈11.34",
-        .unit = "无量纲"
-    },
-    {
-        .param = FILTER_PARAM_R_ADAPT_ENABLE,
-        .default_value = (float)EKF_R_ADAPT_ENABLE_DEFAULT,
-        .min_value = 0.0f,
-        .max_value = 1.0f,
-        .source_type = PARAM_SOURCE_TUNED,
-        .source_name = "工程调优",
-        .source_detail = "启用动态R适配，根据加速度计模长偏离1g程度自动调整R",
-        .unit = "布尔(0/1)"
-    },
-    {
-        .param = FILTER_PARAM_R_ADAPT_FACTOR,
-        .default_value = 1.0f,
-        .min_value = EKF_R_ADAPT_FACTOR_MIN,
-        .max_value = EKF_R_ADAPT_FACTOR_MAX,
-        .source_type = PARAM_SOURCE_TUNED,
-        .source_name = "工程调优",
-        .source_detail = "动态R缩放因子范围，因子=1+10*|acc_norm-1|，钳位[0.1,10]",
-        .unit = "无量纲"
     }
 };
 
@@ -359,9 +329,9 @@ const filter_param_desc_t* filter_config_get_params(filter_type_t type, int *cou
         case FILTER_TYPE_LPF:
             *count = sizeof(lpf_params) / sizeof(lpf_params[0]);
             return lpf_params;
-        case FILTER_TYPE_EKF:
-            *count = sizeof(ekf_params) / sizeof(ekf_params[0]);
-            return ekf_params;
+        case FILTER_TYPE_ESKF:
+            *count = sizeof(eskf_params) / sizeof(eskf_params[0]);
+            return eskf_params;
         case FILTER_TYPE_LKF:
             *count = sizeof(lkf_params) / sizeof(lkf_params[0]);
             return lkf_params;

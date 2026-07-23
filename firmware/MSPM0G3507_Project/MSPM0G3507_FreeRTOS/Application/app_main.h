@@ -37,7 +37,7 @@ extern "C" {
 
 /** 控制任务栈大小(字, 含浮点运算+软件FPU) */
 #define APP_TASK_STACK_CONTROL      (256U)
-/** IMU任务栈大小(字, 含EKF滤波器+浮点运算) */
+/** IMU任务栈大小(字, 含姿态滤波器+浮点运算) */
 #define APP_TASK_STACK_IMU          (1280U)
 /** 菜单任务栈大小(字, 行缓冲+printf+sscanf+VOFA+11通道DMA) */
 #define APP_TASK_STACK_MENU         (384U)

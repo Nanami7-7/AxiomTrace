@@ -7,9 +7,15 @@ from collections.abc import Iterable
 
 from PySide6.QtCore import QThread, Signal
 
+from .protocol import encode_command
+
 
 class SerialWorker(QThread):
     """Own the serial port in a worker thread and exchange complete text lines."""
+
+    MAX_PENDING_COMMANDS = 256
+    MAX_COMMAND_BATCH = 32
+    MAX_RX_LINE_BYTES = 4096
 
     line_received = Signal(str)
     connected = Signal(str)
@@ -20,17 +26,18 @@ class SerialWorker(QThread):
         super().__init__(parent)
         self.port = port
         self.baud = baud
-        self._commands: queue.Queue[bytes] = queue.Queue()
+        self._commands: queue.Queue[bytes] = queue.Queue(
+            maxsize=self.MAX_PENDING_COMMANDS
+        )
         self._close_requested = threading.Event()
-
-    @staticmethod
-    def _encode(command: str) -> bytes:
-        return (command.rstrip("\r\n") + "\r\n").encode("ascii", errors="strict")
 
     def send(self, command: str) -> None:
         if self._close_requested.is_set():
             raise RuntimeError("serial worker is closing")
-        self._commands.put(self._encode(command))
+        try:
+            self._commands.put_nowait(encode_command(command))
+        except queue.Full as exc:
+            raise RuntimeError("serial command queue is full") from exc
 
     def shutdown(self, final_commands: Iterable[str] = ()) -> None:
         """Flush final safety commands, then close the port.
@@ -40,15 +47,21 @@ class SerialWorker(QThread):
         """
         if self._close_requested.is_set():
             return
+        # Shutdown safety commands supersede queued UI commands.
+        while True:
+            try:
+                self._commands.get_nowait()
+            except queue.Empty:
+                break
         for command in final_commands:
-            self._commands.put(self._encode(command))
+            self._commands.put_nowait(encode_command(command))
         self._close_requested.set()
 
     def close(self) -> None:
         self.shutdown()
 
     def _drain_commands(self, ser) -> None:
-        while True:
+        for _ in range(self.MAX_COMMAND_BATCH):
             try:
                 payload = self._commands.get_nowait()
             except queue.Empty:
@@ -82,6 +95,10 @@ class SerialWorker(QThread):
                             raw, _, pending = pending.partition(b"\n")
                             line = raw.rstrip(b"\r").decode("utf-8", errors="replace")
                             self.line_received.emit(line)
+                        if len(pending) > self.MAX_RX_LINE_BYTES:
+                            raise RuntimeError(
+                                "serial receive line exceeded protocol limit"
+                            )
                     else:
                         time.sleep(0.005)
         except Exception as exc:

@@ -26,7 +26,13 @@ from PySide6.QtWidgets import (
 
 from .i18n import tr
 from .plot_widget import TelemetryPlot
-from .protocol import CommandBuilder, LineKind, decode_line
+from .protocol import (
+    CommandBuilder,
+    LineKind,
+    PLANNER_RPM_LIMIT,
+    SUPPORTED_BAUDS,
+    decode_line,
+)
 from .serial_worker import SerialWorker
 from .settings import AppSettings
 
@@ -56,7 +62,7 @@ class MainWindow(QMainWindow):
         self.refresh_btn = QPushButton()
         self.baud_label = QLabel()
         self.baud = QComboBox()
-        self.baud.addItems(["115200", "230400", "460800"])
+        self.baud.addItems([str(value) for value in SUPPORTED_BAUDS])
         self.baud.setCurrentText("115200")
         self.connect_btn = QPushButton()
         self.language_label = QLabel()
@@ -159,7 +165,7 @@ class MainWindow(QMainWindow):
         self.mode.addItem("Angle", "angle")
         self.pulses = self._spin(-1e9, 1e9, 1000, 0)
         self.degrees = self._spin(-36_000, 36_000, 90, 1)
-        self.cruise = self._spin(0.1, 800, 100, 1)
+        self.cruise = self._spin(0.1, PLANNER_RPM_LIMIT, 100, 1)
         self.motion_start = QPushButton()
         self.abort_btn = QPushButton()
         self.mode_label = QLabel()
@@ -531,6 +537,26 @@ class MainWindow(QMainWindow):
         self.send_btn.setText(tr(self.lang, "send"))
         self.plot_tabs.setTabText(0, tr(self.lang, "telemetry"))
         self.plot_tabs.setTabText(1, tr(self.lang, "console"))
+        self._update_connection_controls()
+
+    def _update_connection_controls(self) -> None:
+        """Keep device commands unavailable until the port is connected."""
+        connected = bool(self.connected_port)
+        for widget in (
+            self.apply_btn,
+            self.run_btn,
+            self.stop_btn,
+            self.stop_all_btn,
+            self.ff_apply,
+            self.motion_start,
+            self.abort_btn,
+            self.query_btn,
+            self.stream_on,
+            self.stream_off,
+            self.command,
+            self.send_btn,
+        ):
+            widget.setEnabled(connected)
 
     def closeEvent(self, event) -> None:
         self.disconnect_serial()

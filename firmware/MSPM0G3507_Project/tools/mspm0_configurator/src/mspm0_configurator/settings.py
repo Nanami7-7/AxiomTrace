@@ -1,9 +1,14 @@
 ﻿from __future__ import annotations
 
 import json
+import os
+import tempfile
 from dataclasses import asdict, dataclass
 from math import isfinite
+from numbers import Integral, Real
 from pathlib import Path
+
+from .protocol import MOTOR_COUNT, PID_LIMIT, SUPPORTED_BAUDS, TARGET_RPM_LIMIT
 
 
 @dataclass
@@ -23,19 +28,61 @@ class AppSettings:
     def __post_init__(self) -> None:
         if self.language not in {"zh", "en"}:
             raise ValueError("language must be zh or en")
-        if not 1_200 <= int(self.baud) <= 3_000_000:
-            raise ValueError("baud is outside the supported range")
-        if int(self.motor) not in range(4):
+        if not isinstance(self.ff_enabled, bool):
+            raise ValueError("ff_enabled must be boolean")
+        self.baud = self._integer(self.baud, "baud")
+        self.motor = self._integer(self.motor, "motor")
+        self.plot_window_s = self._integer(self.plot_window_s, "plot_window_s")
+        if self.baud not in SUPPORTED_BAUDS:
+            raise ValueError(f"baud must be one of {SUPPORTED_BAUDS}")
+        if self.motor not in range(MOTOR_COUNT):
             raise ValueError("motor must be 0..3")
         for name in ("kp", "ki", "kd", "target_rpm", "ff_k", "ff_b"):
-            if not isfinite(float(getattr(self, name))):
+            value = getattr(self, name)
+            if isinstance(value, bool) or not isinstance(value, Real):
+                raise ValueError(f"{name} must be a number")
+            value = float(value)
+            if not isfinite(value):
                 raise ValueError(f"{name} must be finite")
-        if not 3 <= int(self.plot_window_s) <= 300:
+            setattr(self, name, value)
+        for name in ("kp", "ki", "kd"):
+            if abs(getattr(self, name)) > PID_LIMIT:
+                raise ValueError(f"{name} must be in [-{PID_LIMIT}, {PID_LIMIT}]")
+        if abs(self.target_rpm) > TARGET_RPM_LIMIT:
+            raise ValueError(
+                f"target_rpm must be in [-{TARGET_RPM_LIMIT}, {TARGET_RPM_LIMIT}]"
+            )
+        if not 3 <= self.plot_window_s <= 300:
             raise ValueError("plot_window_s must be 3..300")
+
+    @staticmethod
+    def _integer(value: object, name: str) -> int:
+        if isinstance(value, bool) or not isinstance(value, Integral):
+            raise ValueError(f"{name} must be an integer")
+        return int(value)
 
     def save(self, path: str | Path) -> None:
         content = json.dumps(asdict(self), indent=2, ensure_ascii=False)
-        Path(path).write_text(content, encoding="utf-8")
+        destination = Path(path)
+        destination.parent.mkdir(parents=True, exist_ok=True)
+        temporary: Path | None = None
+        try:
+            with tempfile.NamedTemporaryFile(
+                "w",
+                encoding="utf-8",
+                dir=destination.parent,
+                prefix=f".{destination.name}.",
+                suffix=".tmp",
+                delete=False,
+            ) as stream:
+                temporary = Path(stream.name)
+                stream.write(content)
+                stream.flush()
+                os.fsync(stream.fileno())
+            os.replace(temporary, destination)
+        finally:
+            if temporary is not None:
+                temporary.unlink(missing_ok=True)
 
     @classmethod
     def load(cls, path: str | Path) -> "AppSettings":

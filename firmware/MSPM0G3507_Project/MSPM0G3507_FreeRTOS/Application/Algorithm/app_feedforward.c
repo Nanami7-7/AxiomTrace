@@ -2,7 +2,7 @@
  * @file    app_feedforward.c
  * @brief   前馈控制器实现
  * @note    前馈+PID复合控制: PID增量式从FF基线起步, 逐步修正残差和扰动
- *          启动时: pid->integral = FF(target), PID增量补偿
+ *          启动时: pid->last_output = FF(target), PID增量补偿
  *          简单线性模型: FF = k × RPM + b
  *          分段线性模型: 死区 + 线性区 (Phase 2)
  */
@@ -90,11 +90,11 @@ void app_ff_apply_to_pid(const app_ff_params_t *ff,
     }
     if (ff->enabled) {
         /* 前馈使能: PID从FF值起步 */
-        pid->integral = app_ff_compute(ff, target);
-        pid->is_first_run = false;
+        pid->last_output = app_ff_compute(ff, target);
+        pid->is_first_run = true;
     } else {
         /* 前馈禁用: PID从0起步(首次运行逻辑) */
-        pid->integral = 0.0f;
+        pid->last_output = 0.0f;
         pid->is_first_run = true;
     }
 }

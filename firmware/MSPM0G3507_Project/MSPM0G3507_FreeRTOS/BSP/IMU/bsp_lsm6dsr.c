@@ -115,7 +115,8 @@ static void init_filter_state(bsp_lsm6dsr_ctx_t *ctx, float ax0, float ay0, floa
  * @param[out] ctx  上下文结构体指针（调用者分配）
  * @return 0=成功, -1=失败
  */
-int bsp_lsm6dsr_init_ctx(bsp_lsm6dsr_ctx_t *ctx)
+static int bsp_lsm6dsr_init_ctx_impl(bsp_lsm6dsr_ctx_t *ctx,
+                                     filter_t *initial_filter)
 {
     if (!ctx) {
         LOG_ERR("Context pointer is NULL");
@@ -147,24 +148,35 @@ int bsp_lsm6dsr_init_ctx(bsp_lsm6dsr_ctx_t *ctx)
     memset(ctx, 0, sizeof(bsp_lsm6dsr_ctx_t));
 
     /* Full reset + wait */
-    lsm6dsr_reset(&lsm6dsr_io_spi);
+    if (lsm6dsr_reset(&lsm6dsr_io_spi) != LSM6DSR_OK) {
+        LOG_ERR("LSM6DSR reset failed");
+        return -1;
+    }
     g_platform->delay_ms(100);
 
     /* Debug: hardware info */
     {
         uint8_t whoami = 0;
-        lsm6dsr_read_reg(&lsm6dsr_io_spi, LSM6DSR_REG_WHO_AM_I, &whoami);
+        if (lsm6dsr_read_reg(&lsm6dsr_io_spi, LSM6DSR_REG_WHO_AM_I,
+                             &whoami) != LSM6DSR_OK ||
+            whoami != LSM6DSR_WHO_AM_I_VAL) {
+            LOG_ERR("Unexpected WHO_AM_I=0x%02X", (unsigned)whoami);
+            return -1;
+        }
         LOG_INDENT("SPI: WHO_AM_I=0x%02X", (unsigned)whoami);
     }
 
     /* Sensor configuration */
-    lsm6dsr_i3c_disable(&lsm6dsr_io_spi);
-    lsm6dsr_set_if_inc(&lsm6dsr_io_spi, 1);
-    lsm6dsr_set_bdu(&lsm6dsr_io_spi, 1);
-    lsm6dsr_accel_config(&lsm6dsr_io_spi,
-        LSM6DSR_ACCEL_ODR_104HZ, LSM6DSR_ACCEL_FS_4G);
-    lsm6dsr_gyro_config(&lsm6dsr_io_spi,
-        LSM6DSR_GYRO_ODR_104HZ, LSM6DSR_GYRO_FS_250DPS);
+    if (lsm6dsr_i3c_disable(&lsm6dsr_io_spi) != LSM6DSR_OK ||
+        lsm6dsr_set_if_inc(&lsm6dsr_io_spi, 1) != LSM6DSR_OK ||
+        lsm6dsr_set_bdu(&lsm6dsr_io_spi, 1) != LSM6DSR_OK ||
+        lsm6dsr_accel_config(&lsm6dsr_io_spi,
+            LSM6DSR_ACCEL_ODR_104HZ, LSM6DSR_ACCEL_FS_4G) != LSM6DSR_OK ||
+        lsm6dsr_gyro_config(&lsm6dsr_io_spi,
+            LSM6DSR_GYRO_ODR_104HZ, LSM6DSR_GYRO_FS_250DPS) != LSM6DSR_OK) {
+        LOG_ERR("LSM6DSR configuration failed");
+        return -1;
+    }
     g_platform->delay_ms(BSP_CALIB_SETTLE_MS);
 
     LOG_INDENT("ACC ODR=104Hz FS=4G  GYRO ODR=104Hz FS=250dps");
@@ -172,8 +184,11 @@ int bsp_lsm6dsr_init_ctx(bsp_lsm6dsr_ctx_t *ctx)
     /* Initialize filter state */
     {
         float ax0, ay0, az0;
-        lsm6dsr_read_accel_float(&lsm6dsr_io_spi, &ax0, &ay0, &az0,
-                                 LSM6DSR_ACCEL_FS_4G);
+        if (lsm6dsr_read_accel_float(&lsm6dsr_io_spi, &ax0, &ay0, &az0,
+                                     LSM6DSR_ACCEL_FS_4G) != LSM6DSR_OK) {
+            LOG_ERR("Initial accelerometer read failed");
+            return -1;
+        }
         /* Convert accelerometer from mg to g (filter state uses g units) */
         ax0 *= LSM6DSR_MG_TO_G;
         ay0 *= LSM6DSR_MG_TO_G;
@@ -182,8 +197,19 @@ int bsp_lsm6dsr_init_ctx(bsp_lsm6dsr_ctx_t *ctx)
     }
 
     /* Create filter instance */
-    ctx->current_filter_type = FILTER_TYPE_COMPLEMENTARY;
-    ctx->active_filter = filter_create(ctx->current_filter_type);
+    if (initial_filter != NULL) {
+        if (initial_filter->type < 0 ||
+            initial_filter->type >= FILTER_TYPE_COUNT ||
+            initial_filter->update == NULL || initial_filter->priv == NULL) {
+            LOG_ERR("Initial filter is invalid");
+            return -1;
+        }
+        ctx->active_filter = initial_filter;
+        ctx->current_filter_type = initial_filter->type;
+    } else {
+        ctx->current_filter_type = FILTER_TYPE_COMPLEMENTARY;
+        ctx->active_filter = filter_create(ctx->current_filter_type);
+    }
     if (!ctx->active_filter) {
         LOG_ERR("Failed to create filter");
         return -1;
@@ -207,6 +233,20 @@ int bsp_lsm6dsr_init_ctx(bsp_lsm6dsr_ctx_t *ctx)
                ctx->alpha);
 
     return 0;
+}
+
+int bsp_lsm6dsr_init_ctx(bsp_lsm6dsr_ctx_t *ctx)
+{
+    return bsp_lsm6dsr_init_ctx_impl(ctx, NULL);
+}
+
+int bsp_lsm6dsr_init_ctx_with_filter(bsp_lsm6dsr_ctx_t *ctx,
+                                     filter_t *initial_filter)
+{
+    if (initial_filter == NULL) {
+        return -1;
+    }
+    return bsp_lsm6dsr_init_ctx_impl(ctx, initial_filter);
 }
 
 /* ------------------------------------------------------------------ */
@@ -240,8 +280,11 @@ int bsp_lsm6dsr_calibrate_ctx(bsp_lsm6dsr_ctx_t *ctx)
         int n_valid = 0;
         float pax, pay, paz;
 
-        lsm6dsr_read_accel_float(&lsm6dsr_io_spi, &pax, &pay, &paz,
-                                 LSM6DSR_ACCEL_FS_4G);
+        if (lsm6dsr_read_accel_float(&lsm6dsr_io_spi, &pax, &pay, &paz,
+                                     LSM6DSR_ACCEL_FS_4G) != LSM6DSR_OK) {
+            LOG_ERR("Calibration initial accelerometer read failed");
+            return -1;
+        }
         /* Convert accelerometer from mg to g (calibration uses g units) */
         pax *= LSM6DSR_MG_TO_G;
         pay *= LSM6DSR_MG_TO_G;
@@ -253,8 +296,12 @@ int bsp_lsm6dsr_calibrate_ctx(bsp_lsm6dsr_ctx_t *ctx)
         for (int i = 0; i < BSP_CALIB_SAMPLES; i++)
         {
             float tax, tay, taz, tgx, tgy, tgz;
-            lsm6dsr_read_accel_float(&lsm6dsr_io_spi, &tax, &tay, &taz,
-                                     LSM6DSR_ACCEL_FS_4G);
+            if (lsm6dsr_read_accel_float(&lsm6dsr_io_spi, &tax, &tay, &taz,
+                                         LSM6DSR_ACCEL_FS_4G) != LSM6DSR_OK) {
+                ctx->error_count++;
+                g_platform->delay_ms(BSP_CALIB_SAMPLE_DELAY_MS);
+                continue;
+            }
             /* Convert accelerometer from mg to g (calibration uses g units) */
             tax *= LSM6DSR_MG_TO_G;
             tay *= LSM6DSR_MG_TO_G;
@@ -266,10 +313,15 @@ int bsp_lsm6dsr_calibrate_ctx(bsp_lsm6dsr_ctx_t *ctx)
                 && fabsf(tay - pay) < BSP_CALIB_ACC_DELTA_MAX
                 && fabsf(taz - paz) < BSP_CALIB_ACC_DELTA_MAX)
             {
-                lsm6dsr_read_gyro_float(&lsm6dsr_io_spi, &tgx, &tgy, &tgz,
-                                        LSM6DSR_GYRO_FS_250DPS);
-                ctx->bgx += tgx; ctx->bgy += tgy; ctx->bgz += tgz;
-                n_valid++;
+                if (lsm6dsr_read_gyro_float(&lsm6dsr_io_spi,
+                                            &tgx, &tgy, &tgz,
+                                            LSM6DSR_GYRO_FS_250DPS) ==
+                    LSM6DSR_OK) {
+                    ctx->bgx += tgx; ctx->bgy += tgy; ctx->bgz += tgz;
+                    n_valid++;
+                } else {
+                    ctx->error_count++;
+                }
             }
             pax = tax; pay = tay; paz = taz;
             g_platform->delay_ms(BSP_CALIB_SAMPLE_DELAY_MS);
@@ -296,11 +348,17 @@ int bsp_lsm6dsr_calibrate_ctx(bsp_lsm6dsr_ctx_t *ctx)
     /* read one frame to print residual */
     {
         float gx0, gy0, gz0;
-        lsm6dsr_read_gyro_float(&lsm6dsr_io_spi, &gx0, &gy0, &gz0,
-                                LSM6DSR_GYRO_FS_250DPS);
-        if (ctx->cal_ok) { gx0 -= ctx->bgx; gy0 -= ctx->bgy; gz0 -= ctx->bgz; }
-        LOG_INDENT("GYRO residual after cal: X=%.4f  Y=%.4f  Z=%.4f dps",
-                   (double)gx0, (double)gy0, (double)gz0);
+        if (lsm6dsr_read_gyro_float(&lsm6dsr_io_spi, &gx0, &gy0, &gz0,
+                                    LSM6DSR_GYRO_FS_250DPS) == LSM6DSR_OK) {
+            if (ctx->cal_ok) {
+                gx0 -= ctx->bgx; gy0 -= ctx->bgy; gz0 -= ctx->bgz;
+            }
+            LOG_INDENT("GYRO residual after cal: X=%.4f  Y=%.4f  Z=%.4f dps",
+                       (double)gx0, (double)gy0, (double)gz0);
+        } else {
+            ctx->error_count++;
+            LOG_WARN("GYRO residual read failed");
+        }
     }
 
     return 0;
@@ -355,7 +413,8 @@ int bsp_lsm6dsr_update_ctx(bsp_lsm6dsr_ctx_t *ctx, bsp_lsm6dsr_data_t *data)
                                                           LSM6DSR_ACCEL_FS_4G);
     lsm6dsr_status_t gyro_ret = lsm6dsr_read_gyro_float(&lsm6dsr_io_spi, &fgx, &fgy, &fgz,
                                                           LSM6DSR_GYRO_FS_250DPS);
-    lsm6dsr_read_temp(&lsm6dsr_io_spi, &data->temperature);
+    data->temperature = ctx->last_data.temperature;
+    (void)lsm6dsr_read_temp(&lsm6dsr_io_spi, &data->temperature);
 
     /* SPI 读取失败检查: 任一失败则跳过本帧滤波更新, 递增错误计数 */
     if (acc_ret != LSM6DSR_OK || gyro_ret != LSM6DSR_OK) {
@@ -434,7 +493,7 @@ int bsp_lsm6dsr_update_ctx(bsp_lsm6dsr_ctx_t *ctx, bsp_lsm6dsr_data_t *data)
          * [FIX] 单轴门控: 仅在该轴校正后角速度 < 0.5dps 时才更新偏置
          * 根因: 慢转(2-3dps) < BSP_GYRO_MOTION_THRESHOLD(5dps) 被误判为静止,
          *       偏置每帧靠拢10%会吃掉真实角速度 → yaw跟随极慢 + 停后反向漂移
-         * 门控阈值 0.5dps 与 EKF ZUPT_AXIS_GATE 一致, 形成统一防线 */
+         * 门控阈值 0.5dps 与 KF_ZUPT_AXIS_GATE 一致, 形成统一防线 */
         if (stationary) {
             if (fabsf(fgx) < 0.5f) ctx->bgx += BSP_BIAS_STATIONARY_RATE * fgx;
             if (fabsf(fgy) < 0.5f) ctx->bgy += BSP_BIAS_STATIONARY_RATE * fgy;
@@ -450,7 +509,12 @@ int bsp_lsm6dsr_update_ctx(bsp_lsm6dsr_ctx_t *ctx, bsp_lsm6dsr_data_t *data)
             .dt = dt    /* dt 已为 double, 无需强转 */
         };
         filter_output_t fout;
-        ctx->active_filter->update(ctx->active_filter, &fin, &fout);
+        filter_error_t filter_result = filter_update_checked(
+            ctx->active_filter, &fin, &fout);
+        if (filter_result != FILTER_OK) {
+            ctx->error_count++;
+            return -(int)filter_result;
+        }
 
         data->pitch = fout.pitch;
         data->roll  = fout.roll;
@@ -611,17 +675,17 @@ int bsp_lsm6dsr_set_filter_ctx(bsp_lsm6dsr_ctx_t *ctx, filter_type_t type)
         return -1;
     }
 
-    /* 销毁旧滤波器 */
-    if (ctx->active_filter) {
-        filter_destroy_safe(ctx->active_filter);
-        ctx->active_filter = NULL;
-    }
-
-    /* 创建新滤波器 */
-    ctx->active_filter = filter_create(type);
-    if (!ctx->active_filter) {
+    /* Create first so allocation failure never destroys the working filter. */
+    filter_t *new_filter = filter_create(type);
+    if (!new_filter) {
         LOG_ERR("Failed to create filter type %d", type);
         return -1;
+    }
+
+    filter_t *old_filter = ctx->active_filter;
+    ctx->active_filter = new_filter;
+    if (old_filter != NULL) {
+        filter_destroy_safe(old_filter);
     }
 
     ctx->current_filter_type = type;
@@ -659,7 +723,9 @@ int bsp_lsm6dsr_set_filter_param_ctx(bsp_lsm6dsr_ctx_t *ctx, filter_param_t para
         return -1;
     }
 
-    ctx->active_filter->set_param(ctx->active_filter, param, value);
+    if (filter_set_param_checked(ctx->active_filter, param, value) != FILTER_OK) {
+        return -1;
+    }
     LOG_DBG("Filter param %d set to %.4f", param, (double)value);
     return 0;
 }

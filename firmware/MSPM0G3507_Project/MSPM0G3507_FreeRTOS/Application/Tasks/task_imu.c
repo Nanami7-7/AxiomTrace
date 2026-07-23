@@ -3,7 +3,7 @@
  * @brief   IMU采集任务实现 (LSM6DSR)
  * @note    10ms周期(100Hz):
  *          使用 LSM6DSR BSP 层 API 获取姿态数据
- *          支持多种滤波器: 互补/EKF/Mahony/Madgwick/LKF/LPF
+ *          支持多种滤波器: 互补/ESKF/Mahony/Madgwick/KF/LKF/LPF
  *          优先级: 4(介于control=5和menu=2之间)
  */
 #include "task_imu.h"
@@ -34,9 +34,8 @@ static uint32_t g_print_count = 0U;
 #define IMU_DMA_BUF_SIZE    (512U)
 static char g_dma_buf[IMU_DMA_BUF_SIZE];
 #endif
-/** KF 滤波器静态缓冲区大小 (字节)，需容纳 filter_t + kf_priv_t */
-#define KF_FILTER_BUF_SIZE  2048
-static uint32_t g_kf_filter_buf[KF_FILTER_BUF_SIZE / sizeof(uint32_t)];
+/** Caller-owned, correctly aligned storage; no heap allocation in production. */
+static filter_static_storage_t g_imu_filter_storage;
 
 /**
  * @brief IMU 初始化 (在任务内部调用)
@@ -50,63 +49,47 @@ static int imu_init(void)
     /* 2. 初始化平台计时器 (TimerG8) */
     platform_timer_init();
     
-    /* 3. 初始化 LSM6DSR BSP 上下文 (默认使用互补滤波器) */
-    if (bsp_lsm6dsr_init_ctx(&g_imu_ctx) != 0) {
+    /* 3. Construct the production KF before BSP initialization. */
+    filter_t *initial_filter = filter_create_static(
+        FILTER_TYPE_KF,
+        &g_imu_filter_storage,
+        sizeof(g_imu_filter_storage));
+    if (initial_filter == NULL) {
+        printf("[ERROR] Static KF construction failed!\r\n");
+        return -1;
+    }
+
+    /* 4. Initialize the sensor context with the caller-owned filter. */
+    if (bsp_lsm6dsr_init_ctx_with_filter(&g_imu_ctx, initial_filter) != 0) {
         printf("[ERROR] bsp_lsm6dsr_init_ctx failed!\r\n");
         return -1;
     }
     printf("[INFO] bsp_lsm6dsr_init_ctx OK, filter=%s\r\n", 
            filter_type_name(g_imu_ctx.current_filter_type));
     
-    /* 4. 销毁默认滤波器，使用静态分配创建 KF */
-    if (g_imu_ctx.active_filter != NULL) {
-        filter_destroy_safe(g_imu_ctx.active_filter);
-        g_imu_ctx.active_filter = NULL;
+    printf("[INFO] KF filter created OK (static, %u bytes)\r\n",
+           (unsigned)filter_get_static_size(FILTER_TYPE_KF));
+
+    /* KF 专用参数调优 - 针对 LSM6DSR @ 100Hz
+     * 参数来源: kftune 静态扫描 9 组最优 (Set 7)
+     *   Q_angle=0.003: 增大角度过程噪声, 加快角度跟踪
+     *   Q_bias=0.001:  减小偏置过程噪声, bias 估计更稳定
+     *   R_measure=0.03: ACC 测量噪声 (固定)
+     *   R_zupt=0.04:   ZUPT 启用 (0.2dps RMS), yaw bias 唯一观测源 */
+    if (bsp_lsm6dsr_set_filter_param_ctx(&g_imu_ctx,
+            FILTER_PARAM_KF_Q_ANGLE, 0.003f) != 0 ||
+        bsp_lsm6dsr_set_filter_param_ctx(&g_imu_ctx,
+            FILTER_PARAM_KF_Q_BIAS, 0.001f) != 0 ||
+        bsp_lsm6dsr_set_filter_param_ctx(&g_imu_ctx,
+            FILTER_PARAM_KF_R_MEASURE, 0.03f) != 0 ||
+        bsp_lsm6dsr_set_filter_param_ctx(&g_imu_ctx,
+            FILTER_PARAM_KF_R_ZUPT, 0.04f) != 0) {
+        printf("[ERROR] KF parameter configuration failed!\r\n");
+        bsp_lsm6dsr_destroy_ctx(&g_imu_ctx);
+        return -1;
     }
-    
-    /* 5. 使用静态分配创建 KF 滤波器 (避免堆分配失败) */
-    printf("[INFO] Creating KF filter (static alloc)...\r\n");
-    g_imu_ctx.active_filter = filter_create_static(
-        FILTER_TYPE_KF, 
-        g_kf_filter_buf, 
-        sizeof(g_kf_filter_buf)
-    );
-    
-    if (g_imu_ctx.active_filter == NULL) {
-        printf("[ERROR] KF filter create failed! buf_size=%d\r\n", KF_FILTER_BUF_SIZE);
-        /* 回退到互补滤波器 */
-        g_imu_ctx.active_filter = filter_create(FILTER_TYPE_COMPLEMENTARY);
-        if (g_imu_ctx.active_filter == NULL) {
-            printf("[ERROR] Complementary filter also failed!\r\n");
-            return -1;
-        }
-        printf("[INFO] Fallback to complementary filter\r\n");
-    } else {
-        g_imu_ctx.current_filter_type = FILTER_TYPE_KF;
-        printf("[INFO] KF filter created OK (static)\r\n");
-        
-        /* KF 专用参数调优 - 针对 LSM6DSR @ 100Hz
-         * 参数来源: kftune 静态扫描 9 组最优 (Set 7)
-         *   Q_angle=0.003: 增大角度过程噪声, 加快角度跟踪
-         *   Q_bias=0.001:  减小偏置过程噪声, bias 估计更稳定
-         *   R_measure=0.03: ACC 测量噪声 (固定)
-         *   R_zupt=0.04:   ZUPT 启用 (0.2dps RMS), yaw bias 唯一观测源 */
-        g_imu_ctx.active_filter->set_param(g_imu_ctx.active_filter,
-            FILTER_PARAM_KF_Q_ANGLE, 0.003f);
 
-        g_imu_ctx.active_filter->set_param(g_imu_ctx.active_filter,
-            FILTER_PARAM_KF_Q_BIAS, 0.001f);
-
-        g_imu_ctx.active_filter->set_param(g_imu_ctx.active_filter,
-            FILTER_PARAM_KF_R_MEASURE, 0.03f);
-
-        /* R_zupt: ZUPT 伪测量噪声 (dps²), 启用 ZUPT 以观测 yaw bias
-         * 0.04 对应 0.2dps RMS, 是 yaw 轴偏置的唯一观测途径 */
-        g_imu_ctx.active_filter->set_param(g_imu_ctx.active_filter,
-            FILTER_PARAM_KF_R_ZUPT, 0.04f);
-
-        printf("[INFO] KF params: Q_angle=0.003, Q_bias=0.001, R_measure=0.03, R_zupt=0.04\r\n");
-    }
+    printf("[INFO] KF params: Q_angle=0.003, Q_bias=0.001, R_measure=0.03, R_zupt=0.04\r\n");
     
     g_imu_initialized = 1;
     return 0;

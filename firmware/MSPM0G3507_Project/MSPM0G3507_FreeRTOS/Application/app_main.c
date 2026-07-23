@@ -235,7 +235,7 @@ int32_t app_main_init(void)
         (unsigned long)APP_RPM_OUTPUT_PERIOD_MS);
     (void)printf("  Debug   : AxiomTrace AX_LOG (DEV profile)\r\n");
     (void)printf("  IMU     : LSM6DSR 6-axis @ 104Hz (Hardware SPI)\r\n");
-    (void)printf("  Filter  : Complementary/Madgwick/EKF/Mahony/LKF/LPF\r\n");
+    (void)printf("  Filter  : Complementary/Madgwick/ESKF/Mahony/KF/LKF/LPF\r\n");
     (void)printf("  Fusion  : Complementary filter (alpha=%.2f)\r\n",
         (double)PRJ_CF_ALPHA);
     (void)printf("============================================================\r\n");

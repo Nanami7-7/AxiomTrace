@@ -103,8 +103,14 @@ static float transition_factor(const app_position_ctrl_t *ctrl,
  */
 static float normalize_angle(float angle)
 {
-    while (angle > 180.0f)  { angle -= 360.0f; }
-    while (angle < -180.0f) { angle += 360.0f; }
+    if (!isfinite(angle)) { return 0.0f; }
+    if (angle > 180.0f) {
+        angle = (angle <= 540.0f) ? angle - 360.0f
+                                  : fmodf(angle + 180.0f, 360.0f) - 180.0f;
+    } else if (angle < -180.0f) {
+        angle = (angle >= -540.0f) ? angle + 360.0f
+                                   : fmodf(angle - 180.0f, 360.0f) + 180.0f;
+    }
     return angle;
 }
 
@@ -121,6 +127,7 @@ static float yaw_rate_ramp_limit(app_position_ctrl_t *ctrl,
                                    float current,
                                    float dt)
 {
+    (void)ctrl;
     if (dt <= 0.0f) { return current; }
     float max_change = YAW_RATE_LIMIT_DEFAULT * dt;
     float delta = target - current;
@@ -318,6 +325,10 @@ const app_pos_output_t *app_posctrl_update(app_position_ctrl_t *ctrl,
                                             uint32_t now_tick)
 {
     if (ctrl == NULL) { return NULL; }
+    if (!isfinite(encoder_avg) || !isfinite(kf_yaw) ||
+        !isfinite(dt_s) || dt_s <= 0.0f) {
+        return &ctrl->output;
+    }
 
     /* 更新输出模式 */
     ctrl->output.mode = ctrl->mode;
@@ -418,8 +429,11 @@ const app_pos_output_t *app_posctrl_update(app_position_ctrl_t *ctrl,
 
         /* 1. 角度环PID计算 */
         /*    setpoint=目标yaw, feedback=当前kf_yaw */
+        /* PID 必须看到最短圆弧误差，否则 179° -> -179° 会误走 358°。 */
+        float yaw_error = normalize_angle(ctrl->yaw_pid.setpoint - kf_yaw);
+        float wrapped_feedback = ctrl->yaw_pid.setpoint - yaw_error;
         float yaw_pid_out =
-            app_pid_compute(&ctrl->yaw_pid, kf_yaw, dt_s);
+            app_pid_compute(&ctrl->yaw_pid, wrapped_feedback, dt_s);
 
         /* NaN保护 */
         if (!isfinite(yaw_pid_out)) {
@@ -457,9 +471,7 @@ const app_pos_output_t *app_posctrl_update(app_position_ctrl_t *ctrl,
         ctrl->output.target_rpm[APP_POS_MOTOR_RB] = right_target;
 
         /* 4. 到位检测 */
-        float yaw_error = ctrl->yaw_pid.setpoint - kf_yaw;
-        /* 角度误差归一化(处理±180环绕) */
-        yaw_error = normalize_angle(yaw_error);
+        /* yaw_error 已在 PID 计算前归一化。 */
         if (fabsf(yaw_error) < ctrl->reached_threshold) {
             ctrl->reached_count++;
             if (ctrl->reached_count >=

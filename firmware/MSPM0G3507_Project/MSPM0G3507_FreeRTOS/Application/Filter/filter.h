@@ -8,13 +8,14 @@
  *   - 可扩展性：添加新滤波器只需实现接口
  *   - 向后兼容：保留原有互补滤波器
  *
- * 支持的滤波器（6种）：
+ * 支持的滤波器（7种）：
  *   - 互补滤波器 (Complementary) — 经典陀螺仪+加速度计融合，α权重
  *   - 一阶低通滤波器 (LPF) — 截止频率可调，适合噪声滤除
- *   - 扩展卡尔曼滤波器 (EKF) — 7状态EKF，含陀螺偏置估计
+ *   - 误差状态卡尔曼滤波器 (ESKF) — 6状态ESKF，含陀螺偏置估计
  *   - 线性卡尔曼滤波器 (LKF) — 6状态LKF，线性近似，低算力场景
  *   - Mahony滤波器 — PI控制器互补滤波，快速收敛
  *   - Madgwick滤波器 — 梯度下降法，四元数姿态估计
+ *   - 三轴标量KF — 每轴 angle+bias，最低计算量路径
  *
  * 退化模式（5种）：
  *   - NONE: 正常运行
@@ -107,7 +108,7 @@ filter_error_info_t filter_get_last_error(void);
 typedef enum {
     FILTER_TYPE_COMPLEMENTARY = 0,  /**< 现有互补滤波器 */
     FILTER_TYPE_LPF,                /**< 一阶低通滤波器 */
-    FILTER_TYPE_EKF,                /**< 扩展卡尔曼滤波器 */
+    FILTER_TYPE_ESKF,               /**< 误差状态卡尔曼滤波器 (MCU优化) */
     FILTER_TYPE_LKF,                /**< 线性卡尔曼滤波器 */
     FILTER_TYPE_MAHONY,             /**< Mahony 互补滤波器 */
     FILTER_TYPE_MADGWICK,           /**< Madgwick 梯度下降滤波器 */
@@ -119,7 +120,7 @@ typedef enum {
 typedef struct {
     float ax, ay, az;   /**< 加速度 (g) */
     float gx, gy, gz;   /**< 角速度 (dps) */
-    double dt;          /**< 时间差 (秒, double 精度避免 EMA 滤波后截断) */
+    float dt;           /**< 时间差 (秒；MSPM0 原生单精度路径) */
 } filter_input_t;
 
 /* ---- 退化模式（用于传感器数据质量差时） ---- */
@@ -144,15 +145,15 @@ typedef struct {
 typedef enum {
     FILTER_PARAM_ALPHA = 0,         /**< 互补滤波器 α */
     FILTER_PARAM_CUTOFF_FREQ,       /**< 低通滤波器截止频率 (Hz) */
-    FILTER_PARAM_Q_ANGLE,           /**< EKF 过程噪声-角度 */
-    FILTER_PARAM_Q_BIAS,            /**< EKF 过程噪声-偏置 */
-    FILTER_PARAM_R_MEASURE,         /**< EKF 测量噪声 */
+    FILTER_PARAM_Q_ANGLE,           /**< ESKF/KF/LKF 过程噪声-角度 */
+    FILTER_PARAM_Q_BIAS,            /**< ESKF/KF/LKF 过程噪声-偏置 */
+    FILTER_PARAM_R_MEASURE,         /**< ESKF/KF/LKF 测量噪声 */
     FILTER_PARAM_KP,                /**< Mahony/Madgwick 比例增益 */
     FILTER_PARAM_KI,                /**< Mahony/Madgwick 积分增益 */
-    FILTER_PARAM_BIAS_LIMIT_DPS,    /**< EKF 偏置幅值限制 (dps) */
-    FILTER_PARAM_CHI2_THRESHOLD,    /**< EKF Chi-squared 门限 */
-    FILTER_PARAM_R_ADAPT_ENABLE,    /**< 动态 R 适配使能 */
-    FILTER_PARAM_R_ADAPT_FACTOR,    /**< 动态 R 缩放因子 */
+    FILTER_PARAM_BIAS_LIMIT_DPS,    /**< ESKF 偏置幅值限制 (dps) */
+    FILTER_PARAM_CHI2_THRESHOLD,    /**< [已废弃] 原 EKF Chi-squared 门限 */
+    FILTER_PARAM_R_ADAPT_ENABLE,    /**< [已废弃] 原 EKF 动态 R 适配使能 */
+    FILTER_PARAM_R_ADAPT_FACTOR,    /**< [已废弃] 原 EKF 动态 R 缩放因子 */
 
     /* ---- KF 纯卡尔曼滤波器参数 ---- */
     FILTER_PARAM_KF_Q_ANGLE,        /**< KF 过程噪声-角度 (deg²/s) */
@@ -165,6 +166,21 @@ typedef enum {
 
 /* ---- 滤波器接口（前向声明） ---- */
 typedef struct filter filter_t;
+
+/** Maximum storage required by any built-in filter implementation. */
+#define FILTER_STATIC_STORAGE_SIZE (512U)
+
+/**
+ * @brief Aligned caller-owned storage for heap-free filter construction.
+ *
+ * The union guarantees alignment for pointers, doubles and all current private
+ * filter states on both the MSPM0 target and host-test platforms.
+ */
+typedef union {
+    void    *align_ptr;
+    double   align_double;
+    uint8_t  bytes[FILTER_STATIC_STORAGE_SIZE];
+} filter_static_storage_t;
 
 /**
  * @brief 滤波器更新函数类型
@@ -268,6 +284,22 @@ filter_t* filter_create_static(filter_type_t type, void *buf, size_t buf_size);
 size_t filter_get_static_size(filter_type_t type);
 
 /**
+ * @brief Validate input, run one update and publish only a valid output.
+ * @return FILTER_OK on success, otherwise a filter_error_t code.
+ */
+filter_error_t filter_update_checked(filter_t *f,
+                                     const filter_input_t *in,
+                                     filter_output_t *out);
+
+/** Validate a parameter before dispatching it to the implementation. */
+filter_error_t filter_set_param_checked(filter_t *f,
+                                        filter_param_t param,
+                                        float value);
+
+/** Return 1 when the selected implementation supports the parameter. */
+int filter_supports_param(filter_type_t type, filter_param_t param);
+
+/**
  * @brief 设置滤波器安全配置
  * @param f       滤波器实例
  * @param config  安全配置
@@ -350,50 +382,38 @@ void filter_kf_set_hw(filter_t *f, int enable);
 int filter_kf_get_hw(const filter_t *f);
 
 /**
- * @brief 设置 EKF 是否使用 MATHACL 硬件加速路径（除法）
- * @param f       滤波器实例（必须是 FILTER_TYPE_EKF）
+ * @brief ESKF 硬件加速兼容接口（当前实现保留为 no-op）
+ * @param f       滤波器实例（必须是 FILTER_TYPE_ESKF）
  * @param enable  1=启用硬件加速，0=使用纯软浮点
  *
- * @note 仅在 BSP_MATHACL_ENABLE 已定义且硬件路径编译进工程时生效。
- *       对非 EKF 类型调用会被安全忽略。
+ * @note ESKF 的稀疏浮点路径当前不使用 MATHACL；保留接口避免破坏调用方。
  */
-void filter_ekf_set_hw(filter_t *f, int enable);
+void filter_eskf_set_hw(filter_t *f, int enable);
 
 /**
- * @brief 查询 EKF 硬件加速是否启用
+ * @brief 查询 ESKF 硬件加速是否启用（当前恒为 0）
  * @param f  滤波器实例
- * @return   1=硬件加速已启用，0=未启用（包括非 EKF 类型）
+ * @return   1=硬件加速已启用，0=未启用（包括非 ESKF 类型）
  */
-int filter_ekf_get_hw(const filter_t *f);
+int filter_eskf_get_hw(const filter_t *f);
 
 /**
- * @brief EKF 诊断信息结构体
- * 用于在线监测 NIS / 机动等级 / R 自适应状态
+ * @brief ESKF 诊断信息结构体
+ * 简化版：偏置估计 + 协方差对角线
  */
 typedef struct {
-    float nis_avg;          /**< NIS 滑动窗口平均值 (chi2 95%区间 [0.216, 9.348]) */
-    float chi2;             /**< 当前帧 chi2 统计量 */
-    uint8_t maneuver_level; /**< 机动等级 0=静止 1=准静态 2=缓动态 3=高动态 */
-    float gyro_mag_dps;     /**< 陀螺角速度幅值 (dps) */
-    float acc_norm_err;     /**< 加速度幅值偏差 (g) */
-    float r_nis_factor;     /**< NIS 驱动的 R 缩放因子 */
-    uint8_t nis_count;      /**< NIS 窗口已填充样本数 */
-    float bias_x;           /**< EKF 偏置估计 X (dps) */
-    float bias_y;           /**< EKF 偏置估计 Y (dps) */
-    float bias_z;           /**< EKF 偏置估计 Z (dps) */
-    float residual_decay;   /**< 陀螺仪残留衰减因子 (1.0=不衰减, <1=残留抑制中) */
-} filter_ekf_diag_t;
+    float bias_x, bias_y, bias_z;   /**< 陀螺偏置估计 (dps) */
+    float p00, p11, p22;            /**< 角度误差协方差对角线 */
+    float p33, p44, p55;            /**< 偏置误差协方差对角线 */
+} filter_eskf_diag_t;
 
 /**
- * @brief 获取 EKF 诊断信息 (NIS/机动等级/R自适应)
- * @param f    滤波器实例 (必须是 EKF 类型)
+ * @brief 获取 ESKF 诊断信息
+ * @param f    滤波器实例 (必须是 ESKF 类型)
  * @param diag 输出诊断结构体指针
- * @return 0=成功, -1=非EKF类型或NULL
- *
- * @note 需启用 EKF_NIS_MONITOR / EKF_MANEUVER_DETECT / EKF_R_ADAPTIVE
- *       未启用的字段返回 0
+ * @return 0=成功, -1=非ESKF类型或NULL
  */
-int filter_ekf_get_diag(const filter_t *f, filter_ekf_diag_t *diag);
+int filter_eskf_get_diag(const filter_t *f, filter_eskf_diag_t *diag);
 
 /**
  * @brief KF 诊断信息结构体

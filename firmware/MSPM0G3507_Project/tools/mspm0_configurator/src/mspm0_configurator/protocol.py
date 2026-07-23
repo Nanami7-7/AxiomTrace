@@ -4,13 +4,16 @@ from __future__ import annotations
 from dataclasses import dataclass
 from enum import Enum
 from math import isfinite
+from numbers import Integral
 from typing import Mapping
 
 PROTOCOL_VERSION = 1
 DEFAULT_BAUD = 115200
+SUPPORTED_BAUDS = (DEFAULT_BAUD,)
 MOTOR_COUNT = 4
 PID_LIMIT = 100.0
 TARGET_RPM_LIMIT = 800.0
+PLANNER_RPM_LIMIT = 300.0
 
 CHANNEL_NAMES = (
     "rpm_a",
@@ -65,10 +68,22 @@ def _number(value: float, low: float, high: float, name: str) -> str:
 
 
 def _motor_id(motor: int) -> int:
+    if isinstance(motor, bool) or not isinstance(motor, Integral):
+        raise ValueError("motor must be an integer in 0..3")
     motor = int(motor)
     if motor not in range(MOTOR_COUNT):
         raise ValueError("motor must be 0..3")
     return motor
+
+
+def encode_command(command: str) -> bytes:
+    """Encode exactly one ASCII protocol command with the MCU line ending."""
+    command = command.strip()
+    if not command:
+        raise ValueError("command must not be empty")
+    if "\r" in command or "\n" in command:
+        raise ValueError("command must contain exactly one protocol line")
+    return (command + "\r\n").encode("ascii", errors="strict")
 
 
 class CommandBuilder:
@@ -139,14 +154,14 @@ class CommandBuilder:
     def position(pulses: float, cruise_rpm: float) -> str:
         return (
             f"pos={_number(pulses, -1e9, 1e9, 'pulses')},"
-            f"{_number(cruise_rpm, 0.001, TARGET_RPM_LIMIT, 'cruise_rpm')}"
+            f"{_number(cruise_rpm, 0.001, PLANNER_RPM_LIMIT, 'cruise_rpm')}"
         )
 
     @staticmethod
     def angle(degrees: float, cruise_rpm: float) -> str:
         return (
             f"angle={_number(degrees, -36_000.0, 36_000.0, 'degrees')},"
-            f"{_number(cruise_rpm, 0.001, TARGET_RPM_LIMIT, 'cruise_rpm')}"
+            f"{_number(cruise_rpm, 0.001, PLANNER_RPM_LIMIT, 'cruise_rpm')}"
         )
 
 

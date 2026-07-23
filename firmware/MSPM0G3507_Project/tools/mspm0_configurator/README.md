@@ -30,8 +30,16 @@ Or download the latest archive from CI:
 
 ```powershell
 cd tools\mspm0_configurator
+python -m pip install -e ".[build]"
 python build_release.py --clean
 # Output: tools/release/mspm0-configurator/
+```
+
+Run the protocol/settings regression tests without GUI dependencies:
+
+```powershell
+$env:PYTHONPATH="src"
+python -m unittest discover -s tests -v
 ```
 
 Connect at **115200 8-N-1**, select the port, then click Connect. The tool queries `Info?`, `Config?` and `Status=n`. Use Start telemetry to send `Stream=1`; this does not enable any motor.
@@ -54,8 +62,8 @@ MSPM0G3507_FreeRTOS/Docs/GUI配置软件使用说明_v0.1.0.md
 
 ## CI Build / CI 构建
 
-GitHub Actions automatically builds Windows and Linux executables on push to `main`.
+GitHub Actions runs tests first, then builds downloadable Windows and Linux artifacts. It does not commit generated binaries back to `main`.
 See `.github/workflows/build-mspm0-configurator.yml` for details.
 
-GitHub Actions 会在 push 到 `main` 时自动构建 Windows 和 Linux 可执行文件。
+GitHub Actions 会先运行测试，再构建可下载的 Windows 和 Linux 产物，不会把生成的二进制文件自动提交回 `main`。
 详见 `.github/workflows/build-mspm0-configurator.yml`。

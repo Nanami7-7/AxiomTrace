@@ -112,7 +112,7 @@ int normalize_quaternion_internal(float *q0, float *q1, float *q2, float *q3)
     float norm = mathacl_sqrtf((*q0)*(*q0) + (*q1)*(*q1) + (*q2)*(*q2) + (*q3)*(*q3));
 
     /* 统一阈值检查 */
-    if (norm < EKF_NORM_EPS) {
+    if (norm < NORM_EPS) {
         /* 范数太小，重置为单位四元数 */
         *q0 = 1.0f; *q1 = 0.0f; *q2 = 0.0f; *q3 = 0.0f;
         return -1;
@@ -230,21 +230,33 @@ int validate_filter_param(filter_param_t param, float value)
             break;
 
         case FILTER_PARAM_CUTOFF_FREQ:
-            /* 截止频率必须为正 */
-            if (value <= 0.0f) {
+            if (value < LPF_CUTOFF_MIN || value > LPF_CUTOFF_MAX) {
                 FILTER_REPORT_ERROR(FILTER_ERR_INVALID_PARAM,
-                                    "Cutoff frequency must be positive");
+                                    "Cutoff frequency out of range");
                 return -1;
             }
             break;
 
         case FILTER_PARAM_Q_ANGLE:
-        case FILTER_PARAM_Q_BIAS:
-        case FILTER_PARAM_R_MEASURE:
-            /* 噪声参数必须为正 */
-            if (value <= 0.0f) {
+            if (value < EKF_Q_ANGLE_MIN || value > EKF_Q_ANGLE_MAX) {
                 FILTER_REPORT_ERROR(FILTER_ERR_INVALID_PARAM,
-                                    "Noise parameter must be positive");
+                                    "Q_ANGLE out of range");
+                return -1;
+            }
+            break;
+
+        case FILTER_PARAM_Q_BIAS:
+            if (value < EKF_Q_BIAS_MIN || value > EKF_Q_BIAS_MAX) {
+                FILTER_REPORT_ERROR(FILTER_ERR_INVALID_PARAM,
+                                    "Q_BIAS out of range");
+                return -1;
+            }
+            break;
+
+        case FILTER_PARAM_R_MEASURE:
+            if (value < EKF_R_MEASURE_MIN || value > EKF_R_MEASURE_MAX) {
+                FILTER_REPORT_ERROR(FILTER_ERR_INVALID_PARAM,
+                                    "R_MEASURE out of range");
                 return -1;
             }
             break;
@@ -260,11 +272,17 @@ int validate_filter_param(filter_param_t param, float value)
             break;
 
         case FILTER_PARAM_BIAS_LIMIT_DPS:
-        case FILTER_PARAM_CHI2_THRESHOLD:
-            /* 必须为正 */
-            if (value <= 0.0f) {
+            if (value < EKF_BIAS_LIMIT_MIN || value > EKF_BIAS_LIMIT_MAX) {
                 FILTER_REPORT_ERROR(FILTER_ERR_INVALID_PARAM,
-                                    "Parameter must be positive");
+                                    "BIAS_LIMIT_DPS out of range");
+                return -1;
+            }
+            break;
+
+        case FILTER_PARAM_CHI2_THRESHOLD:
+            if (value < EKF_CHI2_THRESHOLD_MIN || value > EKF_CHI2_THRESHOLD_MAX) {
+                FILTER_REPORT_ERROR(FILTER_ERR_INVALID_PARAM,
+                                    "CHI2_THRESHOLD out of range");
                 return -1;
             }
             break;
@@ -342,8 +360,8 @@ filter_t* filter_create(filter_type_t type)
         case FILTER_TYPE_LPF:
             f = filter_create_lpf(LPF_CUTOFF_DEFAULT);
             break;
-        case FILTER_TYPE_EKF:
-            f = filter_create_ekf(EKF_Q_ANGLE_DEFAULT, EKF_Q_BIAS_DEFAULT, EKF_R_MEASURE_DEFAULT);
+        case FILTER_TYPE_ESKF:
+            f = filter_create_eskf(EKF_Q_ANGLE_DEFAULT, EKF_Q_BIAS_DEFAULT, EKF_R_MEASURE_DEFAULT);
             break;
         case FILTER_TYPE_LKF:
             f = filter_create_lkf(KF_Q_ANGLE_DEFAULT, KF_Q_BIAS_DEFAULT, KF_R_MEASURE_DEFAULT);
@@ -375,7 +393,7 @@ const char* filter_type_name(filter_type_t type)
     static const char *names[] = {
         "Complementary",
         "LPF",
-        "EKF",
+        "ESKF",
         "LKF",
         "Mahony",
         "Madgwick",
@@ -467,12 +485,24 @@ void static_destroy_noop(filter_t *self)
 const size_t priv_sizes[] = {
     [FILTER_TYPE_COMPLEMENTARY] = sizeof(complementary_priv_t),
     [FILTER_TYPE_LPF]           = sizeof(lpf_priv_t),
-    [FILTER_TYPE_EKF]           = sizeof(ekf_priv_t),
+    [FILTER_TYPE_ESKF]          = sizeof(eskf_priv_t),
     [FILTER_TYPE_LKF]           = sizeof(lkf_priv_t),
     [FILTER_TYPE_MAHONY]        = sizeof(mahony_priv_t),
     [FILTER_TYPE_MADGWICK]      = sizeof(madgwick_priv_t),
     [FILTER_TYPE_KF]            = sizeof(kf_priv_t),
 };
+
+#define FILTER_STORAGE_ASSERT(type_) \
+    _Static_assert(sizeof(filter_t) + sizeof(type_) <= FILTER_STATIC_STORAGE_SIZE, \
+                   "FILTER_STATIC_STORAGE_SIZE is too small")
+FILTER_STORAGE_ASSERT(complementary_priv_t);
+FILTER_STORAGE_ASSERT(lpf_priv_t);
+FILTER_STORAGE_ASSERT(eskf_priv_t);
+FILTER_STORAGE_ASSERT(lkf_priv_t);
+FILTER_STORAGE_ASSERT(mahony_priv_t);
+FILTER_STORAGE_ASSERT(madgwick_priv_t);
+FILTER_STORAGE_ASSERT(kf_priv_t);
+#undef FILTER_STORAGE_ASSERT
 
 size_t filter_get_static_size(filter_type_t type) {
     if (type < 0 || type >= FILTER_TYPE_COUNT) return 0;
@@ -515,39 +545,18 @@ filter_t* filter_create_static(filter_type_t type, void *buf, size_t buf_size) {
             f->set_param = lpf_set_param;
             break;
         }
-        case FILTER_TYPE_EKF: {
-            ekf_priv_t *p = (ekf_priv_t *)priv;
-            p->state[0] = 1.0f; /* q0 = 1 */
+        case FILTER_TYPE_ESKF: {
+            eskf_priv_t *p = (eskf_priv_t *)priv;
+            p->q0 = 1.0f; /* q0 = 1 */
             p->Q_angle = EKF_Q_ANGLE_DEFAULT;
             p->Q_bias = EKF_Q_BIAS_DEFAULT;
             p->R_measure = EKF_R_MEASURE_DEFAULT;
             p->bias_limit_dps = EKF_BIAS_LIMIT_DEFAULT;
-            p->chi2_threshold = EKF_CHI2_THRESHOLD_DEFAULT;
-            p->R_adapt_factor = 1.0f;
-            p->r_adapt_enable = EKF_R_ADAPT_ENABLE_DEFAULT;
             p->update_count = 0;
-#if defined(BSP_MATHACL_EKF_HW)
-            p->use_hw = 1;
-#else
-            p->use_hw = 0;
-#endif
-#if EKF_NIS_MONITOR
-            p->nis_idx = 0;
-            p->nis_count = 0;
-            p->nis_avg = 0.0f;
-#endif
-#if EKF_R_ADAPTIVE
-            p->r_nis_factor = 1.0f;
-#endif
-#if EKF_MANEUVER_DETECT
-            p->maneuver_level = 0;
-            p->gyro_mag_dps = 0.0f;
-            p->acc_norm_err = 0.0f;
-#endif
-            for (int i = 0; i < 7; i++) p->P[i][i] = 1.0f;
-            f->update = ekf_update;
-            f->reset = ekf_reset;
-            f->set_param = ekf_set_param;
+            for (int i = 0; i < 6; i++) p->P[i][i] = 1.0f;
+            f->update = eskf_update;
+            f->reset = eskf_reset;
+            f->set_param = eskf_set_param;
             break;
         }
         case FILTER_TYPE_LKF: {
@@ -564,8 +573,16 @@ filter_t* filter_create_static(filter_type_t type, void *buf, size_t buf_size) {
         case FILTER_TYPE_MAHONY: {
             mahony_priv_t *p = (mahony_priv_t *)priv;
             p->q0 = 1.0f;
-            p->kp = MAHONY_KP_DEFAULT;
-            p->ki = MAHONY_KI_DEFAULT;
+            p->kp_base = MAHONY_KP_DEFAULT;
+            p->ki_base = MAHONY_KI_DEFAULT;
+            p->kp_eff = MAHONY_KP_DEFAULT;
+            p->ki_eff = MAHONY_KI_DEFAULT;
+            p->acc_gate_low  = 0.9f;
+            p->acc_gate_high = 1.1f;
+            p->gyro_sat_thresh = 212.0f;   /* 0.85 * 250dps FS */
+            p->bias_limit = 20.0f;
+            p->static_gyro_th = 2.0f;
+            p->static_acc_th  = 0.05f;
             f->update = mahony_update;
             f->reset = mahony_reset;
             f->set_param = mahony_set_param;
@@ -655,6 +672,93 @@ int filter_validate_output(const filter_output_t *out) {
     return 1;
 }
 
+filter_error_t filter_update_checked(filter_t *f,
+                                     const filter_input_t *in,
+                                     filter_output_t *out)
+{
+    if (f == NULL || f->update == NULL || f->priv == NULL ||
+        in == NULL || out == NULL) {
+        FILTER_REPORT_ERROR(FILTER_ERR_NOT_INITIALIZED,
+                            "Filter instance or update argument is invalid");
+        return FILTER_ERR_NOT_INITIALIZED;
+    }
+
+    if (!isfinite(in->ax) || !isfinite(in->ay) || !isfinite(in->az) ||
+        !isfinite(in->gx) || !isfinite(in->gy) || !isfinite(in->gz) ||
+        !isfinite(in->dt) || in->dt <= 0.0) {
+        FILTER_REPORT_ERROR(FILTER_ERR_INVALID_INPUT,
+                            "Filter input contains NaN/Inf or invalid dt");
+        return FILTER_ERR_INVALID_INPUT;
+    }
+
+    filter_output_t candidate = {
+        .q0 = 1.0f,
+        .q1 = 0.0f,
+        .q2 = 0.0f,
+        .q3 = 0.0f,
+    };
+    f->update(f, in, &candidate);
+
+    if (!filter_validate_output(&candidate)) {
+        FILTER_REPORT_ERROR(FILTER_ERR_NUMERICAL,
+                            "Filter produced an invalid output");
+        return FILTER_ERR_NUMERICAL;
+    }
+
+    *out = candidate;
+    return FILTER_OK;
+}
+
+int filter_supports_param(filter_type_t type, filter_param_t param)
+{
+    switch (type) {
+        case FILTER_TYPE_COMPLEMENTARY:
+            return param == FILTER_PARAM_ALPHA;
+        case FILTER_TYPE_LPF:
+            return param == FILTER_PARAM_CUTOFF_FREQ;
+        case FILTER_TYPE_ESKF:
+            return param == FILTER_PARAM_Q_ANGLE ||
+                   param == FILTER_PARAM_Q_BIAS ||
+                   param == FILTER_PARAM_R_MEASURE ||
+                   param == FILTER_PARAM_BIAS_LIMIT_DPS;
+        case FILTER_TYPE_LKF:
+            return param == FILTER_PARAM_Q_ANGLE ||
+                   param == FILTER_PARAM_Q_BIAS ||
+                   param == FILTER_PARAM_R_MEASURE;
+        case FILTER_TYPE_MAHONY:
+            return param == FILTER_PARAM_KP || param == FILTER_PARAM_KI;
+        case FILTER_TYPE_MADGWICK:
+            return param == FILTER_PARAM_KP;
+        case FILTER_TYPE_KF:
+            return param == FILTER_PARAM_KF_Q_ANGLE ||
+                   param == FILTER_PARAM_KF_Q_BIAS ||
+                   param == FILTER_PARAM_KF_R_MEASURE ||
+                   param == FILTER_PARAM_KF_R_ZUPT;
+        default:
+            return 0;
+    }
+}
+
+filter_error_t filter_set_param_checked(filter_t *f,
+                                        filter_param_t param,
+                                        float value)
+{
+    if (f == NULL || f->set_param == NULL || f->priv == NULL) {
+        FILTER_REPORT_ERROR(FILTER_ERR_NOT_INITIALIZED,
+                            "Filter instance cannot accept parameters");
+        return FILTER_ERR_NOT_INITIALIZED;
+    }
+    if (param < 0 || param >= FILTER_PARAM_COUNT ||
+        !filter_supports_param(f->type, param) ||
+        validate_filter_param(param, value) != 0) {
+        FILTER_REPORT_ERROR(FILTER_ERR_INVALID_PARAM,
+                            "Parameter is invalid or unsupported by filter");
+        return FILTER_ERR_INVALID_PARAM;
+    }
+    f->set_param(f, param, value);
+    return FILTER_OK;
+}
+
 /**
  * @brief 四元数归一化（公开 API）
  *
@@ -723,68 +827,41 @@ int filter_kf_get_hw(const filter_t *f)
 #endif
 }
 
-void filter_ekf_set_hw(filter_t *f, int enable)
+void filter_eskf_set_hw(filter_t *f, int enable)
 {
-    if (!f || f->type != FILTER_TYPE_EKF || !f->priv) {
+    if (!f || f->type != FILTER_TYPE_ESKF || !f->priv) {
         return;
     }
-#if defined(BSP_MATHACL_EKF_HW)
-    ekf_priv_t *p = (ekf_priv_t *)f->priv;
-    p->use_hw = (enable != 0) ? 1U : 0U;
-#else
-    (void)enable;
-#endif
+    (void)enable;  /* ESKF 暂不使用硬件加速 */
 }
 
-int filter_ekf_get_hw(const filter_t *f)
+int filter_eskf_get_hw(const filter_t *f)
 {
-    if (!f || f->type != FILTER_TYPE_EKF || !f->priv) {
-        return 0;
-    }
-#if defined(BSP_MATHACL_EKF_HW)
-    const ekf_priv_t *p = (const ekf_priv_t *)f->priv;
-    return (int)p->use_hw;
-#else
-    return 0;
-#endif
+    (void)f;
+    return 0;  /* ESKF 暂不使用硬件加速 */
 }
 
 /* ============================================================
  * 诊断信息接口
  * ============================================================ */
 
-int filter_ekf_get_diag(const filter_t *f, filter_ekf_diag_t *diag)
+int filter_eskf_get_diag(const filter_t *f, filter_eskf_diag_t *diag)
 {
-    if (!f || !diag || f->type != FILTER_TYPE_EKF || !f->priv) {
+    if (!f || !diag || f->type != FILTER_TYPE_ESKF || !f->priv) {
         if (diag) memset(diag, 0, sizeof(*diag));
         return -1;
     }
-    const ekf_priv_t *p = (const ekf_priv_t *)f->priv;
+    const eskf_priv_t *p = (const eskf_priv_t *)f->priv;
     memset(diag, 0, sizeof(*diag));
-
-    diag->chi2 = p->last_chi2;
-    diag->bias_x = p->state[4];
-    diag->bias_y = p->state[5];
-    diag->bias_z = p->state[6];
-#if EKF_NIS_MONITOR
-    diag->nis_avg   = p->nis_avg;
-    diag->nis_count = p->nis_count;
-#endif
-#if EKF_R_ADAPTIVE
-    diag->r_nis_factor = p->r_nis_factor;
-#else
-    diag->r_nis_factor = 1.0f;
-#endif
-#if EKF_MANEUVER_DETECT
-    diag->maneuver_level = p->maneuver_level;
-    diag->gyro_mag_dps   = p->gyro_mag_dps;
-    diag->acc_norm_err   = p->acc_norm_err;
-#endif
-#if EKF_GYRO_RESIDUAL_ENABLE
-    diag->residual_decay = p->residual_decay_factor;
-#else
-    diag->residual_decay = 1.0f;
-#endif
+    diag->bias_x = p->bias_x;
+    diag->bias_y = p->bias_y;
+    diag->bias_z = p->bias_z;
+    diag->p00 = p->P[0][0];
+    diag->p11 = p->P[1][1];
+    diag->p22 = p->P[2][2];
+    diag->p33 = p->P[3][3];
+    diag->p44 = p->P[4][4];
+    diag->p55 = p->P[5][5];
     return 0;
 }
 

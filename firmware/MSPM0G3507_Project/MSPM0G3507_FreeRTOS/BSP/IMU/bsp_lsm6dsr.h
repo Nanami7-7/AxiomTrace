@@ -169,9 +169,20 @@ typedef struct {
  * @brief  初始化 BSP 上下文
  * @param[out] ctx  上下文结构体指针（调用者分配）
  * @return 0=成功, -1=失败
- * @details 初始化所有状态，创建默认滤波器实例
+ * @details 初始化所有状态，动态创建默认互补滤波器实例。
+ *          生产任务优先使用 bsp_lsm6dsr_init_ctx_with_filter()。
  */
 int bsp_lsm6dsr_init_ctx(bsp_lsm6dsr_ctx_t *ctx);
+
+/**
+ * @brief Initialize a context with a caller-owned filter instance.
+ * @param[out] ctx             Context allocated by the caller.
+ * @param[in]  initial_filter  Fully constructed filter retained by the context.
+ * @return 0 on success, negative on failure.
+ * @note The caller must keep the filter storage alive until destroy_ctx().
+ */
+int bsp_lsm6dsr_init_ctx_with_filter(bsp_lsm6dsr_ctx_t *ctx,
+                                     filter_t *initial_filter);
 
 /**
  * @brief  姿态更新（上下文版本）
@@ -311,7 +322,7 @@ int bsp_lsm6dsr_vofa_format(char *buf, int buf_size, const bsp_lsm6dsr_data_t *d
  * @brief  切换滤波器类型
  * @param  type  滤波器类型 (FILTER_TYPE_*)
  * @return 0=成功, -1=失败
- * @details 运行时切换滤波器，会销毁旧滤波器并创建新滤波器。
+ * @details 运行时切换滤波器会先创建新实例，成功后再销毁旧实例。
  *          新滤波器使用默认参数，可通过 bsp_lsm6dsr_set_filter_param() 调整。
  */
 int bsp_lsm6dsr_set_filter(filter_type_t type);

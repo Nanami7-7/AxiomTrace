@@ -11,7 +11,7 @@ Usage:
 
 Requirements:
     - Python 3.10+
-    - PyInstaller (installed automatically if missing)
+    - Build dependencies: python -m pip install -e ".[build]"
     - PySide6 and pyserial (installed from pyproject.toml)
 
 The output is placed in ../release/ relative to this script, which maps to
@@ -37,14 +37,13 @@ def get_release_dir() -> Path:
     return get_project_root().parent / "release"
 
 
-def ensure_build_deps() -> None:
-    """Ensure PyInstaller is installed."""
+def check_build_deps() -> None:
+    """Fail clearly instead of mutating the active Python environment."""
     try:
         import PyInstaller  # noqa: F401
     except ImportError:
-        print("Installing PyInstaller...")
-        subprocess.check_call(
-            [sys.executable, "-m", "pip", "install", "pyinstaller>=6.0"]
+        raise RuntimeError(
+            'PyInstaller is missing; run: python -m pip install -e ".[build]"'
         )
 
 
@@ -148,12 +147,10 @@ def main() -> int:
     )
     args = parser.parse_args()
 
-    if args.clean:
-        clean_build_dirs()
-
-    ensure_build_deps()
-
     try:
+        check_build_deps()
+        if args.clean:
+            clean_build_dirs()
         output = build_executable()
         write_release_info(output)
         print("\n=== Build Complete ===")

@@ -13,6 +13,9 @@ dependencies = [
   "pyserial>=3.5,<4",
 ]
 
+[project.optional-dependencies]
+build = ["pyinstaller>=6,<7"]
+
 [project.scripts]
 mspm0-configurator = "mspm0_configurator.app:main"
 

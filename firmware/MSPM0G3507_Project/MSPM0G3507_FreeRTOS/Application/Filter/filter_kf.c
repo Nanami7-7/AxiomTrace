@@ -80,8 +80,17 @@ static inline void kf_predict(kf_priv_t *p, int axis, float gyro_rate, float dt)
     p->P[axis][1][1] = P11 + p->Q_bias * dt;
 
     /* 协方差正则化 (防止数值发散) */
+    /* [Fix-1] 正定性检查: 2x2 矩阵正定 ⇔ P00>0 且 det=P00*P11-P01²>0
+     *   P00 > |P01| 是更保守但更简单的不等式 */
     if (p->P[axis][0][0] < 1e-6f) p->P[axis][0][0] = 1e-6f;
     if (p->P[axis][1][1] < 1e-6f) p->P[axis][1][1] = 1e-6f;
+    if (p->P[axis][0][0] <= fabsf(p->P[axis][0][1])) {
+        /* 协方差退化: 重新膨胀对角线 */
+        p->P[axis][0][0] *= 2.0f;
+        p->P[axis][1][1] *= 2.0f;
+    }
+    /* [Fix-2] yaw 轴限制: 无 ACC 测量时, P[0][0] 仅靠 Q 膨胀, 防止指数增长到溢出 */
+    if (axis == 2 && p->P[axis][0][0] > 100.0f) p->P[axis][0][0] = 100.0f;
 
     /* 应用预测状态 */
     p->x[axis][0] = angle_pred;
@@ -145,6 +154,16 @@ static inline void kf_update_axis(kf_priv_t *p, int axis, float acc_angle)
 
     /* 保持对称性 (Joseph 形式理论上对称，FP 舍入误差内强制一致) */
     p->P[axis][1][0] = p->P[axis][0][1];
+
+    /* [Fix-3] Cauchy-Schwarz 约束: |P01| ≤ sqrt(P00 * P11)
+     * 保证 2x2 协方差矩阵半正定 (det = P00*P11 - P01² ≥ 0) */
+    {
+        float cs_bound = sqrtf(fmaxf(0.0f, p->P[axis][0][0] * p->P[axis][1][1]));
+        if (fabsf(p->P[axis][0][1]) > cs_bound) {
+            p->P[axis][0][1] = (p->P[axis][0][1] > 0.0f ? cs_bound : -cs_bound);
+            p->P[axis][1][0] = p->P[axis][0][1];
+        }
+    }
 }
 
 /**
@@ -157,7 +176,7 @@ static inline void kf_update_axis(kf_priv_t *p, int axis, float acc_angle)
  * 创新量 y = gyro_rate - bias → 将偏置推向当前陀螺读数.
  * 协方差更新: P = (I - KH)*P (H = [0, 1] 形式).
  *
- * 轴门控: 创新量超过 0.5dps 时不更新 (与 EKF_ZUPT_AXIS_GATE 一致,
+ * 轴门控: 创新量超过 KF_ZUPT_AXIS_GATE 时不更新，
  *         防止慢转被误判为静止时偏置跟踪真实角速度).
  * 默认 R_zupt=1e6 等效禁用 (增益趋近零).
  */
@@ -172,7 +191,7 @@ static inline void kf_zupt_update_axis(kf_priv_t *p, int axis, float gyro_rate)
     float y = gyro_rate - p->x[axis][1];
 
     /* 轴门控: 创新量过大 → 并非真正静止, 跳过更新 (前置避免无效计算) */
-    if (fabsf(y) > EKF_ZUPT_AXIS_GATE) return;
+    if (fabsf(y) > KF_ZUPT_AXIS_GATE) return;
 
     /* 创新协方差 S = H*P*H' + R = P[1][1] + R_zupt (H = [0, 1]) */
     float S = P11 + p->R_zupt;
@@ -202,6 +221,15 @@ static inline void kf_zupt_update_axis(kf_priv_t *p, int axis, float gyro_rate)
 
     /* 保持对称性 */
     p->P[axis][1][0] = p->P[axis][0][1];
+
+    /* [Fix-3] Cauchy-Schwarz 约束 (ZUPT 路径同标准路径) */
+    {
+        float cs_bound = sqrtf(fmaxf(0.0f, p->P[axis][0][0] * p->P[axis][1][1]));
+        if (fabsf(p->P[axis][0][1]) > cs_bound) {
+            p->P[axis][0][1] = (p->P[axis][0][1] > 0.0f ? cs_bound : -cs_bound);
+            p->P[axis][1][0] = p->P[axis][0][1];
+        }
+    }
 }
 
 #if defined(BSP_MATHACL_KF_HW)
@@ -295,7 +323,17 @@ static inline void kf_update_axis_hw(kf_priv_t *p, int axis, float acc_angle)
     p->P[axis][1][1] = P11 - K1 * P01;
 
     p->P[axis][1][0] = p->P[axis][0][1];
+
+    /* [Fix-3] Cauchy-Schwarz 约束 (HW 路径) */
+    {
+        float cs_bound = sqrtf(fmaxf(0.0f, p->P[axis][0][0] * p->P[axis][1][1]));
+        if (fabsf(p->P[axis][0][1]) > cs_bound) {
+            p->P[axis][0][1] = (p->P[axis][0][1] > 0.0f ? cs_bound : -cs_bound);
+            p->P[axis][1][0] = p->P[axis][0][1];
+        }
+    }
 }
+
 #endif /* BSP_MATHACL_KF_HW */
 
 /**

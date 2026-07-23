@@ -1,6 +1,11 @@
 ﻿import unittest
 
-from mspm0_configurator.protocol import CommandBuilder, LineKind, decode_line
+from mspm0_configurator.protocol import (
+    CommandBuilder,
+    LineKind,
+    decode_line,
+    encode_command,
+)
 
 
 class ProtocolTests(unittest.TestCase):
@@ -37,6 +42,21 @@ class ProtocolTests(unittest.TestCase):
             CommandBuilder.run(4)
         with self.assertRaises(ValueError):
             CommandBuilder.pid("bad", 1)
+        with self.assertRaises(ValueError):
+            CommandBuilder.run(1.5)
+        with self.assertRaises(ValueError):
+            CommandBuilder.run(True)
+        with self.assertRaises(ValueError):
+            CommandBuilder.position(1000, 301)
+
+    def test_command_line_encoding(self):
+        self.assertEqual(encode_command(" StopAll "), b"StopAll\r\n")
+        with self.assertRaises(ValueError):
+            encode_command("")
+        with self.assertRaises(ValueError):
+            encode_command("StopAll\nRun=0")
+        with self.assertRaises(UnicodeEncodeError):
+            encode_command("停止")
 
 
 if __name__ == "__main__":
