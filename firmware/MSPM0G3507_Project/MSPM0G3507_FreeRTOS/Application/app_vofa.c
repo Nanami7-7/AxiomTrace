@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file    app_vofa.c
  * @brief   VOFA+ 閫氫俊鍗忚瀹炵幇
  * @note    FireWater: 鏂囨湰鏍煎紡, printf 杈撳嚭
@@ -15,7 +15,7 @@
 #include "bsp_motor.h"
 #include "bsp_encoder.h"
 #include "axiomtrace.h"
-#include "project_version.h"
+#include "project_config.h"  /* PROJECT_VERSION_* 已合并 */
 #include "ti_msp_dl_config.h"
 #include <stdio.h>
 #include <string.h>

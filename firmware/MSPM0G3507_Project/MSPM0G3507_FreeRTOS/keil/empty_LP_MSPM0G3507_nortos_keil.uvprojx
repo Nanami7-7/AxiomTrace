@@ -315,7 +315,7 @@
           </ArmAdsMisc>
           <Cads>
             <interw>1</interw>
-            <Optim>4</Optim>
+            <Optim>6</Optim>
             <oTime>0</oTime>
             <SplitLS>0</SplitLS>
             <OneElfS>1</OneElfS>
@@ -549,11 +549,6 @@
               <FileName>filter.h</FileName>
               <FileType>5</FileType>
               <FilePath>..\Application\Filter\filter.h</FilePath>
-            </File>
-            <File>
-              <FileName>filter_config.h</FileName>
-              <FileType>5</FileType>
-              <FilePath>..\Application\Filter\filter_config.h</FilePath>
             </File>
             <File>
               <FileName>filter_config.c</FileName>
@@ -1507,11 +1502,6 @@
               <FileName>filter.h</FileName>
               <FileType>5</FileType>
               <FilePath>..\Application\Filter\filter.h</FilePath>
-            </File>
-            <File>
-              <FileName>filter_config.h</FileName>
-              <FileType>5</FileType>
-              <FilePath>..\Application\Filter\filter_config.h</FilePath>
             </File>
             <File>
               <FileName>filter_config.c</FileName>

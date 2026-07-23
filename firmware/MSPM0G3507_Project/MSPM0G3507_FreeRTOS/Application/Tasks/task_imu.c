@@ -11,7 +11,7 @@
 #include "osal_api.h"
 #include "project_config.h"
 #include "bsp_lsm6dsr.h"
-#include "filter_config.h"
+#include "filter.h"         /* filter_config.h 已合并, 类型定义在 filter.h */
 #include "bsp_uart.h"
 #include "platform.h"
 #include "spi_bridge.h"

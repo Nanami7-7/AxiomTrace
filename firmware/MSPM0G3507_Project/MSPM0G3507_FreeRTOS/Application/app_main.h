@@ -24,53 +24,37 @@ extern "C" {
 #include "bsp_motor.h"
 #include "project_config.h"
 
-/* ======================== 任务优先级 ======================== */
+/* ======================== 兼容别名 ======================== */
+/* 任务优先级/栈大小/周期等配置已迁移到 project_config.h */
+#define APP_TASK_PRIORITY_CONTROL   TASK_PRIO_CONTROL
+#define APP_TASK_PRIORITY_IMU       TASK_PRIO_IMU
+#define APP_TASK_PRIORITY_MENU      TASK_PRIO_MENU
+#define APP_TASK_STACK_CONTROL      TASK_STACK_CONTROL
+#define APP_TASK_STACK_IMU          TASK_STACK_IMU
+#define APP_TASK_STACK_MENU         TASK_STACK_MENU
+#define APP_CONTROL_PERIOD_MS       CONTROL_PERIOD_MS
+#define APP_MENU_POLL_PERIOD_MS     MENU_POLL_PERIOD_MS
+#define APP_RPM_OUTPUT_PERIOD_MS    RPM_OUTPUT_PERIOD_MS
+#define APP_PID_DEFAULT_KP          PID_KP_DEFAULT
+#define APP_PID_DEFAULT_KI          PID_KI_DEFAULT
+#define APP_PID_DEFAULT_KD          PID_KD_DEFAULT
+#define APP_FF_PID_DEFAULT_KP       FF_PID_KP_DEFAULT
+#define APP_FF_PID_DEFAULT_KI       FF_PID_KI_DEFAULT
+#define APP_FF_PID_DEFAULT_KD       FF_PID_KD_DEFAULT
 
-/** 控制任务优先级(最高,保证实时性) */
-#define APP_TASK_PRIORITY_CONTROL   (5U)
-/** IMU任务优先级(中) */
-#define APP_TASK_PRIORITY_IMU       (4U)
-/** 菜单任务优先级(低) */
-#define APP_TASK_PRIORITY_MENU      (2U)
-
-/* ======================== 任务栈大小 ======================== */
-
-/** 控制任务栈大小(字, 含浮点运算+软件FPU) */
-#define APP_TASK_STACK_CONTROL      (256U)
-/** IMU任务栈大小(字, 含姿态滤波器+浮点运算) */
-#define APP_TASK_STACK_IMU          (1280U)
-/** 菜单任务栈大小(字, 行缓冲+printf+sscanf+VOFA+11通道DMA) */
-#define APP_TASK_STACK_MENU         (384U)
-
-/* ======================== 控制周期 ======================== */
-
-/** 控制任务周期(ms) */
-#define APP_CONTROL_PERIOD_MS       (5U)
-/** 菜单轮询周期(ms) */
-#define APP_MENU_POLL_PERIOD_MS     (100U)
-/** RPM输出周期(ms, 运行模式下, DMA非阻塞发送) */
-#define APP_RPM_OUTPUT_PERIOD_MS    (30U)
-
-/* ======================== 菜单配置 ======================== */
-
-/** 行输入缓冲区大小(字节) */
-#define MENU_LINE_BUF_SIZE          (64U)
-
-/* ======================== PID默认参数 ======================== */
-
-/** 速度环默认比例增益(空载MG310 RPM控制,保守值) */
-#define APP_PID_DEFAULT_KP          (0.8f)
-/** 速度环默认积分增益(空载MG310 RPM控制) */
-#define APP_PID_DEFAULT_KI          (0.3f)
-/** 速度环默认微分增益 */
-#define APP_PID_DEFAULT_KD          (0.0f)
-
-/** FF模式默认比例增益 */
-#define APP_FF_PID_DEFAULT_KP       (0.5f)
-/** FF模式默认积分增益 */
-#define APP_FF_PID_DEFAULT_KI       (0.1f)
-/** FF模式默认微分增益 */
-#define APP_FF_PID_DEFAULT_KD       (0.0f)
+/* 位置-速度控制参数兼容别名 (原在 project_config.h 中以 APP_ 前缀定义) */
+#define APP_POS_PID_KP              POS_PID_KP
+#define APP_POS_PID_KI              POS_PID_KI
+#define APP_POS_PID_KD              POS_PID_KD
+#define APP_YAW_PID_KP              YAW_PID_KP
+#define APP_YAW_PID_KI              YAW_PID_KI
+#define APP_YAW_PID_KD              YAW_PID_KD
+#define APP_PLANNER_ACCEL           PLANNER_ACCEL
+#define APP_PLANNER_MAX_RPM         PLANNER_MAX_RPM
+#define APP_REACHED_THRESHOLD_POS   REACHED_THRESHOLD_POS
+#define APP_REACHED_THRESHOLD_YAW   REACHED_THRESHOLD_YAW
+#define APP_REACHED_COUNT           REACHED_COUNT
+#define APP_MODE_TRANSITION_MS      MODE_TRANSITION_MS
 
 /* ======================== 共享上下文 ======================== */
 

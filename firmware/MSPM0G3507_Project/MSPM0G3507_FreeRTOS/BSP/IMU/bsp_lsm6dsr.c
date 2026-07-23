@@ -24,7 +24,7 @@
 #include "log.h"
 #include "bsp_mathacl.h"  /* MATHACL 硬件加速初始化 */
 #include "bsp_timer.h"    /* bsp_get_us() 用于性能测量 */
-#include "filter_config.h" /* COMP_ALPHA_DEFAULT_DB / COMP_ALPHA_INV_DB (互补滤波 fallback) */
+#include "project_config.h" /* COMP_ALPHA_DEFAULT_DB / COMP_ALPHA_INV_DB (互补滤波 fallback) */
 #include <string.h>
 #include <math.h>
 #include <stdlib.h>

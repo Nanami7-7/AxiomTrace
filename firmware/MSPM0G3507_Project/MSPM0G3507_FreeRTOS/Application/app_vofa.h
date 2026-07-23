@@ -24,7 +24,7 @@ extern "C" {
 /* ======================== 包含 ======================== */
 #include <stdint.h>
 #include <stdbool.h>
-#include "app_main.h"
+#include "app_main.h"  /* 间接引入 project_config.h */
 
 /* ======================== 常量定义 ======================== */
 
@@ -40,14 +40,8 @@ extern "C" {
 /** 下行命令最大长度 */
 #define VOFA_CMD_MAX_LEN           (64U)
 
-/** PID参数允许的最大绝对值 (防止极端值导致控制不稳定) */
-#define VOFA_PID_PARAM_MAX         (100.0f)
-
-/** Target RPM 上限 (防止PID长期饱和) */
-#define VOFA_TARGET_RPM_MAX        (800.0f)
-
-/** Stable FireWater telemetry schema used by VOFA+ and the desktop GUI. */
-#define VOFA_TELEMETRY_CHANNEL_COUNT (11U)
+/* VOFA_PID_PARAM_MAX, VOFA_TARGET_RPM_MAX, VOFA_TELEMETRY_CHANNEL_COUNT
+ * 已迁移到 project_config.h 第14区, 通过 app_main.h 间接引入 */
 
 typedef enum {
     VOFA_CH_RPM_A = 0,

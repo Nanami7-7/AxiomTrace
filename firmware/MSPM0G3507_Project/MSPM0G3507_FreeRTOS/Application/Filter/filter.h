@@ -453,6 +453,94 @@ int filter_check_acc_quality(float ax, float ay, float az);
  */
 int filter_check_gyro_quality(float gx, float gy, float gz);
 
+/* ============================================================
+ * 滤波器配置类型与API (原 filter_config.h)
+ * 参数配置宏已迁移到 project_config.h
+ * ============================================================ */
+
+/** 参数来源类型枚举 */
+typedef enum {
+    PARAM_SOURCE_PAPER = 0,
+    PARAM_SOURCE_EMPIRICAL,
+    PARAM_SOURCE_DATASHEET,
+    PARAM_SOURCE_TUNED,
+    PARAM_SOURCE_COUNT
+} param_source_t;
+
+/** 参数描述结构体 */
+typedef struct {
+    filter_param_t  param;
+    float           default_value;
+    float           min_value;
+    float           max_value;
+    param_source_t  source_type;
+    const char     *source_name;
+    const char     *source_detail;
+    const char     *unit;
+} filter_param_desc_t;
+
+/** 退化策略枚举 */
+typedef enum {
+    DEGRADE_NONE = 0,
+    DEGRADE_STATIC_ONLY,
+    DEGRADE_GYRO_ONLY,
+    DEGRADE_ACC_ONLY,
+    DEGRADE_HOLD_LAST,
+    DEGRADE_COUNT
+} degrade_mode_t;
+
+/** 传感器质量状态 */
+typedef enum {
+    SENSOR_QUALITY_GOOD = 0,
+    SENSOR_QUALITY_NOISY,
+    SENSOR_QUALITY_SATURATED,
+    SENSOR_QUALITY_INVALID,
+    SENSOR_QUALITY_COUNT
+} sensor_quality_t;
+
+/** 退化策略配置 */
+typedef struct {
+    degrade_mode_t  mode;
+    float           acc_threshold_low;
+    float           acc_threshold_high;
+    float           gyro_threshold;
+    float           variance_threshold;
+    const char     *description;
+} degrade_config_t;
+
+/** 滤波器预设配置 */
+typedef enum {
+    FILTER_PRESET_DEFAULT = 0,
+    FILTER_PRESET_HIGH_PRECISION,
+    FILTER_PRESET_FAST_RESPONSE,
+    FILTER_PRESET_ROBUST,
+    FILTER_PRESET_LOW_POWER,
+    FILTER_PRESET_COUNT
+} filter_preset_t;
+
+/* 兼容旧引用: FILTER_ENABLE_* -> project_config.h 中的 FILTER_*_ENABLE */
+#define FILTER_ENABLE_COMPLEMENTARY  FILTER_COMP_ENABLE
+#define FILTER_ENABLE_LPF            FILTER_LPF_ENABLE
+#define FILTER_ENABLE_ESKF           FILTER_ESKF_ENABLE
+#define FILTER_ENABLE_LKF            FILTER_LKF_ENABLE
+#define FILTER_ENABLE_MAHONY         FILTER_MAHONY_ENABLE
+#define FILTER_ENABLE_MADGWICK      FILTER_MADGWICK_ENABLE
+#define FILTER_ENABLE_KF             FILTER_KF_ENABLE
+
+/* API函数声明 */
+const filter_param_desc_t* filter_config_get_params(filter_type_t type, int *count);
+float filter_config_get_default(filter_type_t type, filter_param_t param);
+int filter_config_validate(filter_type_t type, filter_param_t param, float value);
+float filter_config_clamp(filter_type_t type, filter_param_t param, float value);
+const degrade_config_t* filter_config_get_degrade(degrade_mode_t mode);
+sensor_quality_t filter_config_assess_quality(float ax, float ay, float az,
+                                               float gx, float gy, float gz);
+degrade_mode_t filter_config_select_degrade(sensor_quality_t acc_quality,
+                                            sensor_quality_t gyro_quality);
+void filter_config_apply_preset(filter_t *f, filter_preset_t preset);
+const char* filter_config_preset_name(filter_preset_t preset);
+void filter_config_print(filter_type_t type);
+
 #ifdef __cplusplus
 }
 #endif

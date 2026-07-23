@@ -17,47 +17,21 @@
 
 #include <stdint.h>
 #include <stdbool.h>
+#include "project_config.h"  /* MATHACL_ENABLE, MATHACL_ATAN2_HW, MATHACL_SINCOS_HW */
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
 /* ============================================================================
- * 编译开关
+ * 编译开关 - 配置已迁移到 project_config.h
+ * project_config.h 第21区已定义 BSP_MATHACL_ENABLE 等兼容宏
+ * 此处仅补充未在 project_config.h 中定义的编译标志
  * ============================================================================ */
 
 /**
- * @brief MATHACL 加速使能开关
- * 
- * 定义此宏以启用 MATHACL 硬件加速。
- * 未定义时使用软浮点回退路径。
- */
-#ifndef BSP_MATHACL_ENABLE
-#define BSP_MATHACL_ENABLE   /* 启用 MATHACL 硬件加速 */
-#endif
-
-/**
- * @brief 选择性硬件加速开关
- * 
- * 性能测试结果:
- *   SQRT:  hw 0.86x (慢) → 默认用软件
- *   ATAN2: hw 1.26x (快) → 默认用硬件
- *   SINCOS: hw 2.51x (快) → 默认用硬件
- *   ASIN:  hw 0.84x (慢) → 默认用软件 (内部调用 SQRT+ATAN2)
- */
-#ifdef BSP_MATHACL_ENABLE
-  #define BSP_MATHACL_ATAN2_HW    /* ATAN2 用硬件 (1.26x) */
-  #define BSP_MATHACL_SINCOS_HW   /* SINCOS 用硬件 (2.51x) */
-  /* SQRT 和 ASIN 用软件 (硬件更慢) */
-#endif
-
-/**
  * @brief 线程安全开关
- * 
  * 定义此宏以启用 MATHACL 硬件操作的线程安全保护。
- * 需要包含 OSAL (osal_api.h)。使用临界区保护寄存器访问。
- * 未定义时: 仅单任务安全 (当前默认行为, 兼容裸机初始化)
- * 定义后: 多任务安全 (临界区开销约 10-20 cycles)
  */
 /* #define BSP_MATHACL_THREAD_SAFE */
 

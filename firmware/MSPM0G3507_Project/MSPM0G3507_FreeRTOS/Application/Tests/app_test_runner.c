@@ -17,8 +17,8 @@
 #include "app_test_timer.h"
 #include "bsp_timer.h"
 #include "task_imu.h"
-#include "filter.h"
-#include "filter_config.h"   /* KF_Q_ANGLE_DEFAULT 等参数宏 */
+#include "filter.h"          /* filter_config 类型已合并到 filter.h */
+#include "project_config.h"  /* KF_Q_ANGLE_DEFAULT 等参数宏 */
 #include <stdio.h>
 #include <string.h>
 #include <math.h>   /* fabsf, sqrtf */

@@ -3,7 +3,7 @@
 #include "app_planner.h"
 #include "app_position_control.h"
 #include "filter.h"
-#include "filter_config.h"
+#include "project_config.h"  /* 滤波器参数宏 */
 
 #include <math.h>
 #include <stddef.h>

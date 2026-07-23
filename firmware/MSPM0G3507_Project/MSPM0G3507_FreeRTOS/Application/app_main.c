@@ -10,7 +10,7 @@
  */
 
 #include "app_main.h"
-#include "project_version.h"
+#include "project_config.h"  /* PROJECT_VERSION_* 已合并 */
 #include "app_vofa.h"
 #include "Tasks/task_control.h"
 #include "Tasks/task_menu.h"
@@ -25,7 +25,6 @@
 #include "app_model_id.h"
 #include "app_position_control.h"
 #include "hal_gpio.h"
-#include "project_config.h"
 #include "axiomtrace.h"
 #include "app_pid.h"
 

@@ -14,8 +14,8 @@
 #ifndef FILTER_INTERNAL_H
 #define FILTER_INTERNAL_H
 
-#include "filter.h"
-#include "filter_config.h"
+#include "filter.h"          /* filter_config 类型已合并到 filter.h */
+#include "project_config.h"  /* 滤波器参数宏 */
 
 #include <stdint.h>
 #include <stddef.h>

@@ -1,9 +1,21 @@
 /**
  * @file    project_config.h
- * @brief   项目硬件配置集中定义
- * @note    所有引脚映射、外设实例分配、硬件参数在此集中定义。
- *          更换硬件/引脚仅需修改此文件，无需改动驱动代码。
- *          引脚编号来源于ti_msp_dl_config.h(SysConfig生成)
+ * @brief   项目唯一配置入口
+ * @note    所有用户可调参数集中于此。修改后重新编译即可生效。
+ *          ti_msp_dl_config.h(SysConfig生成) 和 FreeRTOSConfig.h 保持独立。
+ *
+ * 配置分区:
+ *   1  版本信息        7  ADC配置
+ *   2  系统参数        8  IMU配置
+ *   3  LED             9  互补滤波
+ *   4  调试串口        10 位置-速度控制
+ *   5  电机驱动        11 时间频率派生
+ *   6  编码器          12 数学常量
+ *   13 FreeRTOS任务    18 MATHACL
+ *   14 菜单            19 编译验证
+ *   15 PID默认参数
+ *   16 滤波器编译开关
+ *   17 滤波器默认参数
  */
 #ifndef PROJECT_CONFIG_H
 #define PROJECT_CONFIG_H
@@ -17,581 +29,712 @@ extern "C" {
 #include "ti_msp_dl_config.h"
 
 /* ================================================================
- *  LED配置
- *  SysConfig已配置: GPIOA.14, PINCM36
+ * 1. 版本信息 (原 project_version.h)
  * ================================================================ */
-
-/** LED端口(GPIOA) */
-#define PRJ_LED_PORT            HAL_GPIO_PORT_A
-/** LED引脚编号 */
-#define PRJ_LED_PIN             LED_A27_PIN
+#define PROJECT_VERSION_MAJOR        (0U)
+#define PROJECT_VERSION_MINOR        (1U)
+#define PROJECT_VERSION_PATCH        (0U)
+#define PROJECT_VERSION_STRING       "0.1.0"
+#define PROJECT_PROTOCOL_VERSION     (1U)
+#define PROJECT_BOARD_NAME           "MSPM0G3507"
+#define PROJECT_MOTOR_DRIVER_NAME    "DRV8870"
 
 /* ================================================================
- *  调试UART配置
- *  SysConfig已配置: UART0, TX=PA10/PINCM21, RX=PA11/PINCM22
- *  波特率: 115200, 时钟: 40MHz
+ * 2. 系统参数
  * ================================================================ */
-
-/** 调试串口HAL实例 */
-#define PRJ_UART_DEBUG_ID       HAL_UART_DEBUG
+#define SYS_TICK_TIMER               HAL_TIMER_SYS_TICK
+#define SYS_CLK_HZ                   (80000000UL)
+#define BUS_CLK_HZ                   (40000000UL)
+#define MS_PER_S                     (1000U)
+#define MS_PER_MIN                   (60000U)
+#define US_PER_MS                    (1000U)
 
 /* ================================================================
- *  电机驱动选择与统一业务命令
- *
- *  分层关系:
- *    Application -> bsp_motor(统一门面) -> 芯片后端 -> HAL
- *
- *  默认使用 DRV8870；TB6612 是备用硬件后端。上层统一使用
- *  -PRJ_MOTOR_COMMAND_MAX ~ +PRJ_MOTOR_COMMAND_MAX，切换后端不改变
- *  PID、模型辨识和通信协议中的命令量纲。
+ * 3. LED配置
+ * SysConfig: GPIOA.14, PINCM36
+ * 注意: ti_msp_dl_config.h 已定义 LED_PORT (GPIOA), 此处重定义为
+ *       HAL_GPIO_PORT_A 以统一抽象层。先 #undef 避免重定义警告。
  * ================================================================ */
-#define PRJ_MOTOR_DRIVER_DRV8870    (1U)
-#define PRJ_MOTOR_DRIVER_TB6612     (2U)
-
-#ifndef PRJ_MOTOR_DRIVER
-#define PRJ_MOTOR_DRIVER            PRJ_MOTOR_DRIVER_DRV8870
-#endif
-
-#if (PRJ_MOTOR_DRIVER != PRJ_MOTOR_DRIVER_DRV8870) && \
-    (PRJ_MOTOR_DRIVER != PRJ_MOTOR_DRIVER_TB6612)
-#error "PRJ_MOTOR_DRIVER must select DRV8870 or TB6612"
-#endif
-
-/** 后端无关的有符号业务命令最大绝对值。 */
-#define PRJ_MOTOR_COMMAND_MAX       (500U)
-
-/** 电机安装方向；正命令必须统一对应车体前进方向。 */
-#define PRJ_MOTOR_A_INSTALL_DIR_SIGN  (+1)
-#define PRJ_MOTOR_B_INSTALL_DIR_SIGN  (+1)
-#define PRJ_MOTOR_C_INSTALL_DIR_SIGN  (+1)
-#define PRJ_MOTOR_D_INSTALL_DIR_SIGN  (+1)
+#undef LED_PORT
+#define LED_PORT                     HAL_GPIO_PORT_A
+#define LED_PIN                       LED_A27_PIN
 
 /* ================================================================
- *  TB6612 备用后端配置
- *
- *  当前 Config/empty.syscfg 是 DRV8870 默认板级配置，不包含以下8个
- *  方向GPIO。选择 TB6612 前必须在独立 SysConfig 板级配置中恢复
- *  MOTOR_AIN1~MOTOR_DIN2，并重新生成 ti_msp_dl_config.c/h。
+ * 4. 调试串口配置
+ * SysConfig: UART0, TX=PA10, RX=PA11, 115200bps
  * ================================================================ */
-#define PRJ_TB6612_PWM_TIMER        HAL_TIMER_PWM_MOTOR
-#define PRJ_TB6612_PWM_CLK_HZ       ((unsigned long)(PWM_MOTOR_INST_CLK_FREQ))
-#define PRJ_TB6612_PWM_PERIOD       (1000U)
-#define PRJ_TB6612_POWER_STARTUP_MS (1U)
+#define UART_DEBUG_ID                HAL_UART_DEBUG
 
-/** 设为1时由软件控制TB6612 STBY；0表示STBY已由硬件固定为有效。 */
-#ifndef PRJ_TB6612_STANDBY_CONTROL_ENABLE
-#define PRJ_TB6612_STANDBY_CONTROL_ENABLE (0U)
+/* ================================================================
+ * 5. 电机驱动配置
+ *
+ * 分层: Application -> bsp_motor(门面) -> 芯片后端 -> HAL
+ * 上层统一使用 -MOTOR_COMMAND_MAX ~ +MOTOR_COMMAND_MAX
+ * ================================================================ */
+#define MOTOR_DRV8870                (1U)
+#define MOTOR_TB6612                 (2U)
+
+#ifndef MOTOR_DRIVER
+#define MOTOR_DRIVER                  MOTOR_DRV8870
 #endif
 
-/** 仅供编译门面判断板级引脚与STBY配置是否完整；禁止手工强制置1。 */
-#define PRJ_TB6612_BOARD_CONFIG_AVAILABLE (0U)
+#define MOTOR_COMMAND_MAX            (500U)
 
-#if (PRJ_MOTOR_DRIVER == PRJ_MOTOR_DRIVER_TB6612)
+#define MOTOR_A_DIR_SIGN             (+1)
+#define MOTOR_B_DIR_SIGN             (+1)
+#define MOTOR_C_DIR_SIGN             (+1)
+#define MOTOR_D_DIR_SIGN             (+1)
+
+/* ---- DRV8870 (锁相驱动, 默认) ----
+ * 硬件: MCU PWM -> DRV8870 IN1(直连) + S8050反相器 -> IN2
+ * 正转: duty > DEADBAND_HIGH; 反转: duty < DEADBAND_LOW
+ * 死区: DEADBAND_LOW~DEADBAND_HIGH; 零命令: NEUTRAL
+ */
+#define DRV8870_PWM_TIMER            HAL_TIMER_PWM_MOTOR
+#define DRV8870_PWM_CLK_HZ           ((unsigned long)(PWM_MOTOR_INST_CLK_FREQ))
+#define DRV8870_PWM_PERIOD           (1000U)
+#define DRV8870_COMMAND_MAX          MOTOR_COMMAND_MAX
+
+#define DRV8870_DEADBAND_LOW         (40U)
+#define DRV8870_NEUTRAL              (50U)
+#define DRV8870_DEADBAND_HIGH        (55U)
+#define DRV8870_ZERO_DUTY_OFFSET     (0)
+
+#define DRV8870_POWER_PORT           HAL_GPIO_PORT_B
+#define DRV8870_POWER_PIN            POWER_pb19_PIN
+#define DRV8870_POWER_ON_LEVEL        true
+#define DRV8870_POWER_OFF_LEVEL       false
+#define DRV8870_POWER_STARTUP_MS      (20U)
+#define DRV8870_POWER_SETTLE_MS       (5U)
+
+#ifndef DRV8870_FACTORY_TEST_ENABLE
+#define DRV8870_FACTORY_TEST_ENABLE   (0U)
+#endif
+
+#define DRV8870_A_PWM_CH             (0U)
+#define DRV8870_B_PWM_CH             (1U)
+#define DRV8870_C_PWM_CH             (2U)
+#define DRV8870_D_PWM_CH             (3U)
+
+#define DRV8870_CONFIGS { \
+    { DRV8870_A_PWM_CH, MOTOR_A_DIR_SIGN, DRV8870_ZERO_DUTY_OFFSET, \
+      DRV8870_DEADBAND_LOW, DRV8870_NEUTRAL, DRV8870_DEADBAND_HIGH }, \
+    { DRV8870_B_PWM_CH, MOTOR_B_DIR_SIGN, DRV8870_ZERO_DUTY_OFFSET, \
+      DRV8870_DEADBAND_LOW, DRV8870_NEUTRAL, DRV8870_DEADBAND_HIGH }, \
+    { DRV8870_C_PWM_CH, MOTOR_C_DIR_SIGN, DRV8870_ZERO_DUTY_OFFSET, \
+      DRV8870_DEADBAND_LOW, DRV8870_NEUTRAL, DRV8870_DEADBAND_HIGH }, \
+    { DRV8870_D_PWM_CH, MOTOR_D_DIR_SIGN, DRV8870_ZERO_DUTY_OFFSET, \
+      DRV8870_DEADBAND_LOW, DRV8870_NEUTRAL, DRV8870_DEADBAND_HIGH }, \
+}
+
+/* ---- TB6612 (备用, 需在SysConfig恢复方向GPIO) ---- */
+#define TB6612_PWM_TIMER             HAL_TIMER_PWM_MOTOR
+#define TB6612_PWM_CLK_HZ            ((unsigned long)(PWM_MOTOR_INST_CLK_FREQ))
+#define TB6612_PWM_PERIOD             (1000U)
+#define TB6612_POWER_STARTUP_MS       (1U)
+
+#ifndef TB6612_STANDBY_CONTROL_ENABLE
+#define TB6612_STANDBY_CONTROL_ENABLE (0U)
+#endif
+#define TB6612_BOARD_CONFIG_AVAILABLE  (0U)
+
+#if (MOTOR_DRIVER == MOTOR_TB6612)
 #if !defined(MOTOR_AIN1_PIN) || !defined(MOTOR_AIN2_PIN) || \
     !defined(MOTOR_BIN1_PIN) || !defined(MOTOR_BIN2_PIN) || \
     !defined(MOTOR_CIN1_PIN) || !defined(MOTOR_CIN2_PIN) || \
     !defined(MOTOR_DIN1_PIN) || !defined(MOTOR_DIN2_PIN)
-#error "TB6612 selected: restore MOTOR_AIN1..MOTOR_DIN2 in SysConfig and regenerate ti_msp_dl_config"
+#error "TB6612 selected: restore MOTOR_AIN1..MOTOR_DIN2 in SysConfig"
 #else
+#define TB6612_A_PWM_CH             (0U)
+#define TB6612_A_IN1_PORT           HAL_GPIO_PORT_B
+#define TB6612_A_IN1_PIN            MOTOR_AIN1_PIN
+#define TB6612_A_IN2_PORT           HAL_GPIO_PORT_B
+#define TB6612_A_IN2_PIN            MOTOR_AIN2_PIN
 
-/* 历史TB6612板级方向GPIO；若备用板改版，只修改本节。 */
-#define PRJ_TB6612_A_PWM_CH      (0U) /* M1 / 右后 */
-#define PRJ_TB6612_A_IN1_PORT    HAL_GPIO_PORT_B
-#define PRJ_TB6612_A_IN1_PIN     MOTOR_AIN1_PIN  /* PB24 */
-#define PRJ_TB6612_A_IN2_PORT    HAL_GPIO_PORT_B
-#define PRJ_TB6612_A_IN2_PIN     MOTOR_AIN2_PIN  /* PB20 */
+#define TB6612_B_PWM_CH             (1U)
+#define TB6612_B_IN1_PORT           HAL_GPIO_PORT_A
+#define TB6612_B_IN1_PIN            MOTOR_BIN1_PIN
+#define TB6612_B_IN2_PORT           HAL_GPIO_PORT_A
+#define TB6612_B_IN2_PIN            MOTOR_BIN2_PIN
 
-#define PRJ_TB6612_B_PWM_CH      (1U) /* M2 / 右前 */
-#define PRJ_TB6612_B_IN1_PORT    HAL_GPIO_PORT_A
-#define PRJ_TB6612_B_IN1_PIN     MOTOR_BIN1_PIN  /* PA24 */
-#define PRJ_TB6612_B_IN2_PORT    HAL_GPIO_PORT_A
-#define PRJ_TB6612_B_IN2_PIN     MOTOR_BIN2_PIN  /* PA31 */
+#define TB6612_C_PWM_CH             (2U)
+#define TB6612_C_IN1_PORT           HAL_GPIO_PORT_A
+#define TB6612_C_IN1_PIN            MOTOR_CIN1_PIN
+#define TB6612_C_IN2_PORT           HAL_GPIO_PORT_A
+#define TB6612_C_IN2_PIN            MOTOR_CIN2_PIN
 
-#define PRJ_TB6612_C_PWM_CH      (2U) /* M3 / 左前 */
-#define PRJ_TB6612_C_IN1_PORT    HAL_GPIO_PORT_A
-#define PRJ_TB6612_C_IN1_PIN     MOTOR_CIN1_PIN  /* PA3 */
-#define PRJ_TB6612_C_IN2_PORT    HAL_GPIO_PORT_A
-#define PRJ_TB6612_C_IN2_PIN     MOTOR_CIN2_PIN  /* PA7 */
+#define TB6612_D_PWM_CH             (3U)
+#define TB6612_D_IN1_PORT           HAL_GPIO_PORT_B
+#define TB6612_D_IN1_PIN            MOTOR_DIN1_PIN
+#define TB6612_D_IN2_PORT           HAL_GPIO_PORT_B
+#define TB6612_D_IN2_PIN            MOTOR_DIN2_PIN
 
-#define PRJ_TB6612_D_PWM_CH      (3U) /* M4 / 左后 */
-#define PRJ_TB6612_D_IN1_PORT    HAL_GPIO_PORT_B
-#define PRJ_TB6612_D_IN1_PIN     MOTOR_DIN1_PIN  /* PB6 */
-#define PRJ_TB6612_D_IN2_PORT    HAL_GPIO_PORT_B
-#define PRJ_TB6612_D_IN2_PIN     MOTOR_DIN2_PIN  /* PB7 */
-
-#define PRJ_TB6612_CONFIGS { \
-    { PRJ_TB6612_A_PWM_CH, PRJ_TB6612_A_IN1_PORT, PRJ_TB6612_A_IN1_PIN, \
-      PRJ_TB6612_A_IN2_PORT, PRJ_TB6612_A_IN2_PIN, \
-      PRJ_MOTOR_A_INSTALL_DIR_SIGN }, \
-    { PRJ_TB6612_B_PWM_CH, PRJ_TB6612_B_IN1_PORT, PRJ_TB6612_B_IN1_PIN, \
-      PRJ_TB6612_B_IN2_PORT, PRJ_TB6612_B_IN2_PIN, \
-      PRJ_MOTOR_B_INSTALL_DIR_SIGN }, \
-    { PRJ_TB6612_C_PWM_CH, PRJ_TB6612_C_IN1_PORT, PRJ_TB6612_C_IN1_PIN, \
-      PRJ_TB6612_C_IN2_PORT, PRJ_TB6612_C_IN2_PIN, \
-      PRJ_MOTOR_C_INSTALL_DIR_SIGN }, \
-    { PRJ_TB6612_D_PWM_CH, PRJ_TB6612_D_IN1_PORT, PRJ_TB6612_D_IN1_PIN, \
-      PRJ_TB6612_D_IN2_PORT, PRJ_TB6612_D_IN2_PIN, \
-      PRJ_MOTOR_D_INSTALL_DIR_SIGN }, \
+#define TB6612_CONFIGS { \
+    { TB6612_A_PWM_CH, TB6612_A_IN1_PORT, TB6612_A_IN1_PIN, \
+      TB6612_A_IN2_PORT, TB6612_A_IN2_PIN, MOTOR_A_DIR_SIGN }, \
+    { TB6612_B_PWM_CH, TB6612_B_IN1_PORT, TB6612_B_IN1_PIN, \
+      TB6612_B_IN2_PORT, TB6612_B_IN2_PIN, MOTOR_B_DIR_SIGN }, \
+    { TB6612_C_PWM_CH, TB6612_C_IN1_PORT, TB6612_C_IN1_PIN, \
+      TB6612_C_IN2_PORT, TB6612_C_IN2_PIN, MOTOR_C_DIR_SIGN }, \
+    { TB6612_D_PWM_CH, TB6612_D_IN1_PORT, TB6612_D_IN1_PIN, \
+      TB6612_D_IN2_PORT, TB6612_D_IN2_PIN, MOTOR_D_DIR_SIGN }, \
 }
 
-#if (PRJ_TB6612_STANDBY_CONTROL_ENABLE != 0U)
-#if !defined(PRJ_TB6612_STANDBY_PORT) || \
-    !defined(PRJ_TB6612_STANDBY_PIN) || \
-    !defined(PRJ_TB6612_STANDBY_ACTIVE_LEVEL)
+#if (TB6612_STANDBY_CONTROL_ENABLE != 0U)
+#if !defined(TB6612_STANDBY_PORT) || !defined(TB6612_STANDBY_PIN) || \
+    !defined(TB6612_STANDBY_ACTIVE_LEVEL)
 #error "TB6612 STBY control enabled: define port, pin and active level"
 #else
-#define PRJ_TB6612_POWER_CONFIG { \
-    true, PRJ_TB6612_STANDBY_PORT, PRJ_TB6612_STANDBY_PIN, \
-    PRJ_TB6612_STANDBY_ACTIVE_LEVEL \
+#define TB6612_POWER_CONFIG { \
+    true, TB6612_STANDBY_PORT, TB6612_STANDBY_PIN, TB6612_STANDBY_ACTIVE_LEVEL \
 }
-#undef PRJ_TB6612_BOARD_CONFIG_AVAILABLE
-#define PRJ_TB6612_BOARD_CONFIG_AVAILABLE (1U)
+#undef TB6612_BOARD_CONFIG_AVAILABLE
+#define TB6612_BOARD_CONFIG_AVAILABLE (1U)
 #endif
 #else
-#define PRJ_TB6612_POWER_CONFIG { false, HAL_GPIO_PORT_A, 0U, true }
-#undef PRJ_TB6612_BOARD_CONFIG_AVAILABLE
-#define PRJ_TB6612_BOARD_CONFIG_AVAILABLE (1U)
+#define TB6612_POWER_CONFIG { false, HAL_GPIO_PORT_A, 0U, true }
+#undef TB6612_BOARD_CONFIG_AVAILABLE
+#define TB6612_BOARD_CONFIG_AVAILABLE (1U)
 #endif
 #endif /* direction GPIO macros available */
 #endif /* selected TB6612 */
 
+/* 后端无关别名 */
+#if (MOTOR_DRIVER == MOTOR_DRV8870)
+#define MOTOR_PWM_TIMER              DRV8870_PWM_TIMER
+#define MOTOR_PWM_CLK_HZ             DRV8870_PWM_CLK_HZ
+#define MOTOR_PWM_PERIOD             DRV8870_PWM_PERIOD
+#define MOTOR_POWER_STARTUP_MS       DRV8870_POWER_STARTUP_MS
+#define MOTOR_POWER_SETTLE_MS        DRV8870_POWER_SETTLE_MS
+#else
+#define MOTOR_PWM_TIMER              TB6612_PWM_TIMER
+#define MOTOR_PWM_CLK_HZ             TB6612_PWM_CLK_HZ
+#define MOTOR_PWM_PERIOD             TB6612_PWM_PERIOD
+#define MOTOR_POWER_STARTUP_MS       TB6612_POWER_STARTUP_MS
+#define MOTOR_POWER_SETTLE_MS        (0U)
+#endif
+
 /* ================================================================
- *  编码器捕获配置
- *  SysConfig已配置: TIMG7/TIMA1/TIMG6/TIMG0, 组合捕获模式(脉宽+周期)
+ * 6. 编码器配置
+ * SysConfig: TIMG7/TIMA1/TIMG6/TIMG0, 组合捕获模式
  * ================================================================ */
+#define ENC_PPR                      (13U)
+#define ENC_GEAR_NUM                  (20U)
+#define ENC_GEAR_DEN                  (1U)
+#define ENC_DECODE_MULT               (2U)
 
-/**
- * 电机与编码器机械参数。
- *
- * PPR定义为编码器A相在电机轴旋转一圈时的完整脉冲周期数；当前捕获逻辑
- * 同时统计A相上升沿和下降沿，因此解码倍频固定为2。减速比用分数表示，
- * 可准确配置20:1、30:1或298:11等非整数标称减速比。
- */
-#define PRJ_MOTOR_ENCODER_PPR              (13U)
-#define PRJ_MOTOR_GEAR_RATIO_NUMERATOR     (20U)
-#define PRJ_MOTOR_GEAR_RATIO_DENOMINATOR   (1U)
-#define PRJ_ENCODER_DECODE_MULTIPLIER      (2U)
+#define ENC_OUTPUT_PPR \
+    ((ENC_PPR * ENC_GEAR_NUM * ENC_DECODE_MULT) / ENC_GEAR_DEN)
 
-#if (PRJ_MOTOR_ENCODER_PPR == 0U)
-#error "PRJ_MOTOR_ENCODER_PPR must be greater than zero"
-#endif
-#if (PRJ_MOTOR_GEAR_RATIO_NUMERATOR == 0U) || \
-    (PRJ_MOTOR_GEAR_RATIO_DENOMINATOR == 0U)
-#error "Motor gear-ratio numerator and denominator must be greater than zero"
-#endif
-#if (PRJ_ENCODER_DECODE_MULTIPLIER != 2U)
-#error "Current encoder ISR counts both A-phase edges; multiplier must remain 2"
-#endif
-#if (((PRJ_MOTOR_ENCODER_PPR * PRJ_MOTOR_GEAR_RATIO_NUMERATOR * \
-       PRJ_ENCODER_DECODE_MULTIPLIER) % \
-      PRJ_MOTOR_GEAR_RATIO_DENOMINATOR) != 0U)
-#error "Configured PPR and gear ratio do not produce an integer output-shaft count"
-#endif
+/* 兼容旧引用 */
+#define ENC_PULSES_PER_REV            ENC_OUTPUT_PPR
 
-/** 输出轴每转计数，用于位置和RPM换算。 */
-#define PRJ_MOTOR_OUTPUT_PULSES_PER_REV \
-    ((PRJ_MOTOR_ENCODER_PPR * PRJ_MOTOR_GEAR_RATIO_NUMERATOR * \
-      PRJ_ENCODER_DECODE_MULTIPLIER) / \
-     PRJ_MOTOR_GEAR_RATIO_DENOMINATOR)
+#define ENC_LF_TIMER                  HAL_TIMER_CAPTURE_LF
+#define ENC_LB_TIMER                  HAL_TIMER_CAPTURE_LB
+#define ENC_RF_TIMER                  HAL_TIMER_CAPTURE_RF
+#define ENC_RB_TIMER                  HAL_TIMER_CAPTURE_RB
 
-/** 兼容现有编码器BSP调用。 */
-#define PRJ_ENCODER_PULSES_PER_REV  PRJ_MOTOR_OUTPUT_PULSES_PER_REV
+#define ENC_LF_IRQ_HANDLER            M3_INST_IRQHandler
+#define ENC_LB_IRQ_HANDLER            M4_INST_IRQHandler
+#define ENC_RF_IRQ_HANDLER            M2_INST_IRQHandler
+#define ENC_RB_IRQ_HANDLER            M1_INST_IRQHandler
 
-/** 左前编码器HAL实例 */
-#define PRJ_ENCODER_LF_TIMER    HAL_TIMER_CAPTURE_LF
-/** 左后编码器HAL实例 */
-#define PRJ_ENCODER_LB_TIMER    HAL_TIMER_CAPTURE_LB
-/** 右前编码器HAL实例 */
-#define PRJ_ENCODER_RF_TIMER    HAL_TIMER_CAPTURE_RF
-/** 右后编码器HAL实例 */
-#define PRJ_ENCODER_RB_TIMER    HAL_TIMER_CAPTURE_RB
+#define ENC_LF_B_PORT                 HAL_GPIO_PORT_A
+#define ENC_LB_B_PORT                 HAL_GPIO_PORT_A
+#define ENC_RF_B_PORT                 HAL_GPIO_PORT_A
+#define ENC_RB_B_PORT                 HAL_GPIO_PORT_A
 
-/**
- * @brief SysConfig-generated encoder timer ISR mapping.
- * @note  The logical wheel order retains its A-phase capture timer allocation:
- *        LF TIMG7/M3, LB TIMA1/M4, RF TIMG6/M2, RB TIMG0/M1.
- */
-#define PRJ_ENCODER_LF_IRQ_HANDLER  M3_INST_IRQHandler
-#define PRJ_ENCODER_LB_IRQ_HANDLER  M4_INST_IRQHandler
-#define PRJ_ENCODER_RF_IRQ_HANDLER  M2_INST_IRQHandler
-#define PRJ_ENCODER_RB_IRQ_HANDLER  M1_INST_IRQHandler
-/** 编码器B相端口(SysConfig已配置) */
-#define PRJ_ENCODER_LF_B_PORT        HAL_GPIO_PORT_A
-#define PRJ_ENCODER_LB_B_PORT        HAL_GPIO_PORT_A
-#define PRJ_ENCODER_RF_B_PORT        HAL_GPIO_PORT_A
-#define PRJ_ENCODER_RB_B_PORT        HAL_GPIO_PORT_A
-/** Left-front encoder B phase: PA25 (SysConfig M3_B). */
-#define PRJ_ENCODER_LF_B_PIN    ENCODER_M3_B_PIN
-/** Left-back encoder B phase: PA4 (SysConfig M4_B). */
-#define PRJ_ENCODER_LB_B_PIN    ENCODER_M4_B_PIN
-/** Right-front encoder B phase: PA14 (SysConfig M2_B). */
-#define PRJ_ENCODER_RF_B_PIN    ENCODER_M2_B_PIN
-/** Right-back encoder B phase: PA13 (SysConfig M1_B). */
-#define PRJ_ENCODER_RB_B_PIN    ENCODER_M1_B_PIN
+#define ENC_LF_B_PIN                  ENCODER_M3_B_PIN
+#define ENC_LB_B_PIN                  ENCODER_M4_B_PIN
+#define ENC_RF_B_PIN                  ENCODER_M2_B_PIN
+#define ENC_RB_B_PIN                  ENCODER_M1_B_PIN
 
-/**
- * 编码器安装方向修正：车体前进时四路编码器RPM应统一为正。
- * 若只更换某一路电机/编码器安装方向，只修改对应宏，不改ISR判向逻辑。
- */
-#define PRJ_ENCODER_LF_DIR_SIGN (-1)
-#define PRJ_ENCODER_LB_DIR_SIGN (-1)
-#define PRJ_ENCODER_RF_DIR_SIGN (+1)
-#define PRJ_ENCODER_RB_DIR_SIGN (+1)
+#define ENC_LF_DIR_SIGN               (-1)
+#define ENC_LB_DIR_SIGN               (-1)
+#define ENC_RF_DIR_SIGN               (+1)
+#define ENC_RB_DIR_SIGN               (+1)
 
-/**
- * 电机输出通道与编码器反馈的物理对应关系。
- * A/M1=右后(RB)，B/M2=右前(RF)，C/M3=左前(LF)，D/M4=左后(LB)。
- * task_control.c据此将编码器反馈和位置控制目标的车轮顺序
- * (LF/LB/RF/RB)统一重排为电机顺序(A/B/C/D)。
- */
-#define PRJ_MOTOR_A_ENCODER_ID  BSP_ENCODER_RB
-#define PRJ_MOTOR_B_ENCODER_ID  BSP_ENCODER_RF
-#define PRJ_MOTOR_C_ENCODER_ID  BSP_ENCODER_LF
-#define PRJ_MOTOR_D_ENCODER_ID  BSP_ENCODER_LB
-#define PRJ_MOTOR_ENCODER_MAP { \
-    PRJ_MOTOR_A_ENCODER_ID, PRJ_MOTOR_B_ENCODER_ID, \
-    PRJ_MOTOR_C_ENCODER_ID, PRJ_MOTOR_D_ENCODER_ID \
+/* 电机A/M1=右后(RB), B/M2=右前(RF), C/M3=左前(LF), D/M4=左后(LB) */
+#define MOTOR_A_ENC_ID               BSP_ENCODER_RB
+#define MOTOR_B_ENC_ID               BSP_ENCODER_RF
+#define MOTOR_C_ENC_ID               BSP_ENCODER_LF
+#define MOTOR_D_ENC_ID               BSP_ENCODER_LB
+#define MOTOR_ENC_MAP                { \
+    MOTOR_A_ENC_ID, MOTOR_B_ENC_ID, MOTOR_C_ENC_ID, MOTOR_D_ENC_ID \
 }
 
-/** 编码器配置表(顺序需与BSP_ENCODER_x一致) */
-#define PRJ_ENCODER_CONFIGS { \
-		{ PRJ_ENCODER_LF_TIMER, PRJ_ENCODER_LF_B_PORT, PRJ_ENCODER_LF_B_PIN, \
-			PRJ_ENCODER_LF_DIR_SIGN }, \
-		{ PRJ_ENCODER_LB_TIMER, PRJ_ENCODER_LB_B_PORT, PRJ_ENCODER_LB_B_PIN, \
-			PRJ_ENCODER_LB_DIR_SIGN }, \
-		{ PRJ_ENCODER_RF_TIMER, PRJ_ENCODER_RF_B_PORT, PRJ_ENCODER_RF_B_PIN, \
-			PRJ_ENCODER_RF_DIR_SIGN }, \
-		{ PRJ_ENCODER_RB_TIMER, PRJ_ENCODER_RB_B_PORT, PRJ_ENCODER_RB_B_PIN, \
-			PRJ_ENCODER_RB_DIR_SIGN }, \
+#define ENC_CONFIGS { \
+    { ENC_LF_TIMER, ENC_LF_B_PORT, ENC_LF_B_PIN, ENC_LF_DIR_SIGN }, \
+    { ENC_LB_TIMER, ENC_LB_B_PORT, ENC_LB_B_PIN, ENC_LB_DIR_SIGN }, \
+    { ENC_RF_TIMER, ENC_RF_B_PORT, ENC_RF_B_PIN, ENC_RF_DIR_SIGN }, \
+    { ENC_RB_TIMER, ENC_RB_B_PORT, ENC_RB_B_PIN, ENC_RB_DIR_SIGN }, \
 }
 
 /* ================================================================
- *  ADC配置
- *  SysConfig已配置: ADC0, 12位单次采样, 通道0(PA27), VDDA参考3.3V
+ * 7. ADC配置
+ * SysConfig: ADC0, 12位, PA27, VDDA=3.3V
  * ================================================================ */
-
-/** 电压ADC HAL实例 */
-#define PRJ_ADC_VOLTAGE_ID      HAL_ADC_VOLTAGE
-/** ADC参考电压(mV) */
-#define PRJ_ADC_VREF_MV         (3300U)
-/** ADC分辨率(12位) */
-#define PRJ_ADC_RESOLUTION      (4096U)
+#define ADC_VOLTAGE_ID               HAL_ADC_VOLTAGE
+#define ADC_VREF_MV                   (3300U)
+#define ADC_RESOLUTION                (4096U)
 
 /* ================================================================
- *  硬件SPI配置 (LSM6DSR)
- *  SPI1: SCK=PB9, MOSI=PA18, MISO=PA16, CS=PA25(独立GPIO)
- *  注意: SPI 引脚由 SysConfig 配置，spi_bridge.c 使用 ti_msp_dl_config.h 定义
+ * 8. IMU配置
  * ================================================================ */
+#define IMU_TASK_PERIOD_MS            (10U)
+#define IMU_UART_TELEMETRY_ENABLE     (0U)
 
 /* ================================================================
- *  软件I2C配置 (已弃用，替换为硬件SPI)
- *  配置已移除，保留注释供历史参考
+ * 9. 互补滤波配置
  * ================================================================ */
-
-/* MPU6050 配置已移除，替换为 LSM6DSR */
+#define CF_ALPHA                      (0.98f)
+#define WHEEL_DIAMETER_MM             (60.0f)
+#define WHEEL_RADIUS_M                (WHEEL_DIAMETER_MM * 0.001f * 0.5f)
+#define WHEEL_BASE_M                  (0.15f)
 
 /* ================================================================
- *  LSM6DSR六轴传感器配置
- *  通过硬件SPI接口通信(SPI1: SCK=PB9, MOSI=PA18, MISO=PA16, CS=PA25)
- *  注意: 需要在SysConfig中配置SPI1外设
- *  说明: 量程/采样率/滤波器类型由 bsp_lsm6dsr.c 直接使用
- *        lsm6dsr.h 中的枚举常量, 此处不重复定义
+ * 10. 位置-速度控制配置
  * ================================================================ */
+#define POS_PID_KP                    (0.5f)
+#define POS_PID_KI                    (0.0f)
+#define POS_PID_KD                    (0.0f)
+
+#define YAW_PID_KP                    (2.0f)
+#define YAW_PID_KI                    (0.0f)
+#define YAW_PID_KD                    (0.0f)
+
+#define PLANNER_ACCEL                 (500.0f)
+#define PLANNER_MAX_RPM               (300.0f)
+#define REACHED_THRESHOLD_POS         (5.0f)
+#define REACHED_THRESHOLD_YAW         (0.5f)
+#define REACHED_COUNT                  (10U)
+#define MODE_TRANSITION_MS            (1000U)
 
 /* ================================================================
- *  IMU任务配置
- * ================================================================ */
-
-/** IMU采集任务周期(ms), 100Hz */
-#define PRJ_IMU_TASK_PERIOD_MS       (10U)
-
-/**
- * @brief Background IMU CSV telemetry on the shared UART0.
- * @note  Disabled by default: IMU sampling and filtering continue, but no
- *        periodic DMA frame is injected into CLI/diagnostic output.
- *        Re-enable only after the UART TX arbitration work package is verified.
- */
-#define PRJ_IMU_UART_TELEMETRY_ENABLE (0U)
-/* IMU任务优先级与栈大小由 app_main.h 中 APP_TASK_PRIORITY_IMU /
- * APP_TASK_STACK_IMU 统一管理, 此处不重复定义 */
-
-/* ================================================================
- *  互补滤波器配置
- * ================================================================ */
-
-/** 互补滤波系数(0~1, 0=全信任IMU, 1=全信任编码器) */
-#define PRJ_CF_ALPHA                 (0.98f)
-/** 轮胎外径(mm)，应以负载状态下的有效滚动直径标定。 */
-#define PRJ_MOTOR_WHEEL_DIAMETER_MM  (60.0f)
-/** 轮子有效滚动半径(m)，由轮径统一派生，避免重复配置。 */
-#define PRJ_CF_WHEEL_RADIUS_M \
-    (PRJ_MOTOR_WHEEL_DIAMETER_MM * 0.001f * 0.5f)
-/** 轮距(m, 左右轮接地点中心距离)，应按实车标定。 */
-#define PRJ_CF_WHEEL_BASE_M          (0.15f)
-
-/* ================================================================
- *  位置-速度串级控制配置
- *  用于 app_position_control.c, 在速度环(5ms)之上增加
- *  位置环/角度环(20ms), 实现精准定位和转向控制
- * ================================================================ */
-
-/** 位置环PID参数(位置式PID, 输出RPM修正) */
-#define APP_POS_PID_KP              (0.5f)
-#define APP_POS_PID_KI              (0.0f)
-#define APP_POS_PID_KD              (0.0f)
-
-/** 角度环PID参数(位置式PID, 输出差速RPM) */
-#define APP_YAW_PID_KP              (2.0f)
-#define APP_YAW_PID_KI              (0.0f)
-#define APP_YAW_PID_KD              (0.0f)
-
-/** 规划器加速度(RPM/s, 控制加减速平滑度) */
-#define APP_PLANNER_ACCEL           (500.0f)
-
-/** 最大目标RPM(速度限幅, 防止过速) */
-#define APP_PLANNER_MAX_RPM         (300.0f)
-
-/** 到位判定阈值(位置:脉冲, 角度:度) */
-#define APP_REACHED_THRESHOLD_POS   (5.0f)
-#define APP_REACHED_THRESHOLD_YAW   (0.5f)
-
-/** 到位持续周期数(20ms×10=200ms) */
-#define APP_REACHED_COUNT           (10U)
-
-/** 模式切换过渡时长(ms, 1秒渐变) */
-#define APP_MODE_TRANSITION_MS      (1000U)
-
-/* ================================================================
- *  系统参数
- * ================================================================ */
-
-/** 系统定时器HAL实例 */
-#define PRJ_SYS_TICK_TIMER      HAL_TIMER_SYS_TICK
-
-/* ================================================================
- *  数学常量
- * ================================================================ */
-
-/** 圆周率(float精度, 供应用层避免魔数 3.14159265f) */
-#define PRJ_PI_F                (3.14159265358979f)
-/** 圆周率(double精度, 供滤波器等需要double精度的模块使用) */
-#define PRJ_PI_D                (3.14159265358979323846)
-/** 2π(float精度) */
-#define PRJ_TWO_PI_F            (6.28318530717958647692f)
-/** π/2(float精度) */
-#define PRJ_PI_2_F              (1.57079632679489661923f)
-/** 弧度→角度转换系数(float): 180/π */
-#define PRJ_RAD2DEG_F           (57.29577951308232087685f)
-/** 角度→弧度转换系数(float): π/180 */
-#define PRJ_DEG2RAD_F           (0.01745329251994329577f)
-
-/* ================================================================
- *  时间转换常量(无符号整型, 用于避免魔数 1000/60000 等)
- *  使用浮点上下文时需显式 (float) cast
- * ================================================================ */
-
-/** 每秒毫秒数 */
-#define PRJ_MS_PER_S            (1000U)
-/** 每分钟毫秒数(60s × 1000ms) */
-#define PRJ_MS_PER_MIN          (60000U)
-/** 每毫秒微秒数 */
-#define PRJ_US_PER_MS           (1000U)
-
-/** 标准重力加速度 m/s² (float精度) */
-#define PRJ_GRAVITY_MS2         (9.80665f)
-
-/** 16位无符号整数模数 (2^16), 用于定时器计数器回绕修正 */
-#define PRJ_UINT16_MOD          (65536U)
-
-/* ================================================================
- *  派生频率宏（sysconfig 未暴露，需开发者手动维护与 sysconfig 一致性）
+ * 11. 时间频率派生宏
+ * (sysconfig未暴露, 需手动维护与sysconfig一致性)
  *
- *  以下频率值在 ti_msp_dl_config.c 中以注释形式存在，但 sysconfig
- *  未将其作为 #define 暴露在 ti_msp_dl_config.h 中。此处集中定义，
- *  供应用层引用，避免硬编码魔数。
- *
- *  ⚠️ 维护规则：修改 sysconfig 中对应定时器的分频/预分频后，
- *     必须同步更新以下宏的值，并重新验证依赖此宏的所有代码。
- *
- *  计算依据（来自 ti_msp_dl_config.c 注释）：
- *    BUSCLK = ULPCLK = CPUCLK/2 = 40MHz
- *    CAPTURE timer: BUSCLK/4/(199+1) = 100kHz
- *    TIMER_0 (TIMG8): BUSCLK/8/(9+1) = 500kHz
+ * BUSCLK = ULPCLK = CPUCLK/2 = 40MHz
+ * CAPTURE: BUSCLK/4/(199+1) = 100kHz
+ * TIMER_0: BUSCLK/8/(9+1) = 500kHz
  * ================================================================ */
-
-/**
- * 编码器捕获定时器实际频率(Hz)
- * 来源: ti_msp_dl_config.c 中 CAPTURE_* 的 divideRatio=DIVIDE_4, prescale=199
- * 计算: BUSCLK(40MHz) / 4 / (199+1) = 100000 Hz
- * 用途: bsp_encoder.c / app_debug.c 的 M/T 法 RPM 计算
- * 依赖: 6000000LL = 60 × PRJ_CAPTURE_TIMER_FREQ_HZ
- *
- * ⚠️ sysconfig 修改 CAPTURE_* 的分频/prescale 后必须更新此值
- */
-#define PRJ_CAPTURE_TIMER_FREQ_HZ   (100000UL)
-
-/**
- * 系统微秒计时器实际频率(Hz)
- * 来源: ti_msp_dl_config.c 中 TIMER_0 (TIMG8) 的 divideRatio=DIVIDE_8, prescale=9
- * 计算: BUSCLK(40MHz) / 8 / (9+1) = 500000 Hz (2us/tick)
- * 用途: platform_mspm0.c get_tick_us() 的微秒换算
- * 依赖: tick_to_us = count / (PRJ_SYS_TICK_TIMER_FREQ_HZ / 1000000UL)
- *        即 count * 2U (当前硬编码)
- *
- * ⚠️ sysconfig 修改 TIMER_0 的分频/prescale 后必须更新此值
- */
-#define PRJ_SYS_TICK_TIMER_FREQ_HZ  (500000UL)
-
-/**
- * 微秒计时器: 1 个 tick 对应的微秒数(×1000 扩大精度避免浮点)
- * 计算: 1000000 / PRJ_SYS_TICK_TIMER_FREQ_HZ = 2 (即 2us/tick)
- * 用途: platform_mspm0.c:85 替换硬编码 * 2U
- *
- * ⚠️ 与 PRJ_SYS_TICK_TIMER_FREQ_HZ 联动，修改一处需同步检查
- */
-#define PRJ_SYS_TICK_US_PER_TICK_X1000  \
-    (1000000UL * 1000UL / PRJ_SYS_TICK_TIMER_FREQ_HZ)
-
-/**
- * 编码器 M/T 法 RPM 计算常数
- * 计算: 60 × PRJ_CAPTURE_TIMER_FREQ_HZ = 60 × 100000 = 6000000
- * 用途: bsp_encoder.c / app_debug.c 中 RPM = (delta × 60 × timer_freq) / (pulses × period)
- *
- * ⚠️ 与 PRJ_CAPTURE_TIMER_FREQ_HZ 联动
- */
-#define PRJ_ENCODER_RPM_CALC_CONST  \
-    (60LL * (int64_t)PRJ_CAPTURE_TIMER_FREQ_HZ)
+#define CAPTURE_TIMER_FREQ_HZ         (100000UL)
+#define SYS_TICK_TIMER_FREQ_HZ        (500000UL)
+#define SYS_TICK_US_PER_TICK_X1000 \
+    (1000000UL * 1000UL / SYS_TICK_TIMER_FREQ_HZ)
+#define ENCODER_RPM_CALC_CONST \
+    (60LL * (int64_t)CAPTURE_TIMER_FREQ_HZ)
 
 /* ================================================================
- *  DRV8870 电机驱动配置 (锁相驱动 Locked Anti-Phase)
- *  与 TB6612 驱动并存, 可通过编译宏切换使用
- *  SysConfig已配置: TIMA0, 4通道PWM, 20MHz时钟, 20kHz周期
- *  通道: C0=PA8, C1=PA9, C2=PB17, C3=PB2
- *  驱动芯片: DRV8870DDAR (锁相驱动)
- *  硬件拓扑: MCU PWM → DRV8870 IN1(直连) + S8050反相器 → IN2
- *  正转有效区: PWM占空比 > PRJ_DRV8870_DEADBAND_HIGH_PERCENT
- *  反转有效区: PWM占空比 < PRJ_DRV8870_DEADBAND_LOW_PERCENT
- *  停止死区: 40%~55%，零命令输出50%中性占空比
- *  无需方向引脚(IN1/IN2由硬件反相器自动生成互补信号)
+ * 12. 数学常量
+ * ================================================================ */
+#define PI_F                          (3.14159265358979f)
+#define PI_D                          (3.14159265358979323846)
+#define TWO_PI_F                      (6.28318530717958647692f)
+#define PI_2_F                        (1.57079632679489661923f)
+#define RAD2DEG_F                     (57.29577951308232087685f)
+#define DEG2RAD_F                     (0.01745329251994329577f)
+#define GRAVITY_MS2                   (9.80665f)
+#define UINT16_MOD                    (65536U)
+
+/* ================================================================
+ * 13. FreeRTOS任务配置
+ * ================================================================ */
+#define TASK_PRIO_CONTROL             (5U)
+#define TASK_PRIO_IMU                 (4U)
+#define TASK_PRIO_MENU                (2U)
+
+#define TASK_STACK_CONTROL            (256U)
+#define TASK_STACK_IMU                (1280U)
+#define TASK_STACK_MENU               (384U)
+
+#define CONTROL_PERIOD_MS             (5U)
+#define MENU_POLL_PERIOD_MS           (100U)
+#define RPM_OUTPUT_PERIOD_MS           (30U)
+
+/* ================================================================
+ * 14. 菜单与VOFA配置
+ * ================================================================ */
+#define MENU_LINE_BUF_SIZE            (64U)
+
+/* VOFA+ 通信参数 */
+#define VOFA_PID_PARAM_MAX           (100.0f)   /* PID参数最大绝对值 */
+#define VOFA_TARGET_RPM_MAX          (800.0f)   /* 目标RPM上限 */
+#define VOFA_TELEMETRY_CHANNEL_COUNT (11U)      /* 遥测通道数 */
+
+/* ================================================================
+ * 15. PID默认参数
+ * ================================================================ */
+#define PID_KP_DEFAULT                (0.8f)
+#define PID_KI_DEFAULT                (0.3f)
+#define PID_KD_DEFAULT                (0.0f)
+
+#define FF_PID_KP_DEFAULT             (0.5f)
+#define FF_PID_KI_DEFAULT             (0.1f)
+#define FF_PID_KD_DEFAULT             (0.0f)
+
+/* ================================================================
+ * 16. 滤波器编译开关 (原 filter_config.h)
+ * 修改后需 Rebuild All。值为1的算法被编译并允许运行时切换。
+ * ================================================================ */
+#ifndef FILTER_COMP_ENABLE
+#define FILTER_COMP_ENABLE            (0)
+#endif
+#ifndef FILTER_LPF_ENABLE
+#define FILTER_LPF_ENABLE             (0)
+#endif
+#ifndef FILTER_ESKF_ENABLE
+#define FILTER_ESKF_ENABLE            (0)
+#endif
+#ifndef FILTER_LKF_ENABLE
+#define FILTER_LKF_ENABLE             (0)
+#endif
+#ifndef FILTER_MAHONY_ENABLE
+#define FILTER_MAHONY_ENABLE          (0)
+#endif
+#ifndef FILTER_MADGWICK_ENABLE
+#define FILTER_MADGWICK_ENABLE        (0)
+#endif
+#ifndef FILTER_KF_ENABLE
+#define FILTER_KF_ENABLE              (1)
+#endif
+
+#ifndef FILTER_DEBUG_VERBOSE
+#define FILTER_DEBUG_VERBOSE          (0)
+#endif
+
+/* ================================================================
+ * 17. 滤波器默认参数 (原 filter_config.h)
  * ================================================================ */
 
-/** DRV8870 PWM定时器HAL实例(复用TIMA0) */
-#define PRJ_DRV8870_PWM_TIMER     HAL_TIMER_PWM_MOTOR
-/** PWM时钟频率(Hz) - 引用 sysconfig 暴露的宏 */
-#define PRJ_DRV8870_PWM_CLK_HZ    ((unsigned long)(PWM_MOTOR_INST_CLK_FREQ))
-/** PWM周期值(20kHz = 1000个20MHz时钟周期) */
-#define PRJ_DRV8870_PWM_PERIOD    (1000U)
-/** 有符号速度命令最大绝对值；业务层、PID和模型辨识均应保持一致。 */
-#define PRJ_DRV8870_SPEED_COMMAND_MAX PRJ_MOTOR_COMMAND_MAX
+/* 互补滤波器 */
+#define COMP_ALPHA_DEFAULT            (0.98f)
+#define COMP_ALPHA_MIN                (0.90f)
+#define COMP_ALPHA_MAX                (0.99f)
+#define COMP_ALPHA_DEFAULT_DB         (0.98)
+#define COMP_ALPHA_INV_DB             (0.02)
 
-/**
- * 实测机械死区边界（绝对PWM占空比百分数）。
- * 0%~39.9%为反转有效区，40%~55%为停止死区，55.1%~100%为正转有效区。
- * bsp_drv8870_set_speed()会把非零有符号命令分段映射到死区之外；
- * 工厂示波器接口仍是原始绝对compare，可直接进入死区用于测量。
- */
-#define PRJ_DRV8870_DEADBAND_LOW_PERCENT     (40U)
-#define PRJ_DRV8870_NEUTRAL_PERCENT          (50U)
-#define PRJ_DRV8870_DEADBAND_HIGH_PERCENT    (55U)
+/* LPF */
+#define LPF_CUTOFF_DEFAULT            (10.0f)
+#define LPF_CUTOFF_MIN                (1.0f)
+#define LPF_CUTOFF_MAX                (50.0f)
 
-#if (PRJ_DRV8870_DEADBAND_LOW_PERCENT == 0U) || \
-    (PRJ_DRV8870_DEADBAND_HIGH_PERCENT >= 100U) || \
-    (PRJ_DRV8870_DEADBAND_LOW_PERCENT >= \
-     PRJ_DRV8870_DEADBAND_HIGH_PERCENT)
+/* EKF/ESKF */
+#define EKF_Q_ANGLE_DEFAULT           (0.001f)
+#define EKF_Q_ANGLE_MIN               (0.0001f)
+#define EKF_Q_ANGLE_MAX               (0.1f)
+#define EKF_Q_BIAS_DEFAULT            (0.002f)
+#define EKF_Q_BIAS_MIN                (0.0001f)
+#define EKF_Q_BIAS_MAX                (0.1f)
+#define EKF_R_MEASURE_DEFAULT         (0.001f)
+#define EKF_R_MEASURE_MIN             (0.0001f)
+#define EKF_R_MEASURE_MAX             (1.0f)
+#define EKF_BIAS_LIMIT_DEFAULT        (20.0f)
+#define EKF_BIAS_LIMIT_MIN            (5.0f)
+#define EKF_BIAS_LIMIT_MAX            (50.0f)
+#define EKF_CHI2_THRESHOLD_DEFAULT    (11.34f)
+#define EKF_CHI2_THRESHOLD_MIN        (5.0f)
+#define EKF_CHI2_THRESHOLD_MAX        (20.0f)
+#define EKF_R_ADAPT_ENABLE_DEFAULT    (0)
+#define EKF_R_ADAPT_FACTOR_MIN        (0.1f)
+#define EKF_R_ADAPT_FACTOR_MAX        (10.0f)
+
+/* Mahony */
+#define MAHONY_KP_DEFAULT             (10.0f)
+#define MAHONY_KP_MIN                 (0.1f)
+#define MAHONY_KP_MAX                 (10.0f)
+#define MAHONY_KI_DEFAULT             (0.3f)
+#define MAHONY_KI_MIN                 (0.0f)
+#define MAHONY_KI_MAX                 (0.5f)
+#define MAHONY_ACC_GATE_LOW           (0.9f)
+#define MAHONY_ACC_GATE_HIGH          (1.1f)
+#define MAHONY_GYRO_SAT_TH            (212.0f)
+#define MAHONY_BIAS_LIMIT             (20.0f)
+#define MAHONY_STATIC_GYRO_TH         (2.0f)
+#define MAHONY_STATIC_ACC_TH          (0.05f)
+#define MAHONY_KP_STATIC_BOOST        (1.5f)
+#define MAHONY_KP_DYN_ACC_FACTOR      (0.7f)
+#define MAHONY_KI_DYN1_FACTOR         (0.1f)
+#define MAHONY_KI_DYN2_FACTOR         (0.01f)
+#define MAHONY_KI_ACC_POOR            (0.5f)
+#define MAHONY_INTEGRAL_LIMIT         (0.5f)
+#define KF_ZUPT_AXIS_GATE             (0.5f)
+
+/* Madgwick */
+#define MADGWICK_BETA_DEFAULT         (0.5f)
+#define MADGWICK_BETA_MIN             (0.001f)
+#define MADGWICK_BETA_MAX             (0.5f)
+
+/* KF (纯卡尔曼) */
+#define KF_Q_ANGLE_DEFAULT            (0.003f)
+#define KF_Q_ANGLE_MIN                (0.0001f)
+#define KF_Q_ANGLE_MAX                (0.01f)
+#define KF_Q_BIAS_DEFAULT             (0.001f)
+#define KF_Q_BIAS_MIN                 (0.0001f)
+#define KF_Q_BIAS_MAX                 (0.01f)
+#define KF_R_MEASURE_DEFAULT          (0.03f)
+#define KF_R_MEASURE_MIN              (0.001f)
+#define KF_R_MEASURE_MAX              (0.5f)
+#define KF_ANGLE_MIN_DEFAULT         (-180.0f)
+#define KF_ANGLE_MAX_DEFAULT          (180.0f)
+#define KF_R_ZUPT_DEFAULT             (1e6f)
+#define KF_R_ZUPT_MIN                 (0.0001f)
+#define KF_R_ZUPT_MAX                 (1e6f)
+
+/* 退化策略 */
+#define DEGRADE_ACC_LOW              (0.5f)
+#define DEGRADE_ACC_HIGH             (2.0f)
+#define DEGRADE_GYRO_THRESHOLD       (400.0f)
+#define DEGRADE_VARIANCE_THRESH      (0.01f)
+
+/* ================================================================
+ * 18. MATHACL配置 (原 bsp_mathacl.h)
+ *
+ * 性能测试: SQRT hw 0.86x(慢), ATAN2 hw 1.26x, SINCOS hw 2.51x
+ * ================================================================ */
+#ifndef MATHACL_ENABLE
+#define MATHACL_ENABLE                (1)
+#endif
+
+#if (MATHACL_ENABLE != 0)
+  #ifndef MATHACL_ATAN2_HW
+  #define MATHACL_ATAN2_HW            (1)
+  #endif
+  #ifndef MATHACL_SINCOS_HW
+  #define MATHACL_SINCOS_HW           (1)
+  #endif
+#endif
+
+/* ================================================================
+ * 19. IMU校准与自适应参数 (原 bsp_lsm6dsr.h)
+ * ================================================================ */
+#ifndef IMU_CALIB_SAMPLES
+#define IMU_CALIB_SAMPLES             (300)
+#endif
+#ifndef IMU_CALIB_SETTLE_MS
+#define IMU_CALIB_SETTLE_MS          (50)
+#endif
+#ifndef IMU_CALIB_ACC_MAG_REF
+#define IMU_CALIB_ACC_MAG_REF        (1.0f)
+#endif
+#ifndef IMU_CALIB_ACC_MAG_TOL
+#define IMU_CALIB_ACC_MAG_TOL        (0.065f)
+#endif
+#ifndef IMU_CALIB_ACC_DELTA_MAX
+#define IMU_CALIB_ACC_DELTA_MAX      (0.08f)
+#endif
+#ifndef IMU_CALIB_SAMPLE_DELAY_MS
+#define IMU_CALIB_SAMPLE_DELAY_MS    (9)
+#endif
+
+#ifndef IMU_ACC_VAR_WINDOW
+#define IMU_ACC_VAR_WINDOW            (10)
+#endif
+#ifndef IMU_DT_READ_COMPENSATION_US
+#define IMU_DT_READ_COMPENSATION_US  (200U)
+#endif
+#ifndef IMU_ACC_VAR_THRESHOLD
+#define IMU_ACC_VAR_THRESHOLD        (0.0008f)
+#endif
+#ifndef IMU_ALPHA_MOVING
+#define IMU_ALPHA_MOVING              (0.99f)
+#endif
+#ifndef IMU_ALPHA_STATIONARY
+#define IMU_ALPHA_STATIONARY          (0.30f)
+#endif
+#ifndef IMU_ALPHA_SMOOTH_STEP
+#define IMU_ALPHA_SMOOTH_STEP         (0.15f)
+#endif
+
+#ifndef IMU_BIAS_STATIONARY_RATE
+#define IMU_BIAS_STATIONARY_RATE      (0.1f)
+#endif
+#ifndef IMU_BIAS_STATIONARY_RATE_Z
+#define IMU_BIAS_STATIONARY_RATE_Z    (0.1f)
+#endif
+#ifndef IMU_GYRO_MOTION_THRESHOLD
+#define IMU_GYRO_MOTION_THRESHOLD     (5.0f)
+#endif
+
+#ifndef IMU_ODR_ALIGN
+#define IMU_ODR_ALIGN                 (0)
+#endif
+#define IMU_DT_ANOMALY_MIN_S          (0.003)
+#define IMU_DT_ANOMALY_MAX_S          (0.030)
+
+/* ================================================================
+ * 20. 编译期配置验证
+ * ================================================================ */
+#if (MOTOR_DRIVER != MOTOR_DRV8870) && (MOTOR_DRIVER != MOTOR_TB6612)
+#error "MOTOR_DRIVER must be MOTOR_DRV8870 or MOTOR_TB6612"
+#endif
+
+#if (ENC_PPR == 0U)
+#error "ENC_PPR must be greater than zero"
+#endif
+#if (ENC_GEAR_NUM == 0U) || (ENC_GEAR_DEN == 0U)
+#error "Encoder gear ratio numerator and denominator must be > 0"
+#endif
+#if (ENC_DECODE_MULT != 2U)
+#error "Current encoder ISR counts both A-phase edges; multiplier must be 2"
+#endif
+#if (((ENC_PPR * ENC_GEAR_NUM * ENC_DECODE_MULT) % ENC_GEAR_DEN) != 0U)
+#error "Configured PPR and gear ratio do not produce an integer count"
+#endif
+
+#if (DRV8870_DEADBAND_LOW == 0U) || (DRV8870_DEADBAND_HIGH >= 100U) || \
+    (DRV8870_DEADBAND_LOW >= DRV8870_DEADBAND_HIGH)
 #error "DRV8870 deadband must satisfy 0 < low < high < 100"
 #endif
-#if (PRJ_DRV8870_NEUTRAL_PERCENT < PRJ_DRV8870_DEADBAND_LOW_PERCENT) || \
-    (PRJ_DRV8870_NEUTRAL_PERCENT > PRJ_DRV8870_DEADBAND_HIGH_PERCENT)
+#if (DRV8870_NEUTRAL < DRV8870_DEADBAND_LOW) || \
+    (DRV8870_NEUTRAL > DRV8870_DEADBAND_HIGH)
 #error "DRV8870 neutral duty must lie inside the configured deadband"
 #endif
-
-/** Motor power gate: PB19 is active-high; SysConfig initializes it low. */
-#define PRJ_DRV8870_POWER_PORT       HAL_GPIO_PORT_B
-#define PRJ_DRV8870_POWER_PIN        POWER_pb19_PIN
-#define PRJ_DRV8870_POWER_ON_LEVEL   true
-#define PRJ_DRV8870_POWER_OFF_LEVEL  false
-/** Allow VIN_OUT/DRV8870 to settle after enable and before power-off. */
-#define PRJ_DRV8870_POWER_STARTUP_MS  (20U)
-#define PRJ_DRV8870_POWER_SETTLE_MS   (5U)
-
-/*
- * 零点偏移补偿 (S8050 反相器开关不对称 + DRV8870 传播延迟)
- * 文档参考: DRV8870技术文档 §3.2.2, 典型偏移 2~5 步
- * 需实测标定: 找到使电机恰好静止的 duty 值, 减去 PWM_PERIOD/2
- */
-#define PRJ_DRV8870_ZERO_DUTY_OFFSET  (0)
-
-/*
- * DRV8870 工厂硬件脉冲测试闸门。默认关闭，防止菜单/调试命令在
- * 非受控环境下驱动电机。仅在电机悬空或车体可靠支撑、实验室电源
- * 已限流、示波器/电流观测准备完成时，才可临时改为 1 并单独编译。
- * 正式运行固件必须保持 0。
- */
-#ifndef PRJ_DRV8870_FACTORY_TEST_ENABLE
-#define PRJ_DRV8870_FACTORY_TEST_ENABLE       (0U)
-#endif
-
-/* ---- 电机A/M1(右后): CC0=PA8 ---- */
-#define PRJ_DRV8870_A_PWM_CH      (0U)
-
-/* ---- 电机B/M2(右前): CC1=PA9 ---- */
-#define PRJ_DRV8870_B_PWM_CH      (1U)
-
-/* ---- 电机C/M3(左前): CC2=PB17 ---- */
-#define PRJ_DRV8870_C_PWM_CH      (2U)
-
-/* ---- 电机D/M4(左后): CC3=PB2 ---- */
-#define PRJ_DRV8870_D_PWM_CH      (3U)
-
-
-/** 兼容原DRV8870配置宏名称。 */
-#define PRJ_DRV8870_A_DIR_SIGN  PRJ_MOTOR_A_INSTALL_DIR_SIGN
-#define PRJ_DRV8870_B_DIR_SIGN  PRJ_MOTOR_B_INSTALL_DIR_SIGN
-#define PRJ_DRV8870_C_DIR_SIGN  PRJ_MOTOR_C_INSTALL_DIR_SIGN
-#define PRJ_DRV8870_D_DIR_SIGN  PRJ_MOTOR_D_INSTALL_DIR_SIGN
-
-/** DRV8870 电机配置表(顺序需与BSP_DRV8870_x一致) */
-#define PRJ_DRV8870_CONFIGS { \
-    { PRJ_DRV8870_A_PWM_CH, PRJ_DRV8870_A_DIR_SIGN, \
-      PRJ_DRV8870_ZERO_DUTY_OFFSET, \
-      PRJ_DRV8870_DEADBAND_LOW_PERCENT, PRJ_DRV8870_NEUTRAL_PERCENT, \
-      PRJ_DRV8870_DEADBAND_HIGH_PERCENT }, \
-    { PRJ_DRV8870_B_PWM_CH, PRJ_DRV8870_B_DIR_SIGN, \
-      PRJ_DRV8870_ZERO_DUTY_OFFSET, \
-      PRJ_DRV8870_DEADBAND_LOW_PERCENT, PRJ_DRV8870_NEUTRAL_PERCENT, \
-      PRJ_DRV8870_DEADBAND_HIGH_PERCENT }, \
-    { PRJ_DRV8870_C_PWM_CH, PRJ_DRV8870_C_DIR_SIGN, \
-      PRJ_DRV8870_ZERO_DUTY_OFFSET, \
-      PRJ_DRV8870_DEADBAND_LOW_PERCENT, PRJ_DRV8870_NEUTRAL_PERCENT, \
-      PRJ_DRV8870_DEADBAND_HIGH_PERCENT }, \
-    { PRJ_DRV8870_D_PWM_CH, PRJ_DRV8870_D_DIR_SIGN, \
-      PRJ_DRV8870_ZERO_DUTY_OFFSET, \
-      PRJ_DRV8870_DEADBAND_LOW_PERCENT, PRJ_DRV8870_NEUTRAL_PERCENT, \
-      PRJ_DRV8870_DEADBAND_HIGH_PERCENT }, \
-}
-#if (PRJ_DRV8870_SPEED_COMMAND_MAX != (PRJ_DRV8870_PWM_PERIOD / 2U))
+#if (DRV8870_COMMAND_MAX != (DRV8870_PWM_PERIOD / 2U))
 #error "DRV8870 backend requires command max equal to half of PWM period"
 #endif
 
-/* 上层只使用这些所选后端别名，不直接引用芯片专用参数。 */
-#if (PRJ_MOTOR_DRIVER == PRJ_MOTOR_DRIVER_DRV8870)
-#define PRJ_MOTOR_PWM_TIMER         PRJ_DRV8870_PWM_TIMER
-#define PRJ_MOTOR_PWM_CLK_HZ        PRJ_DRV8870_PWM_CLK_HZ
-#define PRJ_MOTOR_PWM_PERIOD        PRJ_DRV8870_PWM_PERIOD
-#define PRJ_MOTOR_POWER_STARTUP_MS  PRJ_DRV8870_POWER_STARTUP_MS
-#define PRJ_MOTOR_POWER_SETTLE_MS   PRJ_DRV8870_POWER_SETTLE_MS
-#else
-#define PRJ_MOTOR_PWM_TIMER         PRJ_TB6612_PWM_TIMER
-#define PRJ_MOTOR_PWM_CLK_HZ        PRJ_TB6612_PWM_CLK_HZ
-#define PRJ_MOTOR_PWM_PERIOD        PRJ_TB6612_PWM_PERIOD
-#define PRJ_MOTOR_POWER_STARTUP_MS  PRJ_TB6612_POWER_STARTUP_MS
-#define PRJ_MOTOR_POWER_SETTLE_MS   (0U)
+#if !(FILTER_COMP_ENABLE || FILTER_LPF_ENABLE || FILTER_ESKF_ENABLE || \
+      FILTER_LKF_ENABLE || FILTER_MAHONY_ENABLE || FILTER_MADGWICK_ENABLE || \
+      FILTER_KF_ENABLE)
+#error "At least one filter implementation must be enabled"
 #endif
 
-#if (PRJ_DRV8870_FACTORY_TEST_ENABLE != 0U) && \
-    (PRJ_MOTOR_DRIVER != PRJ_MOTOR_DRIVER_DRV8870)
+#if (DRV8870_FACTORY_TEST_ENABLE != 0U) && (MOTOR_DRIVER != MOTOR_DRV8870)
 #error "DRV8870 factory-test target requires the DRV8870 motor backend"
 #endif
+
+/* ================================================================
+ * 21. 旧前缀兼容映射 (PRJ_ -> 新前缀)
+ * 保证现有代码无需修改, 新代码使用简化前缀
+ * ================================================================ */
+#define PRJ_VERSION_MAJOR           PROJECT_VERSION_MAJOR
+#define PRJ_VERSION_MINOR           PROJECT_VERSION_MINOR
+#define PRJ_VERSION_PATCH           PROJECT_VERSION_PATCH
+#define PRJ_VERSION_STRING           PROJECT_VERSION_STRING
+#define PRJ_PROTOCOL_VERSION          PROJECT_PROTOCOL_VERSION
+#define PRJ_BOARD_NAME               PROJECT_BOARD_NAME
+#define PRJ_MOTOR_DRIVER_NAME         PROJECT_MOTOR_DRIVER_NAME
+
+#define PRJ_LED_PORT                 LED_PORT
+#define PRJ_LED_PIN                  LED_PIN
+#define PRJ_UART_DEBUG_ID            UART_DEBUG_ID
+
+#define PRJ_MOTOR_DRIVER             MOTOR_DRIVER
+#define PRJ_MOTOR_DRIVER_DRV8870    MOTOR_DRV8870
+#define PRJ_MOTOR_DRIVER_TB6612     MOTOR_TB6612
+#define PRJ_MOTOR_COMMAND_MAX        MOTOR_COMMAND_MAX
+#define PRJ_MOTOR_A_INSTALL_DIR_SIGN MOTOR_A_DIR_SIGN
+#define PRJ_MOTOR_B_INSTALL_DIR_SIGN MOTOR_B_DIR_SIGN
+#define PRJ_MOTOR_C_INSTALL_DIR_SIGN MOTOR_C_DIR_SIGN
+#define PRJ_MOTOR_D_INSTALL_DIR_SIGN MOTOR_D_DIR_SIGN
+
+#define PRJ_TB6612_PWM_TIMER         TB6612_PWM_TIMER
+#define PRJ_TB6612_PWM_CLK_HZ        TB6612_PWM_CLK_HZ
+#define PRJ_TB6612_PWM_PERIOD        TB6612_PWM_PERIOD
+#define PRJ_TB6612_POWER_STARTUP_MS  TB6612_POWER_STARTUP_MS
+#define PRJ_TB6612_STANDBY_CONTROL_ENABLE TB6612_STANDBY_CONTROL_ENABLE
+#define PRJ_TB6612_BOARD_CONFIG_AVAILABLE TB6612_BOARD_CONFIG_AVAILABLE
+#define PRJ_TB6612_CONFIGS           TB6612_CONFIGS
+#define PRJ_TB6612_POWER_CONFIG     TB6612_POWER_CONFIG
+
+#define PRJ_DRV8870_PWM_TIMER        DRV8870_PWM_TIMER
+#define PRJ_DRV8870_PWM_CLK_HZ       DRV8870_PWM_CLK_HZ
+#define PRJ_DRV8870_PWM_PERIOD       DRV8870_PWM_PERIOD
+#define PRJ_DRV8870_SPEED_COMMAND_MAX DRV8870_COMMAND_MAX
+#define PRJ_DRV8870_DEADBAND_LOW_PERCENT  DRV8870_DEADBAND_LOW
+#define PRJ_DRV8870_NEUTRAL_PERCENT       DRV8870_NEUTRAL
+#define PRJ_DRV8870_DEADBAND_HIGH_PERCENT DRV8870_DEADBAND_HIGH
+#define PRJ_DRV8870_ZERO_DUTY_OFFSET      DRV8870_ZERO_DUTY_OFFSET
+#define PRJ_DRV8870_POWER_PORT       DRV8870_POWER_PORT
+#define PRJ_DRV8870_POWER_PIN        DRV8870_POWER_PIN
+#define PRJ_DRV8870_POWER_ON_LEVEL    DRV8870_POWER_ON_LEVEL
+#define PRJ_DRV8870_POWER_OFF_LEVEL   DRV8870_POWER_OFF_LEVEL
+#define PRJ_DRV8870_POWER_STARTUP_MS  DRV8870_POWER_STARTUP_MS
+#define PRJ_DRV8870_POWER_SETTLE_MS   DRV8870_POWER_SETTLE_MS
+#define PRJ_DRV8870_FACTORY_TEST_ENABLE DRV8870_FACTORY_TEST_ENABLE
+#define PRJ_DRV8870_A_PWM_CH         DRV8870_A_PWM_CH
+#define PRJ_DRV8870_B_PWM_CH         DRV8870_B_PWM_CH
+#define PRJ_DRV8870_C_PWM_CH         DRV8870_C_PWM_CH
+#define PRJ_DRV8870_D_PWM_CH         DRV8870_D_PWM_CH
+#define PRJ_DRV8870_A_DIR_SIGN       MOTOR_A_DIR_SIGN
+#define PRJ_DRV8870_B_DIR_SIGN       MOTOR_B_DIR_SIGN
+#define PRJ_DRV8870_C_DIR_SIGN       MOTOR_C_DIR_SIGN
+#define PRJ_DRV8870_D_DIR_SIGN       MOTOR_D_DIR_SIGN
+#define PRJ_DRV8870_CONFIGS          DRV8870_CONFIGS
+
+#define PRJ_MOTOR_PWM_TIMER          MOTOR_PWM_TIMER
+#define PRJ_MOTOR_PWM_CLK_HZ         MOTOR_PWM_CLK_HZ
+#define PRJ_MOTOR_PWM_PERIOD         MOTOR_PWM_PERIOD
+#define PRJ_MOTOR_POWER_STARTUP_MS   MOTOR_POWER_STARTUP_MS
+#define PRJ_MOTOR_POWER_SETTLE_MS    MOTOR_POWER_SETTLE_MS
+
+#define PRJ_MOTOR_ENCODER_PPR        ENC_PPR
+#define PRJ_MOTOR_GEAR_RATIO_NUMERATOR ENC_GEAR_NUM
+#define PRJ_MOTOR_GEAR_RATIO_DENOMINATOR ENC_GEAR_DEN
+#define PRJ_ENCODER_DECODE_MULTIPLIER ENC_DECODE_MULT
+#define PRJ_MOTOR_OUTPUT_PULSES_PER_REV ENC_OUTPUT_PPR
+#define PRJ_ENCODER_PULSES_PER_REV  ENC_PULSES_PER_REV
+#define PRJ_ENCODER_LF_TIMER         ENC_LF_TIMER
+#define PRJ_ENCODER_LB_TIMER         ENC_LB_TIMER
+#define PRJ_ENCODER_RF_TIMER         ENC_RF_TIMER
+#define PRJ_ENCODER_RB_TIMER         ENC_RB_TIMER
+#define PRJ_ENCODER_LF_IRQ_HANDLER   ENC_LF_IRQ_HANDLER
+#define PRJ_ENCODER_LB_IRQ_HANDLER   ENC_LB_IRQ_HANDLER
+#define PRJ_ENCODER_RF_IRQ_HANDLER   ENC_RF_IRQ_HANDLER
+#define PRJ_ENCODER_RB_IRQ_HANDLER   ENC_RB_IRQ_HANDLER
+#define PRJ_ENCODER_LF_B_PORT        ENC_LF_B_PORT
+#define PRJ_ENCODER_LB_B_PORT        ENC_LB_B_PORT
+#define PRJ_ENCODER_RF_B_PORT        ENC_RF_B_PORT
+#define PRJ_ENCODER_RB_B_PORT        ENC_RB_B_PORT
+#define PRJ_ENCODER_LF_B_PIN        ENC_LF_B_PIN
+#define PRJ_ENCODER_LB_B_PIN        ENC_LB_B_PIN
+#define PRJ_ENCODER_RF_B_PIN        ENC_RF_B_PIN
+#define PRJ_ENCODER_RB_B_PIN        ENC_RB_B_PIN
+#define PRJ_ENCODER_LF_DIR_SIGN      ENC_LF_DIR_SIGN
+#define PRJ_ENCODER_LB_DIR_SIGN      ENC_LB_DIR_SIGN
+#define PRJ_ENCODER_RF_DIR_SIGN      ENC_RF_DIR_SIGN
+#define PRJ_ENCODER_RB_DIR_SIGN      ENC_RB_DIR_SIGN
+#define PRJ_MOTOR_A_ENCODER_ID      MOTOR_A_ENC_ID
+#define PRJ_MOTOR_B_ENCODER_ID      MOTOR_B_ENC_ID
+#define PRJ_MOTOR_C_ENCODER_ID      MOTOR_C_ENC_ID
+#define PRJ_MOTOR_D_ENCODER_ID      MOTOR_D_ENC_ID
+#define PRJ_MOTOR_ENCODER_MAP        MOTOR_ENC_MAP
+#define PRJ_ENCODER_CONFIGS          ENC_CONFIGS
+
+#define PRJ_ADC_VOLTAGE_ID           ADC_VOLTAGE_ID
+#define PRJ_ADC_VREF_MV              ADC_VREF_MV
+#define PRJ_ADC_RESOLUTION           ADC_RESOLUTION
+
+#define PRJ_IMU_TASK_PERIOD_MS       IMU_TASK_PERIOD_MS
+#define PRJ_IMU_UART_TELEMETRY_ENABLE IMU_UART_TELEMETRY_ENABLE
+
+#define PRJ_CF_ALPHA                 CF_ALPHA
+#define PRJ_MOTOR_WHEEL_DIAMETER_MM  WHEEL_DIAMETER_MM
+#define PRJ_CF_WHEEL_RADIUS_M        WHEEL_RADIUS_M
+#define PRJ_CF_WHEEL_BASE_M          WHEEL_BASE_M
+
+#define PRJ_SYS_TICK_TIMER           SYS_TICK_TIMER
+#define PRJ_PI_F                      PI_F
+#define PRJ_PI_D                      PI_D
+#define PRJ_TWO_PI_F                  TWO_PI_F
+#define PRJ_PI_2_F                    PI_2_F
+#define PRJ_RAD2DEG_F                 RAD2DEG_F
+#define PRJ_DEG2RAD_F                 DEG2RAD_F
+#define PRJ_GRAVITY_MS2               GRAVITY_MS2
+#define PRJ_UINT16_MOD                UINT16_MOD
+#define PRJ_MS_PER_S                  MS_PER_S
+#define PRJ_MS_PER_MIN                MS_PER_MIN
+#define PRJ_US_PER_MS                 US_PER_MS
+
+#define PRJ_CAPTURE_TIMER_FREQ_HZ     CAPTURE_TIMER_FREQ_HZ
+#define PRJ_SYS_TICK_TIMER_FREQ_HZ   SYS_TICK_TIMER_FREQ_HZ
+#define PRJ_SYS_TICK_US_PER_TICK_X1000 SYS_TICK_US_PER_TICK_X1000
+#define PRJ_ENCODER_RPM_CALC_CONST   ENCODER_RPM_CALC_CONST
+
+#define BSP_MATHACL_ENABLE           MATHACL_ENABLE
+#define BSP_MATHACL_ATAN2_HW         MATHACL_ATAN2_HW
+#define BSP_MATHACL_SINCOS_HW        MATHACL_SINCOS_HW
 
 #ifdef __cplusplus
 }

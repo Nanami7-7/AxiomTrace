@@ -16,79 +16,28 @@
 #define BSP_LSM6DSR_H
 
 #include <stdint.h>
-#include "filter.h"  /**< 滤波器统一接口 */
+#include "filter.h"        /**< 滤波器统一接口 */
+#include "project_config.h" /**< IMU校准与自适应参数 (IMU_CALIB_*, IMU_ALPHA_*, etc.) */
 
-/** @defgroup BSP_Calib 校准参数 */
-/**@{*/
-#ifndef BSP_CALIB_SAMPLES
-#define BSP_CALIB_SAMPLES              300     /**< 校准采样帧数 (300帧, 降噪√3≈1.73倍, 时长2.7s) */
-#endif
-#ifndef BSP_CALIB_SETTLE_MS
-#define BSP_CALIB_SETTLE_MS            50      /**< 配置后稳定等待 (ms) */
-#endif
-#ifndef BSP_CALIB_ACC_MAG_REF
-#define BSP_CALIB_ACC_MAG_REF          1.0f    /**< ACC 幅值参考 (g²) = 1G */
-#endif
-#ifndef BSP_CALIB_ACC_MAG_TOL
-#define BSP_CALIB_ACC_MAG_TOL          0.065f   /**< 幅值容差 (g²) ≈ ±255mg */
-#endif
-#ifndef BSP_CALIB_ACC_DELTA_MAX
-#define BSP_CALIB_ACC_DELTA_MAX        0.08f   /**< 帧间差分阈值 (g) ≈ 80mg */
-#endif
-#ifndef BSP_CALIB_SAMPLE_DELAY_MS
-#define BSP_CALIB_SAMPLE_DELAY_MS      9        /**< 采样间隔 (ms) */
-#endif
-/**@}*/
-
-/** @defgroup BSP_Filter 自适应滤波器参数 */
-/**@{*/
-#ifndef BSP_ACC_VAR_WINDOW
-#define BSP_ACC_VAR_WINDOW            10       /**< 方差滑动窗口大小 (帧) */
-#endif
-#ifndef BSP_IMU_DT_READ_COMPENSATION_US
-#define BSP_IMU_DT_READ_COMPENSATION_US  200U  /**< [B1] 传感器SPI读取耗时估算(us)
-                                                * 仅作记录参考：B1方案已将时间戳获取移至
-                                                * 传感器读取之后，dt 自动包含读取耗时。
-                                                * 此宏预留给未来"半程居中修正"使用。 */
-#endif
-#ifndef BSP_ACC_VAR_THRESHOLD
-#define BSP_ACC_VAR_THRESHOLD         0.0008f  /**< 静止方差阈值 (g²总和) ≈ 800 mg² */
-#endif
-#ifndef BSP_ALPHA_MOVING
-#define BSP_ALPHA_MOVING              0.99f    /**< 运动时 α，近纯 GYRO (1% ACC) */
-#endif
-#ifndef BSP_ALPHA_STATIONARY
-#define BSP_ALPHA_STATIONARY          0.30f    /**< 静止时 α，ACC 快速收敛 (70% ACC) */
-#endif
-#ifndef BSP_ALPHA_SMOOTH_STEP
-#define BSP_ALPHA_SMOOTH_STEP         0.15f    /**< α 每帧最大变化量 */
-#endif
-/**@}*/
-
-/** @defgroup BSP_Bias 偏置跟踪参数 */
-/**@{*/
-#ifndef BSP_BIAS_STATIONARY_RATE
-#define BSP_BIAS_STATIONARY_RATE      0.1f     /**< X/Y 轴静止偏置跟踪速率 (增大加速收敛) */
-#endif
-
-#ifndef BSP_BIAS_STATIONARY_RATE_Z
-#define BSP_BIAS_STATIONARY_RATE_Z    0.1f     /**< Z 轴静止偏置跟踪速率 (增大, 配合ZUPT改善yaw漂移) */
-#endif
-#ifndef BSP_GYRO_MOTION_THRESHOLD
-#define BSP_GYRO_MOTION_THRESHOLD     5.0f     /**< 陀螺幅值运动阈值 (dps)，超过则强制判为运动 */
-#endif
-/**@}*/
-
-/** @defgroup BSP_ODRAlign ODR 对齐参数 */
-/**@{*/
-#ifndef BSP_ODR_ALIGN
-#define BSP_ODR_ALIGN                 0  /**< 1=启用基于任务周期的 dt 异常收紧门限 */
-#endif
-/* dt 异常门限: 任务周期 10ms, 收紧至 [3ms, 30ms]
- * 原门限 0.5s 过宽, 无法检测任务调度异常导致的 dt 偏离 */
-#define BSP_DT_ANOMALY_MIN_S         (0.003)   /**< dt 下限 (3ms = 0.3× 任务周期) */
-#define BSP_DT_ANOMALY_MAX_S         (0.030)   /**< dt 上限 (30ms = 3× 任务周期) */
-/**@}*/
+/* 兼容别名 - 配置已迁移到 project_config.h */
+#define BSP_CALIB_SAMPLES              IMU_CALIB_SAMPLES
+#define BSP_CALIB_SETTLE_MS            IMU_CALIB_SETTLE_MS
+#define BSP_CALIB_ACC_MAG_REF          IMU_CALIB_ACC_MAG_REF
+#define BSP_CALIB_ACC_MAG_TOL          IMU_CALIB_ACC_MAG_TOL
+#define BSP_CALIB_ACC_DELTA_MAX        IMU_CALIB_ACC_DELTA_MAX
+#define BSP_CALIB_SAMPLE_DELAY_MS      IMU_CALIB_SAMPLE_DELAY_MS
+#define BSP_ACC_VAR_WINDOW             IMU_ACC_VAR_WINDOW
+#define BSP_IMU_DT_READ_COMPENSATION_US IMU_DT_READ_COMPENSATION_US
+#define BSP_ACC_VAR_THRESHOLD          IMU_ACC_VAR_THRESHOLD
+#define BSP_ALPHA_MOVING               IMU_ALPHA_MOVING
+#define BSP_ALPHA_STATIONARY           IMU_ALPHA_STATIONARY
+#define BSP_ALPHA_SMOOTH_STEP          IMU_ALPHA_SMOOTH_STEP
+#define BSP_BIAS_STATIONARY_RATE       IMU_BIAS_STATIONARY_RATE
+#define BSP_BIAS_STATIONARY_RATE_Z     IMU_BIAS_STATIONARY_RATE_Z
+#define BSP_GYRO_MOTION_THRESHOLD      IMU_GYRO_MOTION_THRESHOLD
+#define BSP_ODR_ALIGN                  IMU_ODR_ALIGN
+#define BSP_DT_ANOMALY_MIN_S           IMU_DT_ANOMALY_MIN_S
+#define BSP_DT_ANOMALY_MAX_S           IMU_DT_ANOMALY_MAX_S
 
 /** @brief  IMU 姿态数据结构体 (10 通道输出) */
 typedef struct {
