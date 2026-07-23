@@ -15,14 +15,14 @@
  * @note  顺序必须与hal_adc_id_t枚举一致
  */
 static ADC12_Regs *const s_adc_inst_map[HAL_ADC_COUNT] = {
-    ADC0,  /**< HAL_ADC_VOLTAGE -> ADC0 */
+    ADC_VOLTAGE_INST,  /**< HAL_ADC_VOLTAGE -> SysConfig ADC1 */
 };
 
 /**
  * @brief ADC中断号映射表
  */
 static const IRQn_Type s_adc_irq_map[HAL_ADC_COUNT] = {
-    ADC0_INT_IRQn,  /**< HAL_ADC_VOLTAGE -> ADC0中断 */
+    ADC_VOLTAGE_INST_INT_IRQN,  /**< HAL_ADC_VOLTAGE -> ADC1中断 */
 };
 
 /**
@@ -30,7 +30,7 @@ static const IRQn_Type s_adc_irq_map[HAL_ADC_COUNT] = {
  * @note  对应SysConfig中配置的ADC通道
  */
 static const DL_ADC12_MEM_IDX s_adc_mem_map[HAL_ADC_COUNT] = {
-    DL_ADC12_MEM_IDX_0,  /**< HAL_ADC_VOLTAGE -> MEM0 */
+    DL_ADC12_MEM_IDX_0,  /**< 兼容接口默认读取 MEM0 */
 };
 
 /* ======================== 内联辅助函数 ======================== */
@@ -55,29 +55,39 @@ hal_status_t hal_adc_start_conversion(hal_adc_id_t id)
      * 启动ADC软件触发转换
      * ADC配置为自动采样模式，调用后硬件自动完成采样和转换
      */
+    /*
+     * Non-repeat sequence mode clears ENC after one completed sequence.
+     * Re-enable conversions before every software trigger; otherwise only
+     * the first sequence after initialization can run.
+     */
+    DL_ADC12_enableConversions(s_adc_inst_map[id]);
     DL_ADC12_startConversion(s_adc_inst_map[id]);
 
     return HAL_OK;
 }
 
-hal_status_t hal_adc_read_result(hal_adc_id_t id, uint16_t *result)
+hal_status_t hal_adc_read_mem_result(hal_adc_id_t id,
+                                      uint32_t mem_idx,
+                                      uint16_t *result)
 {
-    /* 参数校验 */
-    if (result == NULL) {
+    if (result == NULL || !is_adc_valid(id) || mem_idx > 4U) {
         return HAL_ERR_INVALID_PARAM;
     }
+
+    /* ADC12 MEM索引为0~4；结果为12位无符号值0~4095。 */
+    *result = (uint16_t)DL_ADC12_getMemResult(
+        s_adc_inst_map[id], (DL_ADC12_MEM_IDX)mem_idx);
+    return HAL_OK;
+}
+
+hal_status_t hal_adc_read_result(hal_adc_id_t id, uint16_t *result)
+{
     if (!is_adc_valid(id)) {
         return HAL_ERR_INVALID_PARAM;
     }
-
-    /*
-     * 读取ADC转换结果
-     * 12位分辨率，结果范围0~4095
-     */
-    *result = (uint16_t)DL_ADC12_getMemResult(
-        s_adc_inst_map[id], s_adc_mem_map[id]);
-
-    return HAL_OK;
+    return hal_adc_read_mem_result(id,
+                                   (uint32_t)s_adc_mem_map[id],
+                                   result);
 }
 
 bool hal_adc_is_busy(hal_adc_id_t id)

@@ -2,7 +2,7 @@
  * @file    hal_adc.h
  * @brief   HAL ADC硬件抽象接口
  *
- * @note    封装DL_ADC12_xxx调用，ADC0已在SYSCFG_DL_init()中
+ * @note    封装DL_ADC12_xxx调用，ADC1已在SYSCFG_DL_init()中
  *          完成时钟/分辨率/通道配置，此接口仅提供运行时采样操作
  */
 #ifndef HAL_ADC_H
@@ -35,6 +35,16 @@ hal_status_t hal_adc_start_conversion(hal_adc_id_t id);
  * @retval HAL_ERR_INVALID_PARAM 参数无效
  */
 hal_status_t hal_adc_read_result(hal_adc_id_t id, uint16_t *result);
+
+/**
+ * @brief  读取指定 ADC MEM 的转换结果
+ * @param  id       ADC实例编号
+ * @param  mem_idx  ADC MEM索引(0~4)
+ * @param  result   转换结果存放指针(12位无符号值:0~4095)
+ */
+hal_status_t hal_adc_read_mem_result(hal_adc_id_t id,
+                                      uint32_t mem_idx,
+                                      uint16_t *result);
 
 /**
  * @brief  查询ADC是否正在转换

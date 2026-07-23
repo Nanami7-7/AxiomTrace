@@ -274,6 +274,10 @@ bool SYSCFG_DL_SYSCTL_SYSPLL_init(void);
 #define GPIO_ADC_VOLTAGE_C8_PIN                                   DL_GPIO_PIN_22
 #define GPIO_ADC_VOLTAGE_IOMUX_C8                                (IOMUX_PINCM47)
 #define GPIO_ADC_VOLTAGE_IOMUX_C8_FUNC            (IOMUX_PINCM47_PF_UNCONNECTED)
+#define GPIO_ADC_VOLTAGE_C5_PORT                                           GPIOB
+#define GPIO_ADC_VOLTAGE_C5_PIN                                   DL_GPIO_PIN_18
+#define GPIO_ADC_VOLTAGE_IOMUX_C5                                (IOMUX_PINCM44)
+#define GPIO_ADC_VOLTAGE_IOMUX_C5_FUNC            (IOMUX_PINCM44_PF_UNCONNECTED)
 
 
 

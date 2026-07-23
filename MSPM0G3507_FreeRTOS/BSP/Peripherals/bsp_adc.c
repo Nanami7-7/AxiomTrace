@@ -1,7 +1,7 @@
 /**
  * @file    bsp_adc.c
  * @brief   ADC采样驱动实现
- * @note    基于hal_adc实现ADC0单次采样和电压转换
+ * @note    基于hal_adc实现ADC1的MEM0~MEM4序列采样和电压转换
  *          支持阻塞轮询模式和中断模式两种采样方式
  */
 #include "bsp_adc.h"
@@ -13,7 +13,7 @@
 /* ======================== 私有常量 ======================== */
 
 /** ADC转换超时循环计数(约1ms @80MHz) */
-#define ADC_POLL_TIMEOUT  (80000U)
+#define ADC_POLL_TIMEOUT  (4000000U)
 
 /* ======================== 私有类型 ======================== */
 
@@ -23,14 +23,18 @@
  */
 typedef struct {
     hal_adc_id_t hal_id;  /**< HAL ADC实例编号 */
+    uint32_t mem_idx;     /**< 对应ADC MEM索引 */
 } adc_channel_config_t;
 
 /* ======================== 私有变量 ======================== */
 
 /** ADC通道映射表 */
 static const adc_channel_config_t s_adc_channels[BSP_ADC_CH_COUNT] = {
-    /* BSP_ADC_CH_VOLTAGE → HAL_ADC_VOLTAGE */
-    { PRJ_ADC_VOLTAGE_ID },
+    { PRJ_ADC_VOLTAGE_ID, 0U }, /* M1 current / PA15 */
+    { PRJ_ADC_VOLTAGE_ID, 1U }, /* M2 current / PA16 */
+    { PRJ_ADC_VOLTAGE_ID, 2U }, /* M3 current / PA17 */
+    { PRJ_ADC_VOLTAGE_ID, 3U }, /* M4 current / PA22 */
+    { PRJ_ADC_VOLTAGE_ID, 4U }, /* battery / PB18 */
 };
 
 /** 最近一次转换原始值(ISR写入, 任务读取) */
@@ -69,37 +73,25 @@ bsp_status_t bsp_adc_read_raw(bsp_adc_channel_t channel,
     if (raw_val == NULL) {
         return BSP_ERR_NULL_PTR;
     }
-
     if ((uint32_t)channel >= BSP_ADC_CH_COUNT) {
         return BSP_ERR_INVALID_PARAM;
     }
 
-    hal_adc_id_t hal_id = s_adc_channels[channel].hal_id;
-
-    /* 启动软件转换 */
-    hal_status_t ret = hal_adc_start_conversion(hal_id);
-    if (ret != HAL_OK) {
+    /* repeat-mode下按完整序列同步读取，避免拿到未完成的MEM结果。 */
+    bsp_adc_clear_done_flag();
+    if (bsp_adc_start_conversion(channel) != BSP_OK) {
         return BSP_ERR_HW_FAULT;
     }
 
-    /* 轮询等待转换完成 */
     uint32_t timeout = ADC_POLL_TIMEOUT;
-
-    while (hal_adc_is_busy(hal_id)) {
+    while (!bsp_adc_is_conversion_done()) {
         if (timeout == 0U) {
             return BSP_ERR_TIMEOUT;
         }
         timeout--;
     }
 
-    /* 转换完成, 读取结果 */
-    uint16_t result = 0U;
-    ret = hal_adc_read_result(hal_id, &result);
-    if (ret != HAL_OK) {
-        return BSP_ERR_HW_FAULT;
-    }
-
-    *raw_val = result;
+    *raw_val = bsp_adc_get_last_raw(channel);
     return BSP_OK;
 }
 
@@ -139,22 +131,66 @@ bsp_status_t bsp_adc_start_conversion(bsp_adc_channel_t channel)
     return BSP_OK;
 }
 
+bsp_status_t bsp_adc_read_sequence(uint16_t raw_values[], uint32_t count)
+{
+    if (raw_values == NULL) {
+        return BSP_ERR_NULL_PTR;
+    }
+    if (count < BSP_ADC_CH_COUNT) {
+        return BSP_ERR_INVALID_PARAM;
+    }
+
+    bsp_adc_clear_done_flag();
+    if (bsp_adc_start_conversion(BSP_ADC_CH_M1_CURRENT) != BSP_OK) {
+        return BSP_ERR_HW_FAULT;
+    }
+
+    uint32_t timeout = ADC_POLL_TIMEOUT;
+    while (!bsp_adc_is_conversion_done()) {
+        if (timeout == 0U) {
+            return BSP_ERR_TIMEOUT;
+        }
+        timeout--;
+    }
+
+    for (uint32_t i = 0U; i < BSP_ADC_CH_COUNT; i++) {
+        raw_values[i] = s_last_raw[i];
+    }
+    return BSP_OK;
+}
+
 void bsp_adc_irq_handler(void)
 {
-    /* 读取IIDX应答中断, 不清零则中断不会再触发 */
-    DL_ADC12_IIDX iidx = DL_ADC12_getPendingInterrupt(ADC_VOLTAGE_INST);
-    if (iidx != DL_ADC12_IIDX_MEM0_RESULT_LOADED) {
+    /*
+     * IIDX reports the highest-priority pending flag, including MEM0~MEM3
+     * flags that are not enabled in IMASK. In a sequence conversion those
+     * flags can mask MEM4, so use MIS to test the enabled end-of-sequence IRQ.
+     */
+    const uint32_t end_irq = DL_ADC12_INTERRUPT_MEM4_RESULT_LOADED;
+    if (DL_ADC12_getEnabledInterruptStatus(ADC_VOLTAGE_INST, end_irq) == 0U) {
         return;
     }
 
-    /* 读取转换结果(仅通道0) */
-    uint16_t result = 0U;
-    hal_status_t ret = hal_adc_read_result(
-        s_adc_channels[BSP_ADC_CH_VOLTAGE].hal_id, &result);
-
-    if (ret == HAL_OK) {
-        s_last_raw[BSP_ADC_CH_VOLTAGE] = result;
+    for (uint32_t i = 0U; i < BSP_ADC_CH_COUNT; i++) {
+        uint16_t result = 0U;
+        hal_status_t ret = hal_adc_read_mem_result(
+            s_adc_channels[i].hal_id,
+            s_adc_channels[i].mem_idx,
+            &result);
+        if (ret != HAL_OK) {
+            return;
+        }
+        s_last_raw[i] = result;
     }
+
+    /* Clear all result flags from this sequence before accepting the next one. */
+    DL_ADC12_clearInterruptStatus(
+        ADC_VOLTAGE_INST,
+        DL_ADC12_INTERRUPT_MEM0_RESULT_LOADED |
+        DL_ADC12_INTERRUPT_MEM1_RESULT_LOADED |
+        DL_ADC12_INTERRUPT_MEM2_RESULT_LOADED |
+        DL_ADC12_INTERRUPT_MEM3_RESULT_LOADED |
+        DL_ADC12_INTERRUPT_MEM4_RESULT_LOADED);
     s_adc_done = true;
 }
 
@@ -188,7 +224,7 @@ uint16_t bsp_adc_get_last_raw(bsp_adc_channel_t channel)
     return s_last_raw[channel];
 }
 
-uint32_t bsp_adc_get_last_voltage(bsp_adc_channel_t channel)
+uint32_t bsp_adc_get_last_voltage_mv(bsp_adc_channel_t channel)
 {
     if ((uint32_t)channel >= BSP_ADC_CH_COUNT) {
         return 0U;
@@ -196,4 +232,9 @@ uint32_t bsp_adc_get_last_voltage(bsp_adc_channel_t channel)
 
     uint16_t raw = s_last_raw[channel];
     return (uint32_t)raw * PRJ_ADC_VREF_MV / PRJ_ADC_RESOLUTION;
+}
+
+uint32_t bsp_adc_get_last_voltage(bsp_adc_channel_t channel)
+{
+    return bsp_adc_get_last_voltage_mv(channel);
 }

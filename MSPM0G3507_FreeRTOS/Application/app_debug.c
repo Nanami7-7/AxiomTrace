@@ -535,24 +535,21 @@ void app_debug_hwmap_snapshot(void)
 
 void app_debug_adc_test(void)
 {
-    bsp_adc_init();
-    /* 重复模式下只需触发一次,ADC自动连续转换 */
-    bsp_adc_start_conversion(BSP_ADC_CH_VOLTAGE);
+    if (bsp_adc_init() != BSP_OK) {
+        printf("ADC init failed.\r\n");
+        return;
+    }
 
-    printf("\r\n===== ADC Interrupt Test =====\r\n");
-    printf("VREF=3300mV  RES=12bit(4096)  Pin=PA27  CH=0\r\n");
+    printf("\r\n===== ADC Sequence Test =====\r\n");
+    printf("VREF=3300mV  RES=12bit(4096)\r\n");
+    printf("MEM0 M1=PA15, MEM1 M2=PA16, MEM2 M3=PA17, MEM3 M4=PA22, MEM4 BAT=PB18\r\n");
     printf("Type STOP to exit.\r\n");
-    printf("  #   raw    mV  | min   max\r\n");
-
-    uint16_t raw_min = 0xFFFF;
-    uint16_t raw_max = 0;
-    uint32_t raw_sum = 0;
-    uint32_t sample_cnt = 0;
+    printf("  # | M1(raw/mV) M2(raw/mV) M3(raw/mV) M4(raw/mV) BAT(raw/mV)\r\n");
 
     char stop_buf[16];
-    uint32_t stop_pos = 0;
+    uint32_t stop_pos = 0U;
 
-    for (uint32_t i = 0; i < 100; i++) {
+    for (uint32_t i = 0U; i < 100U; i++) {
         uint8_t ch;
         while (bsp_uart_getc(&ch) == BSP_OK) {
             if (ch == '\r' || ch == '\n') {
@@ -561,46 +558,34 @@ void app_debug_adc_test(void)
                     printf("STOP detected.\r\n");
                     goto done;
                 }
-                stop_pos = 0;
-            } else if (stop_pos < sizeof(stop_buf) - 1) {
+                stop_pos = 0U;
+            } else if (stop_pos < sizeof(stop_buf) - 1U) {
                 stop_buf[stop_pos++] = (char)ch;
             }
         }
 
-        bsp_adc_clear_done_flag();
-
-        uint32_t timeout = 800000;
-        while (!bsp_adc_is_conversion_done()) {
-            if (--timeout == 0) break;
-        }
-
-        if (timeout == 0) {
-            printf("  %3lu  TIMEOUT\r\n", (unsigned long)i);
+        uint16_t raw[BSP_ADC_CH_COUNT];
+        uint32_t mv[BSP_ADC_CH_COUNT];
+        if (bsp_adc_read_sequence(raw, BSP_ADC_CH_COUNT) != BSP_OK) {
+            printf("  %3lu | TIMEOUT\r\n", (unsigned long)i);
             continue;
         }
+        for (uint32_t ch_idx = 0U; ch_idx < BSP_ADC_CH_COUNT; ch_idx++) {
+            mv[ch_idx] = (uint32_t)raw[ch_idx] * PRJ_ADC_VREF_MV
+                       / PRJ_ADC_RESOLUTION;
+        }
 
-        uint16_t raw = bsp_adc_get_last_raw(BSP_ADC_CH_VOLTAGE);
-        uint32_t mv = bsp_adc_get_last_voltage(BSP_ADC_CH_VOLTAGE);
+        printf("  %3lu | %4u/%4lu %4u/%4lu %4u/%4lu %4u/%4lu %4u/%4lu\r\n",
+               (unsigned long)i,
+               (unsigned)raw[BSP_ADC_CH_M1_CURRENT], (unsigned long)mv[BSP_ADC_CH_M1_CURRENT],
+               (unsigned)raw[BSP_ADC_CH_M2_CURRENT], (unsigned long)mv[BSP_ADC_CH_M2_CURRENT],
+               (unsigned)raw[BSP_ADC_CH_M3_CURRENT], (unsigned long)mv[BSP_ADC_CH_M3_CURRENT],
+               (unsigned)raw[BSP_ADC_CH_M4_CURRENT], (unsigned long)mv[BSP_ADC_CH_M4_CURRENT],
+               (unsigned)raw[BSP_ADC_CH_BATTERY], (unsigned long)mv[BSP_ADC_CH_BATTERY]);
 
-        if (raw < raw_min) raw_min = raw;
-        if (raw > raw_max) raw_max = raw;
-        raw_sum += raw;
-        sample_cnt++;
-
-        printf("  %3lu  %4u  %4umV | %4u %4u\r\n",
-            (unsigned long)i, (unsigned)raw, (unsigned)mv,
-            (unsigned)raw_min, (unsigned)raw_max);
-
-        bsp_delay_ms(200);
+        bsp_delay_ms(200U);
     }
 
 done:
-    if (sample_cnt > 0) {
-        uint32_t avg = raw_sum / sample_cnt;
-        printf("\r\n%d samples. Avg=%u (%umV)  Min=%u  Max=%u\r\n",
-            (int)sample_cnt, (unsigned)avg,
-            (unsigned)(avg * PRJ_ADC_VREF_MV / PRJ_ADC_RESOLUTION),
-            (unsigned)raw_min, (unsigned)raw_max);
-    }
-    printf("ADC test done.\r\n");
+    printf("ADC sequence test done.\r\n");
 }
