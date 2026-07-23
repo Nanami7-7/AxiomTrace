@@ -663,7 +663,6 @@ SYSCONFIG_WEAK void SYSCFG_DL_UART_0_DEBUG_init(void)
 
     DL_UART_Main_enable(UART_0_DEBUG_INST);
 }
-
 static const DL_UART_Main_ClockConfig gUART1ClockConfig = {
     .clockSel    = DL_UART_MAIN_CLOCK_BUSCLK,
     .divideRatio = DL_UART_MAIN_CLOCK_DIVIDE_RATIO_1
@@ -685,19 +684,23 @@ SYSCONFIG_WEAK void SYSCFG_DL_UART1_init(void)
     DL_UART_Main_init(UART1_INST, (DL_UART_Main_Config *) &gUART1Config);
     /*
      * Configure baud rate by setting oversampling and baud rate divisors.
-     *  Target baud rate: 9600
-     *  Actual baud rate: 9599.92
+     *  Target baud rate: 115200
+     *  Actual baud rate: 115190.78
      */
     DL_UART_Main_setOversampling(UART1_INST, DL_UART_OVERSAMPLING_RATE_16X);
-    DL_UART_Main_setBaudRateDivisor(UART1_INST, UART1_IBRD_40_MHZ_9600_BAUD, UART1_FBRD_40_MHZ_9600_BAUD);
+    DL_UART_Main_setBaudRateDivisor(UART1_INST, UART1_IBRD_40_MHZ_115200_BAUD, UART1_FBRD_40_MHZ_115200_BAUD);
 
 
     /* Configure Interrupts */
     DL_UART_Main_enableInterrupt(UART1_INST,
-                                 DL_UART_MAIN_INTERRUPT_RX |
-                                 DL_UART_MAIN_INTERRUPT_RX_TIMEOUT_ERROR);
+                                 DL_UART_MAIN_INTERRUPT_DMA_DONE_TX |
+                                 DL_UART_MAIN_INTERRUPT_EOT_DONE |
+                                 DL_UART_MAIN_INTERRUPT_RX);
     /* Setting the Interrupt Priority */
     NVIC_SetPriority(UART1_INST_INT_IRQN, 3);
+
+    /* Configure DMA Transmit Event */
+    DL_UART_Main_enableDMATransmitEvent(UART1_INST);
     /* Configure FIFOs */
     DL_UART_Main_enableFIFOs(UART1_INST);
     DL_UART_Main_setRXFIFOThreshold(UART1_INST, DL_UART_RX_FIFO_LEVEL_ONE_ENTRY);
@@ -794,8 +797,26 @@ SYSCONFIG_WEAK void SYSCFG_DL_DMA_CH1_init(void)
     DL_DMA_enableInterrupt(DMA, DL_DMA_INTERRUPT_CHANNEL1);
     DL_DMA_initChannel(DMA, DMA_CH1_CHAN_ID , (DL_DMA_Config *) &gDMA_CH1Config);
 }
+static const DL_DMA_Config gDMA_CH0Config = {
+    .transferMode   = DL_DMA_SINGLE_TRANSFER_MODE,
+    .extendedMode   = DL_DMA_NORMAL_MODE,
+    .destIncrement  = DL_DMA_ADDR_UNCHANGED,
+    .srcIncrement   = DL_DMA_ADDR_INCREMENT,
+    .destWidth      = DL_DMA_WIDTH_BYTE,
+    .srcWidth       = DL_DMA_WIDTH_BYTE,
+    .trigger        = UART1_INST_DMA_TRIGGER,
+    .triggerType    = DL_DMA_TRIGGER_TYPE_EXTERNAL,
+};
+
+SYSCONFIG_WEAK void SYSCFG_DL_DMA_CH0_init(void)
+{
+    DL_DMA_clearInterruptStatus(DMA, DL_DMA_INTERRUPT_CHANNEL0);
+    DL_DMA_enableInterrupt(DMA, DL_DMA_INTERRUPT_CHANNEL0);
+    DL_DMA_initChannel(DMA, DMA_CH0_CHAN_ID , (DL_DMA_Config *) &gDMA_CH0Config);
+}
 SYSCONFIG_WEAK void SYSCFG_DL_DMA_init(void){
     SYSCFG_DL_DMA_CH1_init();
+    SYSCFG_DL_DMA_CH0_init();
 }
 
 

@@ -206,11 +206,9 @@ bool SYSCFG_DL_SYSCTL_SYSPLL_init(void);
 #define GPIO_UART1_IOMUX_TX                                      (IOMUX_PINCM23)
 #define GPIO_UART1_IOMUX_RX_FUNC                       IOMUX_PINCM24_PF_UART1_RX
 #define GPIO_UART1_IOMUX_TX_FUNC                       IOMUX_PINCM23_PF_UART1_TX
-#define UART1_BAUD_RATE                                                   (9600)
-#define UART1_IBRD_40_MHZ_9600_BAUD                                         (260)
-#define UART1_FBRD_40_MHZ_9600_BAUD                                          (27)
-
-
+#define UART1_BAUD_RATE                                                 (115200)
+#define UART1_IBRD_40_MHZ_115200_BAUD                                       (21)
+#define UART1_FBRD_40_MHZ_115200_BAUD                                       (45)
 
 
 
@@ -284,6 +282,9 @@ bool SYSCFG_DL_SYSCTL_SYSPLL_init(void);
 /* Defines for DMA_CH1 */
 #define DMA_CH1_CHAN_ID                                                      (1)
 #define UART_0_DEBUG_INST_DMA_TRIGGER                        (DMA_UART0_TX_TRIG)
+/* Defines for DMA_CH0 */
+#define DMA_CH0_CHAN_ID                                                      (0)
+#define UART1_INST_DMA_TRIGGER                               (DMA_UART1_TX_TRIG)
 
 
 /* Port definition for Pin Group LED */

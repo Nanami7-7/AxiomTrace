@@ -21,12 +21,14 @@
 #include "bsp_motor.h"
 #include "bsp_encoder.h"
 #include "bsp_uart.h"
+#include "project_config.h"
+#if (PRJ_BLE_MENU_ENABLE != 0U)
 #include "app_ble_service.h"
+#endif
 #include "app_complementary_filter.h"
 #include "app_model_id.h"
 #include "app_position_control.h"
 #include "hal_gpio.h"
-#include "project_config.h"
 #include "axiomtrace.h"
 #include "app_pid.h"
 
@@ -73,8 +75,13 @@ static int32_t bsp_modules_init(void)
     ret = bsp_uart_init();
     if (ret != BSP_OK) { return -2; }
 
-    /* UART1/BLE is optional at runtime: initialization does not probe or block. */
+#if (PRJ_BLE_MENU_ENABLE != 0U)
+    /**
+     * @brief 初始化可选的 UART1/JDY-23 服务。
+     * @note 此处只建立 UART1 传输和协议上下文，不主动探测模块，也不会阻塞系统启动。
+     */
     (void)app_ble_service_init();
+#endif
 
     ret = bsp_motor_init();
     if (ret != BSP_OK) { return -3; }

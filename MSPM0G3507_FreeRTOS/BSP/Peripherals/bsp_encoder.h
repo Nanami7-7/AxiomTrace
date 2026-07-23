@@ -43,6 +43,8 @@ typedef struct {
 /** 编码器配置结构体 */
 typedef struct {
     hal_timer_id_t  timer;    /**< 关联的捕获定时器 */
+    hal_gpio_port_t a_port;   /**< A相GPIO端口(用于只读电平诊断) */
+    uint32_t        a_pin;    /**< A相GPIO引脚(与捕获复用引脚相同) */
     hal_gpio_port_t b_port;   /**< B相GPIO端口 */
     uint32_t        b_pin;    /**< B相GPIO引脚 */
     int8_t          dir_sign; /**< 方向修正(+1/-1, 0视为+1) */
@@ -61,6 +63,22 @@ typedef struct {
     uint32_t overflow;   /**< s_mt_overflow_cnt */
     uint32_t last_abs;   /**< s_mt_last_abs */
     uint32_t time_since; /**< 距末边沿的ticks(当前timer - last_abs), 诊断用 */
+
+    /* Factory capture-only diagnostics. These fields do not affect control. */
+    uint32_t cc0_event_count;       /**< CC0 interrupt count */
+    uint32_t cc1_event_count;       /**< CC1 interrupt count */
+    uint32_t load_event_count;      /**< LOAD interrupt count */
+    uint16_t cc0_capture;           /**< last hardware CC0 capture value */
+    uint16_t cc1_capture;           /**< last hardware CC1 capture value */
+    uint16_t cc1_previous_capture;  /**< previous hardware CC1 capture value */
+    uint16_t cc0_timer_count;       /**< timer count read inside CC0 ISR */
+    uint16_t cc1_timer_count;       /**< timer count read inside CC1 ISR */
+    uint16_t load_timer_count;      /**< timer count read inside LOAD ISR */
+    uint32_t cc1_delta;             /**< extended timestamp delta between CC1 events */
+    uint32_t cc1_last_abs;          /**< extended CC1 capture timestamp */
+    bool     cc1_period_valid;      /**< at least two CC1 captures observed */
+    bool     a_level;               /**< A相当前GPIO pad电平(只读诊断) */
+    bool     b_level;               /**< B相当前GPIO pad电平(只读诊断) */
 } bsp_encoder_diag_t;
 
 /* ======================== 函数接口 ======================== */

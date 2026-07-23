@@ -14,7 +14,10 @@ void UART_0_DEBUG_INST_IRQHandler(void)
     bsp_uart_irq_handler();
 }
 
-/** UART1 interrupt forwarding for the independent BLE transport. */
+/**
+ * @brief UART1 BLE 模块中断转发入口。
+ * @details 仅将 UART1 中断交给 BLE UART BSP 处理，协议解析在应用服务层完成。
+ */
 void UART1_INST_IRQHandler(void)
 {
     bsp_ble_uart_irq_handler();

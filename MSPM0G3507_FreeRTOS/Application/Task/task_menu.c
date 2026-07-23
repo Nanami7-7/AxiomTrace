@@ -1,10 +1,9 @@
 /**
  * @file    task_menu.c
- * @brief   菜单任务实现(CLI模式)
- * @note    CLI模式: 显示状态 → 等待命令 → 执行 → 刷新
- *          Run命令进入数据输出模式(30ms VOFA+数据)
- *          Stop命令退出数据输出模式
- */
+ * @brief   鑿滃崟浠诲姟瀹炵幇(CLI妯″紡)
+ * @note    CLI妯″紡: 鏄剧ず鐘舵€?鈫?绛夊緟鍛戒护 鈫?鎵ц 鈫?鍒锋柊
+ *          Run鍛戒护杩涘叆鏁版嵁杈撳嚭妯″紡(30ms VOFA+鏁版嵁)
+ *          Stop鍛戒护閫€鍑烘暟鎹緭鍑烘ā寮? */
 #include "task_menu.h"
 #include "app_main.h"
 #include "app_pid.h"
@@ -14,37 +13,39 @@
 #include "osal_api.h"
 #include "bsp_led.h"
 #include "bsp_motor.h"
+#include "bsp_encoder.h"
 #include "bsp_uart.h"
 #include "app_debug.h"
+#include "project_config.h"
+#if (PRJ_BLE_MENU_ENABLE != 0U)
 #include "app_ble_service.h"
+#endif
 #include "app_test_runner.h"
 #include "axiomtrace.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
-/* ======================== 私有常量 ======================== */
+/* ======================== 绉佹湁甯搁噺 ======================== */
 
-/** 电机名称查找表 */
+/** 鐢垫満鍚嶇О鏌ユ壘琛?*/
 static const char *s_motor_names[BSP_MOTOR_COUNT] = {
     "A", "B", "C", "D"
 };
 
-/** LED心跳周期(ms) */
+/** LED蹇冭烦鍛ㄦ湡(ms) */
 #define MENU_LED_PERIOD_MS  (100U)
 
-/** LED翻转阈值(ms) */
+/** LED缈昏浆闃堝€?ms) */
 #define LED_TOGGLE_THRESH   (500U)
 
-/* ======================== 私有函数: 行输入 ======================== */
+/* ======================== 绉佹湁鍑芥暟: 琛岃緭鍏?======================== */
 
 /**
- * @brief  非阻塞行输入
- * @param  line_buf  行缓冲区
- * @param  buf_size  缓冲区大小
- * @param  line_pos  当前写入位置指针(读写)
- * @retval true  一行输入完成
- * @retval false 尚未完成
+ * @brief  闈為樆濉炶杈撳叆
+ * @param  line_buf  琛岀紦鍐插尯
+ * @param  buf_size  缂撳啿鍖哄ぇ灏? * @param  line_pos  褰撳墠鍐欏叆浣嶇疆鎸囬拡(璇诲啓)
+ * @retval true  涓€琛岃緭鍏ュ畬鎴? * @retval false 灏氭湭瀹屾垚
  */
 typedef enum {
     MENU_DRVSCOPE_START = 0,
@@ -59,6 +60,66 @@ typedef struct {
     uint32_t motor_id;
     uint32_t duty_permille; /* 0..1000 = 0.0..100.0% */
 } menu_drvscope_cmd_t;
+
+static char menu_ascii_lower(char ch);
+
+#if (PRJ_BLE_MENU_CONSOLE_ENABLE != 0U)
+static bool menu_read_ble_line(char *line_buf, uint32_t buf_size,
+                               uint32_t *line_pos, bool *discard_line);
+#endif
+
+/** Parse: encdiag cap [A|B|C|D|ALL] [window_ms]. */
+static bool menu_parse_encdiag_capture(const char *line,
+                                       uint32_t *motor_id,
+                                       uint32_t *duration_ms)
+{
+    if ((line == NULL) || (motor_id == NULL) || (duration_ms == NULL)) {
+        return false;
+    }
+
+    if (strcmp(line, "encdiag cap") == 0) {
+        *motor_id = BSP_ENCODER_COUNT;
+        *duration_ms = 1000U;
+        return true;
+    }
+
+    char target[8] = {0};
+    unsigned long window = 1000UL;
+    int parsed = sscanf(line, "encdiag cap %7s %lu", target, &window);
+    if (parsed < 1) {
+        return false;
+    }
+
+    for (uint32_t i = 0U; target[i] != '\0'; i++) {
+        target[i] = menu_ascii_lower(target[i]);
+    }
+
+    if (strcmp(target, "all") == 0) {
+        *motor_id = BSP_ENCODER_COUNT;
+    } else if ((target[0] >= 'a') && (target[0] <= 'd') &&
+               (target[1] == '\0')) {
+        *motor_id = (uint32_t)(target[0] - 'a');
+    } else {
+        return false;
+    }
+
+    if (parsed >= 2) {
+        if (window < 100UL) {
+            window = 100UL;
+        }
+        if (window > 10000UL) {
+            window = 10000UL;
+        }
+    }
+    *duration_ms = (uint32_t)window;
+    return true;
+}
+
+static void menu_print_encdiag_capture_usage(void)
+{
+    (void)printf("Usage: encdiag cap [A|B|C|D|ALL] [100..10000_ms]\r\n");
+    (void)printf("Example: encdiag cap A 1000\r\n");
+}
 
 static char menu_ascii_lower(char ch)
 {
@@ -237,17 +298,17 @@ static bool menu_read_line(char *line_buf, uint32_t buf_size,
     return false;
 }
 
-/* ======================== 私有函数: 状态显示 ======================== */
+/* ======================== 绉佹湁鍑芥暟: 鐘舵€佹樉绀?======================== */
 
 /**
- * @brief  打印当前状态(电机参数+FF状态+IMU数据)
+ * @brief  鎵撳嵃褰撳墠鐘舵€?鐢垫満鍙傛暟+FF鐘舵€?IMU鏁版嵁)
  */
 static void menu_print_status(const app_shared_ctx_t *ctx,
                                uint32_t motor)
 {
     (void)printf("\r\n=== Motor: %s ===\r\n", s_motor_names[motor]);
 
-    /* 当前目标RPM */
+    /* 褰撳墠鐩爣RPM */
     {
         float sp;
         OSAL_CRITICAL_SECTION {
@@ -256,7 +317,7 @@ static void menu_print_status(const app_shared_ctx_t *ctx,
         (void)printf("Target: %.0f RPM\r\n", (double)sp);
     }
 
-    /* 各电机PID参数 */
+    /* 鍚勭數鏈篜ID鍙傛暟 */
     for (uint32_t i = 0U; i < BSP_MOTOR_COUNT; i++) {
         float kp, ki, kd;
         OSAL_CRITICAL_SECTION {
@@ -269,7 +330,7 @@ static void menu_print_status(const app_shared_ctx_t *ctx,
             (double)kp, (double)ki, (double)kd);
     }
 
-    /* FF状态 */
+    /* FF鐘舵€?*/
     {
         float ff_k, ff_b, ff_kp, ff_ki, ff_kd;
         bool ff_en;
@@ -291,7 +352,7 @@ static void menu_print_status(const app_shared_ctx_t *ctx,
         }
     }
 
-    /* 电机运行状态 */
+    /* 鐢垫満杩愯鐘舵€?*/
     {
         bool en;
         int32_t rpm;
@@ -306,7 +367,7 @@ static void menu_print_status(const app_shared_ctx_t *ctx,
         }
     }
 
-    /* IMU数据 */
+    /* IMU鏁版嵁 */
     {
         float roll, pitch, yaw, heading, vx;
         OSAL_CRITICAL_SECTION {
@@ -322,13 +383,12 @@ static void menu_print_status(const app_shared_ctx_t *ctx,
     }
 }
 
-/* ======================== 私有函数: 数据输出循环 ======================== */
+/* ======================== 绉佹湁鍑芥暟: 鏁版嵁杈撳嚭寰幆 ======================== */
 
 /**
- * @brief  VOFA+数据输出模式(Run后进入, Stop退出)
- * @param  ctx          共享上下文
- * @param  motor        当前电机索引指针
- * @param  need_refresh 刷新标志指针
+ * @brief  VOFA+鏁版嵁杈撳嚭妯″紡(Run鍚庤繘鍏? Stop閫€鍑?
+ * @param  ctx          鍏变韩涓婁笅鏂? * @param  motor        褰撳墠鐢垫満绱㈠紩鎸囬拡
+ * @param  need_refresh 鍒锋柊鏍囧織鎸囬拡
  */
 static void menu_data_output_loop(app_shared_ctx_t *ctx,
                                    uint32_t *motor,
@@ -336,29 +396,40 @@ static void menu_data_output_loop(app_shared_ctx_t *ctx,
 {
     char line_buf[MENU_LINE_BUF_SIZE];
     uint32_t line_pos = 0U;
+#if (PRJ_BLE_MENU_CONSOLE_ENABLE != 0U)
+    uint32_t ble_line_pos = 0U;
+    bool ble_line_discard = false;
+#endif
     uint32_t led_cnt = 0U;
 
     (void)printf("[DATA] VOFA+ output started. Send Stop to exit.\r\n");
 
     for (;;) {
-        /* 非阻塞检查命令 */
+        /* 闈為樆濉炴鏌ュ懡浠?*/
+#if (PRJ_BLE_MENU_CONSOLE_ENABLE != 0U)
+        if (menu_read_line(line_buf, MENU_LINE_BUF_SIZE, &line_pos) ||
+            menu_read_ble_line(line_buf, MENU_LINE_BUF_SIZE,
+                               &ble_line_pos, &ble_line_discard)) {
+            (void)printf("[BLE/UART MENU] %s\r\n", line_buf);
+#else
         if (menu_read_line(line_buf, MENU_LINE_BUF_SIZE, &line_pos)) {
+#endif
             vofa_cmd_t cmd;
             if (app_vofa_parse_cmd(line_buf, &cmd)) {
                 app_vofa_apply_cmd(&cmd, ctx, motor, need_refresh);
 
-                /* Stop退出数据输出模式 */
+                /* Stop閫€鍑烘暟鎹緭鍑烘ā寮?*/
                 if (cmd.type == VOFA_CMD_STOP ||
                     cmd.type == VOFA_CMD_STOP_ALL ||
                     cmd.type == VOFA_CMD_STREAM_OFF) {
                     (void)printf("[DATA] VOFA+ output stopped.\r\n");
                     return;
                 }
-                /* 非Stop命令: 只打印反馈, 不刷新菜单 */
+                /* 闈濻top鍛戒护: 鍙墦鍗板弽棣? 涓嶅埛鏂拌彍鍗?*/
             }
         }
 
-        /* 输出VOFA+数据(11通道, DMA非阻塞) */
+        /* 杈撳嚭VOFA+鏁版嵁(11閫氶亾, DMA闈為樆濉? */
         {
             float channels[VOFA_TELEMETRY_CHANNEL_COUNT];
             OSAL_CRITICAL_SECTION {
@@ -366,20 +437,20 @@ static void menu_data_output_loop(app_shared_ctx_t *ctx,
                     channels[i] = (float)ctx->status.rpm[i];
                     channels[4 + i] = ctx->pid[i].setpoint;
                 }
-                /* CH8: FF duty(选中电机) */
+                /* CH8: FF duty(閫変腑鐢垫満) */
                 if (ctx->ff[*motor].enabled) {
                     channels[8] = app_ff_compute(
                         &ctx->ff[*motor], ctx->pid[*motor].setpoint);
                 } else {
                     channels[8] = 0.0f;
                 }
-                /* CH9: PID修正量(选中电机) */
+                /* CH9: PID淇閲?閫変腑鐢垫満) */
                 channels[9] = ctx->status.pid_correction[*motor];
-                /* CH10: 实际DUTY输出(选中电机) */
+                /* CH10: 瀹為檯DUTY杈撳嚭(閫変腑鐢垫満) */
                 channels[10] = (float)ctx->status.output[*motor];
             }
 
-            /* 格式化到临时缓冲区 */
+            /* 鏍煎紡鍖栧埌涓存椂缂撳啿鍖?*/
             char tx_buf[180];
             int len = 0;
             for (uint32_t i = 0U; i < VOFA_TELEMETRY_CHANNEL_COUNT; i++) {
@@ -391,7 +462,7 @@ static void menu_data_output_loop(app_shared_ctx_t *ctx,
                     sizeof(tx_buf) - (uint32_t)len,
                     "%.6f", (double)channels[i]);
                 if (ret < 0 || (uint32_t)ret >= sizeof(tx_buf) - (uint32_t)len) {
-                    len = 0;  /* 缓冲区不足,放弃本帧 */
+                    len = 0;  /* 缂撳啿鍖轰笉瓒?鏀惧純鏈抚 */
                     break;
                 }
                 len += ret;
@@ -399,14 +470,14 @@ static void menu_data_output_loop(app_shared_ctx_t *ctx,
             if (len > 0 && len < (int)sizeof(tx_buf)) {
                 tx_buf[len] = '\n';
                 len++;
-                /* 非阻塞DMA发送：检查标志位，忙则跳过本帧 */
+                /* 闈為樆濉濪MA鍙戦€侊細妫€鏌ユ爣蹇椾綅锛屽繖鍒欒烦杩囨湰甯?*/
                 if (bsp_uart_tx_idle()) {
                     (void)bsp_uart_send_dma((uint8_t *)tx_buf, (uint16_t)len);
                 }
             }
         }
 
-        /* LED心跳 */
+        /* LED蹇冭烦 */
         led_cnt += APP_RPM_OUTPUT_PERIOD_MS;
         if (led_cnt >= LED_TOGGLE_THRESH) {
             led_cnt = 0U;
@@ -417,10 +488,84 @@ static void menu_data_output_loop(app_shared_ctx_t *ctx,
     }
 }
 
-/* ======================== 公共函数实现 ======================== */
+/* ======================== 鍏叡鍑芥暟瀹炵幇 ======================== */
+
+#if (PRJ_BLE_MENU_ENABLE != 0U)
 
 /* ======================== JDY-23 BLE console helpers ======================== */
 
+#if (PRJ_BLE_MENU_CONSOLE_ENABLE != 0U)
+/**
+ * @brief 从 JDY-23 透明通道组装一条菜单命令。
+ * @details 手机端必须发送 ASCII 文本并以 CR/LF 或 LF 结束。该函数不回显
+ * 到 BLE，也不把 BLE 数据直接交给电机层；完整行仍复用现有菜单分发逻辑。
+ * 超长行会被丢弃到行尾，避免执行截断命令。
+ */
+static bool menu_read_ble_line(char *line_buf, uint32_t buf_size,
+                               uint32_t *line_pos, bool *discard_line)
+{
+    uint8_t ch;
+    uint16_t received;
+    jdy23_status_t status;
+
+    if ((line_buf == NULL) || (buf_size <= 1U) ||
+        (line_pos == NULL) || (discard_line == NULL)) {
+        return false;
+    }
+
+    /* 每次最多取 64 字节；遇到完整行立即返回，剩余数据留给下次循环。 */
+    for (uint32_t i = 0U; i < 64U; i++) {
+        received = 0U;
+        status = app_ble_receive(&ch, 1U, &received);
+        if ((status != JDY23_OK) || (received == 0U)) {
+            return false;
+        }
+
+        if ((ch == '\r') || (ch == '\n')) {
+            if (*discard_line) {
+                *line_pos = 0U;
+                *discard_line = false;
+                continue;
+            }
+            if (*line_pos == 0U) {
+                continue;
+            }
+            line_buf[*line_pos] = '\0';
+            *line_pos = 0U;
+            return true;
+        }
+
+        if ((ch == 0x7FU) || (ch == 0x08U)) {
+            if (!*discard_line && (*line_pos > 0U)) {
+                (*line_pos)--;
+            }
+            continue;
+        }
+
+        if ((ch >= 0x20U) && (ch < 0x7FU)) {
+            if (*discard_line) {
+                continue;
+            }
+            if (*line_pos < (buf_size - 1U)) {
+                line_buf[*line_pos] = (char)ch;
+                (*line_pos)++;
+            } else {
+                *line_pos = 0U;
+                *discard_line = true;
+            }
+        }
+    }
+
+    return false;
+}
+#endif /* PRJ_BLE_MENU_CONSOLE_ENABLE */
+
+
+/**
+ * @brief 将 JDY-23 状态码转换为串口可读名称。
+ * @param status JDY-23 驱动状态码。
+ * @return 静态字符串，不需要调用者释放。
+ */
 static const char *menu_ble_status_name(jdy23_status_t status)
 {
     switch (status) {
@@ -435,6 +580,10 @@ static const char *menu_ble_status_name(jdy23_status_t status)
     }
 }
 
+/**
+ * @brief 打印 UART0 控制台支持的 JDY-23 BLE 命令帮助。
+ * @details 命令只用于调试和模块配置；BLE 接收数据不会进入电机控制解析器。
+ */
 static void menu_print_ble_usage(void)
 {
     (void)printf("\r\nJDY-23 BLE commands (UART1: PB6 TX, PB7 RX, 9600 8N1):\r\n");
@@ -455,6 +604,11 @@ static void menu_print_ble_usage(void)
     (void)printf("Disconnect the BLE peer before AT commands; all wrapped commands add CRLF.\r\n");
 }
 
+/**
+ * @brief 以可见转义格式打印 BLE 原始字节。
+ * @param data 待打印数据。
+ * @param len 数据长度，单位为字节。
+ */
 static void menu_print_ble_bytes(const uint8_t *data, uint16_t len)
 {
     uint16_t i;
@@ -473,6 +627,10 @@ static void menu_print_ble_bytes(const uint8_t *data, uint16_t len)
     }
 }
 
+/**
+ * @brief 从应用服务读取并打印一批已缓存 BLE 接收数据。
+ * @return 实际读取到数据返回 true；无数据或读取失败返回 false。
+ */
 static bool menu_ble_drain_rx(void)
 {
     uint8_t data[64];
@@ -495,6 +653,12 @@ static bool menu_ble_drain_rx(void)
     return true;
 }
 
+/**
+ * @brief 获取 BLE 控制台命令前缀后的参数部分。
+ * @param line 完整命令行。
+ * @param prefix_len 前缀长度，单位为字符。
+ * @return 跳过空格后的参数指针，指向原始命令行内部。
+ */
 static const char *menu_ble_argument(const char *line, uint32_t prefix_len)
 {
     const char *arg = &line[prefix_len];
@@ -504,6 +668,12 @@ static const char *menu_ble_argument(const char *line, uint32_t prefix_len)
     return arg;
 }
 
+/**
+ * @brief 判断命令行是否匹配一个完整 BLE 命令前缀。
+ * @param line 待匹配命令行。
+ * @param prefix 命令前缀。
+ * @return 完全匹配或后接空格时返回 true。
+ */
 static bool menu_ble_prefix_matches(const char *line, const char *prefix)
 {
     size_t prefix_len = strlen(prefix);
@@ -512,6 +682,12 @@ static bool menu_ble_prefix_matches(const char *line, const char *prefix)
            ((line[prefix_len] == '\0') || (line[prefix_len] == ' '));
 }
 
+/**
+ * @brief 将应用层响应格式转换为诊断输出名称。
+ * @param info 命令元数据，可为 NULL。
+ * @param result 应用层命令结果，可为 NULL。
+ * @return 静态格式名称字符串。
+ */
 static const char *menu_ble_response_format_name(
     const jdy23_command_info_t *info, const app_ble_command_result_t *result)
 {
@@ -529,6 +705,12 @@ static const char *menu_ble_response_format_name(
     return "NONE";
 }
 
+/**
+ * @brief 打印一条 JDY-23 内置命令的完整诊断结果。
+ * @param operation 当前操作名称，例如 query、inspect 或 action。
+ * @param command 已执行的命令索引。
+ * @param result 传输和解析结果。
+ */
 static void menu_print_ble_command_result(
     const char *operation, jdy23_command_t command,
     const app_ble_command_result_t *result)
@@ -574,6 +756,13 @@ static void menu_print_ble_command_result(
     }
 }
 
+/**
+ * @brief 执行内置命令并立即打印结果。
+ * @param operation 输出中的操作名称。
+ * @param command 命令索引。
+ * @param timeout_ms 命令超时时间，单位为毫秒。
+ * @return 应用服务返回的传输状态。
+ */
 static jdy23_status_t menu_ble_execute_and_print(
     const char *operation, jdy23_command_t command, uint32_t timeout_ms)
 {
@@ -584,6 +773,10 @@ static jdy23_status_t menu_ble_execute_and_print(
     return status;
 }
 
+/**
+ * @brief 依次执行所有内置只读 AT 查询并打印结果。
+ * @details 不执行 RST、DISC、SLEEP 等动作命令，适合工厂和现场只读诊断。
+ */
 static void menu_ble_inspect_all(void)
 {
     uint32_t i;
@@ -603,6 +796,12 @@ static void menu_ble_inspect_all(void)
     (void)printf("===== JDY-23 INSPECTION COMPLETE =====\r\n");
 }
 
+/**
+ * @brief 解析并处理一条 UART0 控制台 BLE 命令。
+ * @param line 已去除行尾的命令字符串。
+ * @param[in,out] monitor_enabled BLE 接收监视开关。
+ * @return 该命令属于 BLE 命令并已处理返回 true，否则返回 false。
+ */
 static bool menu_handle_ble_command(const char *line,
                                     bool *monitor_enabled)
 {
@@ -749,14 +948,22 @@ static bool menu_handle_ble_command(const char *line,
         return true;
     }
     if (strcmp(line, "ble rx") == 0) {
+#if (PRJ_BLE_MENU_CONSOLE_ENABLE != 0U)
+        (void)printf("BLE RX command is unavailable while menu console is enabled.\r\n");
+#else
         if (!menu_ble_drain_rx()) {
             (void)printf("[BLE RX] no buffered data.\r\n");
         }
+#endif
         return true;
     }
     if (strcmp(line, "ble monitor on") == 0) {
+#if (PRJ_BLE_MENU_CONSOLE_ENABLE != 0U)
+        (void)printf("BLE RX monitor is unavailable while menu console is enabled.\r\n");
+#else
         *monitor_enabled = true;
         (void)printf("BLE RX monitor: ON\r\n");
+#endif
         return true;
     }
     if (strcmp(line, "ble monitor off") == 0) {
@@ -765,8 +972,12 @@ static bool menu_handle_ble_command(const char *line,
         return true;
     }
     if (strcmp(line, "ble flush") == 0) {
+#if (PRJ_BLE_MENU_CONSOLE_ENABLE != 0U)
+        (void)printf("BLE RX flush is unavailable while menu console is enabled.\r\n");
+#else
         app_ble_flush_rx();
         (void)printf("BLE RX buffer flushed.\r\n");
+#endif
         return true;
     }
     if (menu_ble_prefix_matches(line, "ble")) {
@@ -776,6 +987,8 @@ static bool menu_handle_ble_command(const char *line,
     return false;
 }
 
+#endif /* PRJ_BLE_MENU_ENABLE */
+
 void app_menu_task(void *param)
 {
     app_shared_ctx_t *ctx = (app_shared_ctx_t *)param;
@@ -783,14 +996,25 @@ void app_menu_task(void *param)
     char line_buf[MENU_LINE_BUF_SIZE];
     uint32_t line_pos = 0U;
     uint32_t led_cnt = 0U;
-    bool need_refresh = true;  /* 初始显示 */
+    bool need_refresh = true;
+#if (PRJ_BLE_MENU_ENABLE != 0U)
     bool ble_monitor_enabled = false;
+#if (PRJ_BLE_MENU_CONSOLE_ENABLE != 0U)
+    uint32_t ble_line_pos = 0U;
+    bool ble_line_discard = false;
+#endif
+#endif
 
     (void)printf("\r\n=== MSPM0G3507 Motor Control ===\r\n");
     (void)printf("Send VOFA+ commands to control.\r\n");
     (void)printf("Type 'bench' to run MATHACL benchmark.\r\n");
+#if (PRJ_BLE_MENU_ENABLE != 0U)
     (void)printf("Type 'ble help' for JDY-23 UART1/BLE commands.\r\n");
+#endif
     (void)printf("Type 'encdiag' for one read-only hardware/encoder snapshot.\r\n");
+#if (PRJ_DRV8870_FACTORY_TEST_ENABLE != 0U)
+    (void)printf("Type 'encdiag cap [A|B|C|D|ALL] [ms]' for capture-edge diagnostics.\r\n");
+#endif
     (void)printf("Type 'drvscope start' for the persistent DRV8870 oscilloscope session.\r\n");
     (void)printf("Type 'drvscope status' for scope command help/status.\r\n");
     (void)printf("Type 'mathdiag' to run MATHACL hardware diagnostic.\r\n");
@@ -803,19 +1027,29 @@ void app_menu_task(void *param)
     (void)printf("  - Sweeps Q_angle x Q_bias, outputs drift/std/jump, finds best params\r\n");
 
     for (;;) {
-        /* 刷新菜单 */
+        /* 鍒锋柊鑿滃崟 */
         if (need_refresh) {
             menu_print_status(ctx, selected_motor);
             need_refresh = false;
         }
 
-        /* 检查命令 */
+        /* 妫€鏌ュ懡浠?*/
+#if (PRJ_BLE_MENU_CONSOLE_ENABLE != 0U)
+        if (menu_read_line(line_buf, MENU_LINE_BUF_SIZE, &line_pos) ||
+            menu_read_ble_line(line_buf, MENU_LINE_BUF_SIZE,
+                               &ble_line_pos, &ble_line_discard)) {
+            (void)printf("[BLE/UART MENU] %s\r\n", line_buf);
+#else
         if (menu_read_line(line_buf, MENU_LINE_BUF_SIZE, &line_pos)) {
+#endif
             menu_drvscope_cmd_t scope_cmd;
 
+#if (PRJ_BLE_MENU_ENABLE != 0U)
             if (menu_handle_ble_command(line_buf, &ble_monitor_enabled)) {
                 need_refresh = true;
-            } else if (menu_parse_drvscope(line_buf, &scope_cmd)) {
+            } else
+#endif
+            if (menu_parse_drvscope(line_buf, &scope_cmd)) {
                 switch (scope_cmd.action) {
                 case MENU_DRVSCOPE_START:
                     app_debug_drv8870_scope_start(ctx);
@@ -845,6 +1079,18 @@ void app_menu_task(void *param)
             } else if (strcmp(line_buf, "encdiag") == 0) {
                 app_debug_hwmap_snapshot();
                 need_refresh = true;
+            } else if (strncmp(line_buf, "encdiag cap", 11U) == 0) {
+                uint32_t capture_motor = BSP_ENCODER_COUNT;
+                uint32_t capture_window = 1000U;
+                if (menu_parse_encdiag_capture(line_buf,
+                                               &capture_motor,
+                                               &capture_window)) {
+                    app_debug_encoder_capture_diag(capture_motor,
+                                                   capture_window);
+                } else {
+                    menu_print_encdiag_capture_usage();
+                }
+                need_refresh = true;
             } else if (strcmp(line_buf, "enc") == 0) {
                 app_debug_encoder_stream(50);
                 need_refresh = true;
@@ -855,7 +1101,7 @@ void app_menu_task(void *param)
                 app_debug_adc_test();
                 need_refresh = true;
             } else if (strncmp(line_buf, "zutptest", 8) == 0) {
-                /* zutptest N: 启动 N 秒 ZUPT 测试 */
+                /* zutptest N: 鍚姩 N 绉?ZUPT 娴嬭瘯 */
                 uint32_t dur = 60;
                 if (strlen(line_buf) > 9) {
                     dur = (uint32_t)atoi(&line_buf[9]);
@@ -863,15 +1109,15 @@ void app_menu_task(void *param)
                 }
                 app_test_runner_start(dur);
             } else if (strncmp(line_buf, "turndtest", 9) == 0) {
-                /* turndtest ANGLE [TIMEOUT]: 动态转动精度测试 */
+                /* turndtest ANGLE [TIMEOUT]: 鍔ㄦ€佽浆鍔ㄧ簿搴︽祴璇?*/
                 float target = 90.0f;
                 uint32_t timeout = 60;
-                /* 解析: "turndtest 90" 或 "turndtest 90 30" */
+                /* 瑙ｆ瀽: "turndtest 90" 鎴?"turndtest 90 30" */
                 char *p = &line_buf[9];
                 while (*p == ' ') p++;
                 if (*p != '\0') {
                     target = (float)atof(p);
-                    /* 查找第二个参数 */
+                    /* 鏌ユ壘绗簩涓弬鏁?*/
                     while (*p != '\0' && *p != ' ') p++;
                     while (*p == ' ') p++;
                     if (*p != '\0') {
@@ -882,10 +1128,10 @@ void app_menu_task(void *param)
                 if (target == 0.0f) target = 90.0f;
                 app_test_runner_start_turn(target, timeout);
             } else if (strcmp(line_buf, "turnend") == 0) {
-                /* turnend: 手动确认转动结束 */
+                /* turnend: 鎵嬪姩纭杞姩缁撴潫 */
                 app_test_runner_end_turn();
             } else if (strncmp(line_buf, "kftune", 6) == 0) {
-                /* kftune N: KF 参数扫描, 每组 N 秒 (默认 10) */
+                /* kftune N: KF 鍙傛暟鎵弿, 姣忕粍 N 绉?(榛樿 10) */
                 uint32_t dur = 10;
                 if (strlen(line_buf) > 7) {
                     dur = (uint32_t)atoi(&line_buf[7]);
@@ -898,23 +1144,25 @@ void app_menu_task(void *param)
                     app_vofa_apply_cmd(&cmd, ctx, &selected_motor,
                                        &need_refresh);
 
-                    /* Run命令进入数据输出模式 */
+                    /* Run鍛戒护杩涘叆鏁版嵁杈撳嚭妯″紡 */
                     if (cmd.type == VOFA_CMD_RUN ||
                         cmd.type == VOFA_CMD_STREAM_ON) {
                         menu_data_output_loop(ctx, &selected_motor,
                                               &need_refresh);
-                        /* 退出后刷新菜单 */
+                        /* 閫€鍑哄悗鍒锋柊鑿滃崟 */
                         need_refresh = true;
                     }
                 }
             }
         }
 
-        /* LED心跳 */
+#if (PRJ_BLE_MENU_ENABLE != 0U) && (PRJ_BLE_MENU_CONSOLE_ENABLE == 0U)
         if (ble_monitor_enabled) {
             (void)menu_ble_drain_rx();
         }
+#endif
 
+        /* LED蹇冭烦 */
         led_cnt += MENU_LED_PERIOD_MS;
         if (led_cnt >= LED_TOGGLE_THRESH) {
             led_cnt = 0U;

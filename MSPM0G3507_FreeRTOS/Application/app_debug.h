@@ -17,6 +17,14 @@ void app_debug_encoder_diag(struct app_shared_ctx_s *ctx,
  *        clear encoder counters, or create a periodic task.
  */
 void app_debug_hwmap_snapshot(void);
+
+/**
+ * @brief Run a read-only CC0/CC1/LOAD capture diagnostic in factory mode.
+ * @param motor_id 0..3 for one encoder, BSP_ENCODER_COUNT for all encoders
+ * @param duration_ms observation window, clamped by the implementation
+ */
+void app_debug_encoder_capture_diag(uint32_t motor_id, uint32_t duration_ms);
+
 void app_debug_adc_test(void);
 
 /** Start the persistent DRV8870 oscilloscope session (factory build only). */

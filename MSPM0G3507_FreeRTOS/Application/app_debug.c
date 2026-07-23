@@ -15,6 +15,11 @@
 #include "ti_msp_dl_config.h"
 #include <stdio.h>
 #include <string.h>
+#if (PRJ_DRV8870_FACTORY_TEST_ENABLE != 0U)
+/* Keep the factory capture snapshots out of the menu task stack. */
+static bsp_encoder_diag_t s_capture_before[BSP_ENCODER_COUNT];
+static bsp_encoder_diag_t s_capture_after[BSP_ENCODER_COUNT];
+#endif
 
 void app_debug_encoder_stream(uint32_t period_ms)
 {
@@ -530,6 +535,102 @@ void app_debug_hwmap_snapshot(void)
     }
 
     (void)printf("Run encdiag once for a baseline; rotate one wheel by hand; run it again.\r\n");
+}
+
+/**
+ * @brief Factory-only, read-only capture diagnostic.
+ * @note  It does not enable PWM, toggle motor power, clear encoder position,
+ *        or modify any RPM formula. The existing CC0/CC1 counting remains
+ *        untouched; this function only reports additional ISR observations.
+ */
+void app_debug_encoder_capture_diag(uint32_t motor_id, uint32_t duration_ms)
+{
+#if (PRJ_DRV8870_FACTORY_TEST_ENABLE == 0U)
+    (void)motor_id;
+    (void)duration_ms;
+    (void)printf("Encoder capture diagnostic is disabled in this production build.\r\n");
+#else
+    if (duration_ms < 100U) {
+        duration_ms = 100U;
+    }
+    if (duration_ms > 10000U) {
+        duration_ms = 10000U;
+    }
+
+    const bool all = (motor_id >= BSP_ENCODER_COUNT);
+    const char *const names[BSP_ENCODER_COUNT] = {"A", "B", "C", "D"};
+    for (uint32_t i = 0U; i < BSP_ENCODER_COUNT; i++) {
+        (void)bsp_encoder_get_diag((bsp_encoder_id_t)i, &s_capture_before[i]);
+    }
+
+    (void)printf("\r\n===== FACTORY ENCODER CAPTURE DIAG =====\r\n");
+    (void)printf("Read-only: no PWM, no motor command, no encoder clear.\r\n");
+    (void)printf("Mode: COMBINED_UP; CC0=falling capture, CC1=rising capture.\r\n");
+    if (all) {
+        (void)printf("Target: ALL motors; window=%lu ms. Rotate one wheel at a time.\r\n",
+                     (unsigned long)duration_ms);
+    } else {
+        (void)printf("Target: Motor %s; window=%lu ms. Rotate only this wheel.\r\n",
+                     names[motor_id], (unsigned long)duration_ms);
+    }
+    (void)printf("CC1 capture is a timestamp; CC1 delta is extended by LOAD count.\r\n");
+    (void)printf("Collecting...\r\n");
+    (void)printf("CAPDIAG: delay loop entered; progress is printed every 1000 ms.\r\n");
+    {
+        uint32_t elapsed_ms = 0U;
+        while (elapsed_ms < duration_ms) {
+            uint32_t step_ms = duration_ms - elapsed_ms;
+            if (step_ms > 1000U) {
+                step_ms = 1000U;
+            }
+            osal_task_delay_ms(step_ms);
+            elapsed_ms += step_ms;
+            (void)printf("CAPDIAG: %lu/%lu ms\r\n",
+                         (unsigned long)elapsed_ms,
+                         (unsigned long)duration_ms);
+        }
+    }
+    (void)printf("CAPDIAG: delay loop complete; reading final snapshots.\r\n");
+
+    (void)printf("wheel CC0irq CC1irq LOADirq | A/B level start->end | CC0 cap/now | CC1 cap/now/prev/delta | LOAD now | total_delta | valid age\r\n");
+    for (uint32_t i = 0U; i < BSP_ENCODER_COUNT; i++) {
+        (void)bsp_encoder_get_diag((bsp_encoder_id_t)i, &s_capture_after[i]);
+        if (!all && i != motor_id) {
+            continue;
+        }
+
+        uint32_t cc0_delta = s_capture_after[i].cc0_event_count - s_capture_before[i].cc0_event_count;
+        uint32_t cc1_delta = s_capture_after[i].cc1_event_count - s_capture_before[i].cc1_event_count;
+        uint32_t load_delta = s_capture_after[i].load_event_count - s_capture_before[i].load_event_count;
+        int32_t total_delta = s_capture_after[i].total - s_capture_before[i].total;
+        uint32_t age = s_capture_after[i].time_since;
+
+        (void)printf("%s    %5lu %5lu %5lu | %u/%u->%u/%u | %5u/%-5u | %5u/%-5u/%-5u/%-7lu | %5u | %10ld | %u %lu\r\n",
+                     names[i],
+                     (unsigned long)cc0_delta,
+                     (unsigned long)cc1_delta,
+                     (unsigned long)load_delta,
+                     s_capture_before[i].a_level ? 1U : 0U,
+                     s_capture_before[i].b_level ? 1U : 0U,
+                     s_capture_after[i].a_level ? 1U : 0U,
+                     s_capture_after[i].b_level ? 1U : 0U,
+                     (unsigned)s_capture_after[i].cc0_capture,
+                     (unsigned)s_capture_after[i].cc0_timer_count,
+                     (unsigned)s_capture_after[i].cc1_capture,
+                     (unsigned)s_capture_after[i].cc1_timer_count,
+                     (unsigned)s_capture_after[i].cc1_previous_capture,
+                     (unsigned long)s_capture_after[i].cc1_delta,
+                     (unsigned)s_capture_after[i].load_timer_count,
+                     (long)total_delta,
+                     s_capture_after[i].cc1_period_valid ? 1U : 0U,
+                     (unsigned long)age);
+    }
+
+    (void)printf("Interpretation: CC0/CC1 event counts should track separate edges; LOAD is timer wrap.\r\n");
+    (void)printf("A/B level is the GPIO pad state sampled at the start/end of the read-only window; it does not prove wiring integrity by itself.\r\n");
+    (void)printf("If a wheel is stationary but CC0/CC1 rise together repeatedly, suspect a floating/noisy A-phase input or encoder power/ground issue.\r\n");
+    (void)printf("This phase intentionally does not change the existing dual-count or RPM calculation.\r\n");
+#endif
 }
 /* ======================== ADC测试 ======================== */
 

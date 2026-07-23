@@ -36,12 +36,53 @@ extern "C" {
 #define PRJ_UART_DEBUG_ID       HAL_UART_DEBUG
 
 /* ================================================================
- *  JDY-23 BLE UART??
+ *  JDY-23 BLE UART配置
  *  SysConfig: UART1, TX=PB6, RX=PB7, 9600-8-N-1, no flow control.
  *  JDY-23 protocol code is isolated from this hardware mapping.
  * ================================================================ */
 #define PRJ_UART_BLE_ID         HAL_UART_BLE
 #define PRJ_JDY23_UART_BAUD     (9600U)
+
+/**
+ * @brief 是否启用 UART1/JDY-23 BLE 菜单调试功能。
+ * @details
+ * 设为 1 时初始化 BLE 服务并启用 UART0 菜单中的 ble 命令；
+ * 设为 0 时不初始化 BLE 服务、不编译 BLE 菜单处理逻辑，
+ * 且不影响 UART0、电机、编码器、ADC、IMU 及其他菜单命令。
+ *
+ * 该开关只控制“菜单调试/诊断入口”，不会改变 JDY-23 驱动源文件
+ * 是否被 Keil 工程收录，从而避免不同 target 的文件组发生漂移。
+ */
+#ifndef PRJ_BLE_MENU_ENABLE
+#define PRJ_BLE_MENU_ENABLE     (1U)
+#endif
+
+#if (PRJ_BLE_MENU_ENABLE != 0U) && (PRJ_BLE_MENU_ENABLE != 1U)
+#error "PRJ_BLE_MENU_ENABLE must be 0 or 1"
+#endif
+
+/**
+ * @brief 是否允许手机通过 BLE 透明通道进入 UART0 菜单命令解析器。
+ * @details
+ * 设为 1 后，JDY-23 已建立透明连接时，手机发送的 ASCII 命令并以
+ * CR/LF 结束后，会复用现有菜单解析路径，例如 `A 100`、`stop`、
+ * `drvscope status` 等。该功能可能驱动电机，默认关闭以避免误动作。
+ *
+ * 该开关依赖 PRJ_BLE_MENU_ENABLE；开启本宏时必须同时开启 BLE 菜单服务。
+ */
+#ifndef PRJ_BLE_MENU_CONSOLE_ENABLE
+#define PRJ_BLE_MENU_CONSOLE_ENABLE (0U)
+#endif
+
+#if (PRJ_BLE_MENU_CONSOLE_ENABLE != 0U) && \
+    (PRJ_BLE_MENU_CONSOLE_ENABLE != 1U)
+#error "PRJ_BLE_MENU_CONSOLE_ENABLE must be 0 or 1"
+#endif
+
+#if (PRJ_BLE_MENU_CONSOLE_ENABLE != 0U) && \
+    (PRJ_BLE_MENU_ENABLE == 0U)
+#error "BLE menu console requires PRJ_BLE_MENU_ENABLE=1"
+#endif
 
 /* ================================================================
  *  电机驱动选择与统一业务命令
@@ -69,8 +110,8 @@ extern "C" {
 #define PRJ_MOTOR_COMMAND_MAX       (500U)
 
 /** 电机安装方向；正命令必须统一对应车体前进方向。 */
-#define PRJ_MOTOR_A_INSTALL_DIR_SIGN  (+1)
-#define PRJ_MOTOR_B_INSTALL_DIR_SIGN  (+1)
+#define PRJ_MOTOR_A_INSTALL_DIR_SIGN  (-1)
+#define PRJ_MOTOR_B_INSTALL_DIR_SIGN  (-1)
 #define PRJ_MOTOR_C_INSTALL_DIR_SIGN  (+1)
 #define PRJ_MOTOR_D_INSTALL_DIR_SIGN  (+1)
 
@@ -223,6 +264,15 @@ extern "C" {
 #define PRJ_ENCODER_LB_IRQ_HANDLER  M4_INST_IRQHandler
 #define PRJ_ENCODER_RF_IRQ_HANDLER  M2_INST_IRQHandler
 #define PRJ_ENCODER_RB_IRQ_HANDLER  M1_INST_IRQHandler
+/** 编码器A相端口/引脚(SysConfig捕获复用输入) */
+#define PRJ_ENCODER_LF_A_PORT        HAL_GPIO_PORT_A
+#define PRJ_ENCODER_LB_A_PORT        HAL_GPIO_PORT_A
+#define PRJ_ENCODER_RF_A_PORT        HAL_GPIO_PORT_A
+#define PRJ_ENCODER_RB_A_PORT        HAL_GPIO_PORT_A
+#define PRJ_ENCODER_LF_A_PIN         GPIO_M3_C0_PIN
+#define PRJ_ENCODER_LB_A_PIN         GPIO_M4_C0_PIN
+#define PRJ_ENCODER_RF_A_PIN         GPIO_M2_C0_PIN
+#define PRJ_ENCODER_RB_A_PIN         GPIO_M1_C0_PIN
 /** 编码器B相端口(SysConfig已配置) */
 #define PRJ_ENCODER_LF_B_PORT        HAL_GPIO_PORT_A
 #define PRJ_ENCODER_LB_B_PORT        HAL_GPIO_PORT_A
@@ -263,14 +313,14 @@ extern "C" {
 
 /** 编码器配置表(顺序需与BSP_ENCODER_x一致) */
 #define PRJ_ENCODER_CONFIGS { \
-		{ PRJ_ENCODER_LF_TIMER, PRJ_ENCODER_LF_B_PORT, PRJ_ENCODER_LF_B_PIN, \
-			PRJ_ENCODER_LF_DIR_SIGN }, \
-		{ PRJ_ENCODER_LB_TIMER, PRJ_ENCODER_LB_B_PORT, PRJ_ENCODER_LB_B_PIN, \
-			PRJ_ENCODER_LB_DIR_SIGN }, \
-		{ PRJ_ENCODER_RF_TIMER, PRJ_ENCODER_RF_B_PORT, PRJ_ENCODER_RF_B_PIN, \
-			PRJ_ENCODER_RF_DIR_SIGN }, \
-		{ PRJ_ENCODER_RB_TIMER, PRJ_ENCODER_RB_B_PORT, PRJ_ENCODER_RB_B_PIN, \
-			PRJ_ENCODER_RB_DIR_SIGN }, \
+		{ PRJ_ENCODER_LF_TIMER, PRJ_ENCODER_LF_A_PORT, PRJ_ENCODER_LF_A_PIN, \
+			PRJ_ENCODER_LF_B_PORT, PRJ_ENCODER_LF_B_PIN, PRJ_ENCODER_LF_DIR_SIGN }, \
+		{ PRJ_ENCODER_LB_TIMER, PRJ_ENCODER_LB_A_PORT, PRJ_ENCODER_LB_A_PIN, \
+			PRJ_ENCODER_LB_B_PORT, PRJ_ENCODER_LB_B_PIN, PRJ_ENCODER_LB_DIR_SIGN }, \
+		{ PRJ_ENCODER_RF_TIMER, PRJ_ENCODER_RF_A_PORT, PRJ_ENCODER_RF_A_PIN, \
+			PRJ_ENCODER_RF_B_PORT, PRJ_ENCODER_RF_B_PIN, PRJ_ENCODER_RF_DIR_SIGN }, \
+		{ PRJ_ENCODER_RB_TIMER, PRJ_ENCODER_RB_A_PORT, PRJ_ENCODER_RB_A_PIN, \
+			PRJ_ENCODER_RB_B_PORT, PRJ_ENCODER_RB_B_PIN, PRJ_ENCODER_RB_DIR_SIGN }, \
 }
 
 /* ================================================================
