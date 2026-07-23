@@ -350,7 +350,7 @@ static double full_pipeline_fn(uint8_t *buf, uint8_t *pos, axiom_ring_t *ring,
                                 uint8_t *ring_data, uint32_t ring_size, uint32_t *drops) {
     (void)ring; (void)ring_data; (void)ring_size; (void)drops;
     buf[0] = buf[0]; /* suppress potential unused warnings from pure pipeline test */
-    /* Full encode: 10 type tags + values */
+    /* Full wire v2 packed encode: values plus the bytes length prefix. */
     axiom_enc_bool(buf, pos, true);
     axiom_enc_u8(buf, pos, 0x42);
     axiom_enc_i8(buf, pos, -42);

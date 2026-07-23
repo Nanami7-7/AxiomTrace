@@ -71,7 +71,7 @@ AxiomTrace/
 **交付**：
 - RAM Ring（无锁、IRQ-safe、单生产者单消费者）。
 - Event Record（固定 8B header + 1B payload_len + payload + 2B crc16）。
-- Encoder（`_Generic` 类型安全分发 + 类型标签写入）。
+- Encoder（`_Generic` 类型安全分发 + wire v2 packed 值写入）。
 - CRC-16/CCITT-FALSE（256B ROM 查表）。
 - 压缩相对 Timestamp（delta 编码）。
 - Memory Backend（直接写 RAM Ring 区域）。
@@ -139,11 +139,8 @@ AxiomTrace/
 
 **交付**：
 - Memory Backend。
-- UART Backend Template (COBS + 0x00 delimiter)。
-- USB CDC Backend Template (bulk IN endpoint)。
-- RTT Backend Template (SEGGER RTT up-channel)。
-- SWO/ITM Backend Template (32-bit stimulus word 流)。
-- CAN-FD Backend Template (帧拆分与 ID 映射)。
+- Memory 与 Deferred Backend 链接进主库。
+- 硬件传输 Backend 不在 v1.0 收敛范围。
 - Flash Capsule Backend (故障时 commit，正常不写 Flash)。
 
 **Backend Contract**:
@@ -189,7 +186,7 @@ typedef struct {
 - 正常运行默认不写 Flash。
 - 故障触发后才 commit capsule。
 - Flash erase/write 不进入日志热路径。
-- Capsule 数据格式稳定、自描述、可解码。
+- Capsule framing 稳定且可解码；wire v2 事件语义使用 identity 匹配的 bundle。
 
 ---
 
@@ -201,14 +198,20 @@ typedef struct {
 - decoder（binary → 结构化对象）。
 - text render（结构化对象 → 人类可读文本，支持 dictionary 模板填充）。
 - json export（结构化对象 → JSON 文件）。
+- 标准元数据包（`manifest.json`、`dictionary.json`、`source_map.json`、`build_info.json`，可选 ELF/map 产物）。
+- bundle 生成器（`axiom-bundle generate`）和 CMake helper（`axiomtrace_add_bundle(...)`）。
+- 基于固件身份的 bundle-store 精确匹配解码。
 - capsule report（capsule binary → 故障分析报告）。
 - dictionary validator（校验固件 payload 与 dictionary 模板类型匹配）。
 - golden frame updater（编码器生成标准帧，供回归测试）。
 - benchmark tool（热路径周期数测量与报告）。
+- 文档治理：每个主题只有一个主文档，禁止临时 Markdown。
 
 **验收**：
 - binary → text（通过 decoder + render）。
 - binary → json（通过 decoder + json export）。
+- trace + bundle → 开启定位时可还原事件语义和源码位置。
+- trace + bundle-store → 根据固件身份精确选择 bundle。
 - capsule → report（通过 capsule decoder）。
 - golden → regression test（每次 CI 自动运行）。
 
@@ -227,7 +230,7 @@ typedef struct {
 - fuzz malformed frame（libFuzzer 或自定义 fuzz 目标）。
 - fault injection（模拟 HardFault，验证 capsule 捕获）。
 - power-loss simulation（验证 Flash capsule 掉电恢复）。
-- docs complete（README、api_reference、examples 注释）。
+- docs complete（README 只做入口、主规范文档、工具 help、examples 注释完整；无重复独立 Markdown）。
 - examples complete（全部可编译、可运行）。
 
 ---
@@ -237,11 +240,11 @@ typedef struct {
 只有 **全部满足** 才发正式 v1.0：
 
 - [ ] stable API（`AX_*` 宏锁定）。
-- [ ] stable wire format（header 结构、type tag 定义冻结）。
+- [ ] stable wire format（header、packed 参数与 metadata suffix 定义冻结）。
 - [ ] stable event model（Event Record 语义不变）。
 - [ ] stable backend contract（`axiom_backend_t` 结构体冻结）。
 - [ ] stable capsule format（capsule 布局冻结）。
-- [ ] stable decoder（能解析全部 type tag 与 capsule）。
+- [ ] stable decoder（能解析当前 packed frame、历史 typed frame 与 capsule）。
 - [ ] stable golden tests（全部通过）。
 - [ ] stable examples（全部可编译、可运行）。
 - [ ] stable benchmark report（热路径周期数基准锁定）。
@@ -260,5 +263,5 @@ typedef struct {
 | API 设计 | 结构化宏 + Profile 裁剪 | 开发时好用 (AX_LOG)，量产时零开销 (PROD 裁剪)。 |
 | 类型安全 | C11 `_Generic` | 编译期检查，零运行时开销。 |
 | 扩展性 | Backend Contract + 弱符号 Port | 新增后端不修改库，新平台只需覆盖 port 函数。 |
-| 用户友好 | 单文件库 + 零配置起步 + 渐进式复杂度 | 5 分钟上手，按需升级工具链。 |
+| 用户友好 | 单文件库 + 最小 Backend 注册 + 渐进式复杂度 | 5 分钟跑通有效帧，按需升级工具链。 |
 | 可信 | Golden test + decoder 回归 + benchmark | 每次变更可验证，协议可追溯。 |

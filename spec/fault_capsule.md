@@ -2,13 +2,13 @@
 
 # AxiomTrace Fault Capsule Specification
 
-> 版本：v1.0  |  状态：**冻结中（v0.6-capsule 定稿）**  |  对应代码：`baremetal/backend/axiom_capsule_flash.c`, `baremetal/core/axiom_event.c`
+> Version: v1.0  |  Status: **Implemented**  |  Current code: `baremetal/core/axiom_capsule.c`, `baremetal/core/axiom_event.c`, `tool/src/axiomtrace_tools/capsule.py`
 
 ---
 
 ## 1. Concept
 
-A **Fault Capsule** is a frozen snapshot of system state and recent events captured when a critical fault (`AX_FAULT`) is logged. It enables post-mortem analysis without external debugger attachment.
+A **Fault Capsule** is the persisted snapshot format for post-mortem analysis. In v1.0, `AX_FAULT` emits a normal fault-level Event Record, calls `axiom_port_fault_hook()`, freezes the retained pre-window, captures the post-window, and allows user code to stream the capsule v1 image to the configured Flash region.
 
 **Core rule**: Normal operation writes **zero** bytes to Flash. Flash is only touched after a fault trigger, during the non-ISR `axiom_capsule_commit()` call.
 
@@ -20,22 +20,22 @@ The logging system maintains two logical zones:
 
 | Zone         | Purpose                              | Policy              |
 |--------------|--------------------------------------|---------------------|
-| Normal Ring  | Regular event logging                | Overwrite or Drop   |
-| Capsule Ring | Reserved for fault capture           | Freeze on fault     |
+| Core Ring | Regular event dispatch | DROP by default; optional record-aware OVERWRITE |
+| Capsule frame ring | Complete retained history frames | Evict whole pre-fault records; append-only after fault |
 
 ### 2.1 Lifecycle
 
-1. **Normal operation**: Events flow into the Normal Ring. The Capsule Ring remains empty.
+1. **Normal operation**: Events flow through the Core Ring. One record-aware capsule byte ring retains the newest complete pre-fault frames within both count and byte limits.
 2. **Fault trigger**: `AX_FAULT()` is called.
-   - Core invokes `axiom_port_fault_hook()`.
-   - Normal Ring is **frozen** (new normal events are dropped or redirected).
-   - The last `N` pre-fault events are copied from Normal Ring tail to Capsule Ring.
-3. **Post-fault capture**: Up to `M` post-fault events are written into Capsule Ring.
-4. **Freeze complete**: When Capsule Ring is full or post-window `M` is reached, the system enters **capsule frozen** state.
+   - Core invokes `axiom_port_fault_hook()` and emits the fault Event Record.
+   - The capsule observer freezes its retained pre-window; the independent Core Ring continues its configured behavior.
+   - The fault frame is appended as the first post-window record.
+3. **Post-fault capture**: Up to `M` fault/post-fault events are appended without evicting the frozen pre-window.
+4. **Freeze complete**: When the frame ring is full or post-window `M` is reached, the capsule enters frozen state.
 5. **Commit**: User code (or port layer) calls `axiom_capsule_commit()`:
    - Erase Flash capsule sector(s) (non-ISR)
    - Write capsule header (register snapshot, reset reason, firmware hash, drop stats)
-   - Write Capsule Ring contents
+   - Write snapshot and frame-ring contents in bounded chunks
    - Write capsule CRC
 6. **Reboot dump**: After reset, user code calls `axiom_capsule_present()` / `axiom_capsule_read()` to retrieve the capsule for analysis.
 
@@ -60,7 +60,7 @@ The committed capsule consists of:
 │   - register snapshot (variable, see §4)                    │
 ├─────────────────────────────────────────────────────────────┤
 │ Event Records (copied from Capsule Ring)                     │
-│   - Each record is a complete v1.0 frame                     │
+│   - Each record is a complete supported frame (current v2.0) │
 ├─────────────────────────────────────────────────────────────┤
 │ Capsule CRC-32 (4B LE)                                       │
 │   - Covers header + all event records                        │
@@ -99,7 +99,7 @@ The register snapshot format is architecture-dependent, identified by a `snapsho
 
 ---
 
-## 5. Configuration
+## 5. Target Configuration
 
 ```c
 #ifndef AXIOM_CAPSULE_ENABLED
@@ -115,13 +115,36 @@ The register snapshot format is architecture-dependent, identified by a `snapsho
 #endif
 
 #ifndef AXIOM_CAPSULE_RING_SIZE
-#define AXIOM_CAPSULE_RING_SIZE (2048u)
+#define AXIOM_CAPSULE_RING_SIZE 4096u
+#endif
+
+#ifndef AXIOM_CAPSULE_MAX_SNAPSHOT_LEN
+#define AXIOM_CAPSULE_MAX_SNAPSHOT_LEN 64u
+#endif
+
+#ifndef AXIOM_CAPSULE_FLASH_BASE
+#define AXIOM_CAPSULE_FLASH_BASE 0u
+#endif
+
+#ifndef AXIOM_CAPSULE_FLASH_SIZE
+#define AXIOM_CAPSULE_FLASH_SIZE 8192u
+#endif
+
+#ifndef AXIOM_CAPSULE_FIRMWARE_HASH
+#define AXIOM_CAPSULE_FIRMWARE_HASH 0u
+#endif
+
+#ifndef AXIOM_CAPSULE_SNAPSHOT_ID
+#define AXIOM_CAPSULE_SNAPSHOT_ID 0u
 #endif
 ```
 
-- `AXIOM_CAPSULE_ENABLED == 0`: `AX_FAULT` behaves exactly like `AX_ERROR`. No capsule logic is compiled.
+- These macros are part of the current core `axiom_config.h`.
+- `AXIOM_CAPSULE_ENABLED == 0`: `AX_FAULT` remains a fault-level Event Record and no capsule backend logic is compiled.
 - `AXIOM_CAPSULE_PRE_EVENTS`: Number of events to retain before fault.
 - `AXIOM_CAPSULE_POST_EVENTS`: Number of events to retain after fault.
+- `AXIOM_CAPSULE_RING_SIZE`: Maximum bytes used for captured Event Records.
+- `AXIOM_CAPSULE_FLASH_BASE` / `AXIOM_CAPSULE_FLASH_SIZE`: Port-specific Flash region used by commit/read/clear.
 
 ---
 
@@ -141,11 +164,14 @@ uint32_t axiom_capsule_read(uint8_t *out, uint32_t max_len);
 void axiom_capsule_clear(void);
 ```
 
+`axiom_capsule_read()` synthesizes the existing capsule v1 image directly in the caller buffer; no second full RAM image is retained. `axiom_capsule_present()` validates Flash with a fixed 64-byte scratch buffer. Both Flash paths enforce magic, encoded length, and CRC-32. If Flash commit fails, the retained frame ring remains readable.
+
 ---
 
 ## 7. Constraints
 
 - Flash erase/write **never** occurs in ISR or hot path.
 - `axiom_capsule_commit()` must be called from main loop or fault handler tail, with interrupts managed by the port layer.
-- Capsule data format is self-describing and versioned; decoder can parse capsules without external schema.
-- If Flash commit fails (e.g., Flash controller busy), the capsule remains in RAM (if retention RAM is available) and `commit()` returns `false`.
+- Capsule framing and register snapshots are versioned. For wire v2 event semantics, the decoder requires the identity-matched metadata bundle; without it, normal event payload values remain raw.
+- Bundle-backed semantic reports require a metadata identity event within the captured Event Records. The capsule `firmware_hash` remains a firmware diagnostic field and is not the bundle `metadata_id`.
+- If Flash commit fails (e.g., Flash controller busy, short write, or interrupted write), the capsule remains in RAM and `commit()` returns `false`.

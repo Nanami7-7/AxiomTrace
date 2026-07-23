@@ -24,10 +24,10 @@ extern "C" {
 /* ---------------------------------------------------------------------------
  * Backend Contract
  * The first field `size` enables forward-compatible struct evolution:
- * - Old backends (zero-initialized) have size==0, treated as legacy v1 layout.
+ * - Source-compatible zero-initialized descriptors have size==0.
  * - New backends set size via AXIOM_BACKEND_INIT() so the registry can
  *   detect the layout version and safely access fields added in future minor
- *   releases without breaking ABI.
+ *   releases after recompilation. This is not a binary-layout guarantee.
  * --------------------------------------------------------------------------- */
 typedef struct {
     uint16_t size;              /* sizeof(this struct) at compile time */
@@ -47,6 +47,15 @@ typedef struct {
  * Example: static const axiom_backend_t my_be = AXIOM_BACKEND_INIT(
  *     .name = "uart", .write = uart_write, .ctx = &uart_ctx); */
 #define AXIOM_BACKEND_INIT(...)  { .size = sizeof(axiom_backend_t), __VA_ARGS__ }
+
+typedef struct {
+    uint8_t *buf;
+    uint32_t size;
+    uint32_t head;
+} axiom_memory_backend_ctx_t;
+
+axiom_backend_t axiom_backend_memory(const char *name, uint8_t *buf, uint32_t size,
+                                     axiom_memory_backend_ctx_t *ctx);
 
 /* ---------------------------------------------------------------------------
  * Backend Registry — Error Codes

@@ -2,20 +2,23 @@
   {
     "sync": 165,
     "version": [
-      1,
+      2,
       0
     ],
     "level": "INFO",
     "module_id": 3,
     "event_id": 1,
     "seq": 1,
-    "payload_len": 3,
+    "payload_len": 2,
     "payload": [
       {
         "type": "u16",
         "value": 1000
       }
     ],
-    "crc": 12514
+    "crc": 25417,
+    "timestamp_delta": 0,
+    "timestamp_len": 1,
+    "timestamp": 0
   }
 ]

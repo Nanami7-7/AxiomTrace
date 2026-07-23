@@ -2,7 +2,7 @@
 
 # AxiomTrace RULES.md
 
-> 版本：v1.0 | 状态：**强制执行** | 更新日期：2026-04-29
+> 版本：v1.0 | 状态：**强制执行** | 更新日期：2026-05-28
 
 ---
 
@@ -13,7 +13,7 @@ AxiomTrace 是一个 **MCU 裸机可观测微内核**。我们的坚定目标：
 - **好用**：开发者能在 5 分钟内打出第一条结构化日志，API 语义清晰、命名直观、文档完善。
 - **轻量高效**：热路径 O(1)、无 malloc、无 printf、无阻塞、ISR 可写；最小配置 Flash < 4KB、RAM < 2KB。
 - **扩展性**：Backend 可插拔、Payload 类型可扩展、Profile 可裁剪、协议向前兼容；新增后端不修改 Core。
-- **用户友好**：零配置起步、单文件库快速入门、渐进式 API（从硬编码 ID 到 X-Macro 到 YAML）、错误信息明确、示例覆盖全部场景。
+- **用户友好**：最小 Backend 注册 + 单头文件快速入门、渐进式 API（从硬编码 ID 到 X-Macro 到 YAML）、错误信息明确、示例覆盖关键场景。
 - **可信可发布**：协议可冻结、工具链可验证、golden test 可回归、故障可追溯。
 
 **不是**：
@@ -41,8 +41,8 @@ AxiomTrace 是一个 **MCU 裸机可观测微内核**。我们的坚定目标：
 | 字符串比较/查找 | 禁止运行时解析字符串。 | 拒绝合入。 |
 
 **允许项**：
-- Direct-to-Ring (D2R) 编码（直接流式写入环形缓冲区分段）。
-- 盲覆盖（Blind Overwrite）策略，确保环满时具备 O(1) 确定性延迟。
+- Packed 帧编码与短临界区写入。
+- 默认 DROP 新帧，保证环满处理为有界 O(1)；可选 OVERWRITE 只能丢弃经过校验的完整旧帧，循环由最大帧长约束。
 - 增量式 CRC（流式计算，无需重复读取内存）。
 - 写 RAM Ring（单次临界区）。
 - 更新全局 drop counter (`volatile uint32_t` 自增)。
@@ -70,12 +70,12 @@ AxiomTrace 是一个 **MCU 裸机可观测微内核**。我们的坚定目标：
 | 规则 | 说明 |
 | :--- | :--- |
 | Event Record 是唯一日志本体 | 固件中不存在"文本日志"或"二进制日志"的区分，只有 Event Record。 |
-| Backend 不得定义私有协议 | 所有 backend 接收的 buffer 必须是统一的 Event Record frame；backend 只能做传输适配（如 COBS 编码、CAN-FD 分帧），不能改变帧内结构。 |
+| Backend 不得定义私有协议 | 所有 Backend 接收的 buffer 必须是完整原始 Event Record frame；任何外部传输封装都位于 Core 之外，且不能改变 CRC 覆盖的主体。 |
 | Text 只是渲染 | 文本输出由主机 decoder 根据 dictionary 模板渲染生成。 |
 | JSON 只是导出 | JSON 由主机工具从 binary 转换生成。 |
 | Binary 是存储/传输形态 | Binary frame 是唯一穿越固件-主机边界的数据形态。 |
-| Payload 自描述 | 每个 payload 字段必须带类型标签（`0x01=u8, 0x02=i8...`），decoder 无需外部 schema 即可解析结构；dictionary 只负责语义映射（ID → 名称/模板）。 |
-| 协议向前兼容 | Minor version 增加只追加新 type tag 或新 flag，不修改已有字段语义；Major version 变化必须同步更新 decoder、golden、spec、docs。 |
+| 版本化 Payload 解释 | Wire v2 普通参数按照 identity 匹配的 dictionary packed 编码；metadata suffix 仍带标签。Decoder 保留对历史 wire v1 typed payload 的结构解码。 |
+| 协议向前兼容 | Minor version 增加必须保持同一 major 内的 payload 解释不变；Major version 变化必须同步更新 decoder、golden、spec、docs。 |
 
 ---
 
@@ -97,7 +97,7 @@ AxiomTrace 是一个 **MCU 裸机可观测微内核**。我们的坚定目标：
 | 规则 | 说明 |
 | :--- | :--- |
 | Backend 零侵入扩展 | 新增 backend 只需实现 `axiom_backend_t` 接口并调用 `axiom_backend_register()`；不允许修改 `core/` 或 `frontend/` 任何文件。 |
-| Payload 类型可扩展 | 新增 type tag 使用 `0x0A~0x7F` 区间；必须同步更新：encoder、decoder、spec、golden tests、docs；旧 decoder 遇到未知 type tag 应跳过并标记 `UNKNOWN_TYPE` 而非崩溃。 |
+| Payload Metadata 可扩展 | Wire v2 中 `0x0A` 与 `0x0B` 标识 dictionary-defined packed 参数后的定位与 metadata identity suffix。新增 suffix 必须同步更新 encoder、decoder、spec、golden tests、docs；未知 suffix 必须安全拒绝。 |
 | Profile 可裁剪 | `DEV / FIELD / PROD` Profile 通过宏控制编译期裁剪；新增 Profile 需在 `frontend/` 中增加对应宏分支，不得改变已有 Profile 语义。 |
 | Port 层弱符号 | 所有 port 函数提供 `__attribute__((weak))` 默认实现；新增 port（如新 MCU 系列）只需覆盖所需函数，无需修改库代码。 |
 | 工具链可扩展 | decoder 采用插件化字典加载（支持 JSON/YAML/X-Macro 提取）；新增导出格式（如 CSV、PCAP）通过新增 render 模块实现。 |
@@ -117,6 +117,17 @@ AxiomTrace 是一个 **MCU 裸机可观测微内核**。我们的坚定目标：
 | 文档同步 | 任何 API 变更必须同步更新 `../../spec/api_reference.md`；任何协议变更必须同步更新 `../../spec/wire_format.md` 和 decoder。 |
 | 单文件库自动化 | 提供 `../../tool/scripts/amalgamate.py`，一键将多文件库合并为单文件 `axiomtrace.h`；合并产物必须通过全部 host tests。 |
 
+### 文档治理
+
+| 规则 | 说明 |
+| :--- | :--- |
+| 每个主题只有一个主文档 | API 归 `spec/api_reference.md`，wire 数据归 `spec/wire_format.md`，事件语义归 `spec/event_model.md`，工具链和 bundle 归 `spec/toolchain_ecosystem_design.md`，项目流程归 `docs/project/*.md`。 |
+| 禁止临时 Markdown | 除非主题无法并入现有主文档，并且新文件已从 README 和 `docs/reference/DIR_STRUCTURE.md` 建立入口，否则不得新增 `.md` 文件。 |
+| README 只做入口 | README 负责定位、快速开始和文档索引，不重复 schema、长 CLI 契约或实现计划。 |
+| 中英文同步 | 已有中英文版本的公开文档必须在同一次变更中同步更新。 |
+| 工具细节优先放 CLI help | CLI 参数细节优先写在工具 help/docstring 中；Markdown 描述稳定契约和工作流，不重复堆参数。 |
+| 大范围工作先更新路线 | 大型工具链或文档规范化工作，必须先更新 `PLAN.md` / `ROUTE.md`，让范围在实现前可见。 |
+
 ---
 
 ## 8. 开发流程（强制执行）
@@ -134,7 +145,7 @@ Golden Frame 更新（若涉及 wire format，更新 golden/*.bin 与 expected.j
     ↓
 代码实现（遵循本 RULES.md 全部规则）
     ↓
-Decoder 更新（若涉及协议或 type tag，同步更新 Python decoder）
+Decoder 更新（若涉及协议、packed schema 或 metadata suffix，同步更新 Python decoder）
     ↓
 测试（C host unit tests + Python decoder regression tests）
     ↓
@@ -158,21 +169,25 @@ PR 评审（至少 1 人评审，检查是否违反 RULES.md）
 ### 9.1 日常维护
 
 - **每轮迭代开始**：检查 `ROUTE.md` 当前阶段目标，确认无范围蔓延。
-- **每次 commit**：本地运行 `ctest` (host tests) 通过后再 push。
-- **每次协议微调**：运行 `../../tool/golden/update_golden.py` 并提交新的 golden frames。
+- **每次 commit**：本地运行 host `ctest` 与 `python -m pytest -q` 通过后再 push。
+- **每次协议微调**：先运行 `python tool/golden/update_golden.py --check`；只有 wire 契约确实变更时才提交重新生成的 golden frames。
 - **每周**：检查 `tests/` 覆盖率，未覆盖的新增代码必须补测试。
 
 ### 9.2 版本发布流程
 
 1. 从 `ROUTE.md` 确认当前阶段所有任务已完成。
-2. 运行全量测试：`ctest --output-on-failure` + `python ../../tool/tests/test_decoder.py`。
-3. 运行 benchmark：`../../tool/benchmark/host_benchmark` 并更新报告。
-4. 检查无 P0/P1 问题（见 §10）。
-5. 更新 `../changelog/CHANGELOG.md`。
-6. 更新 `PLAN.md` 状态。
-7. 打 git tag：`git tag v0.x-stage`。
-8. 运行 amalgamate 脚本生成单文件库，验证通过测试。
-9. 发布 Release Note（含 binary、单文件库、decoder、docs）。
+2. 运行 host C 矩阵：Clang 与 GCC 分别构建，并对每个构建目录运行 `ctest --test-dir <build-dir> --output-on-failure`。
+3. 运行 Python/tooling 矩阵：`python -m pytest -q`、`python -m compileall -q tool/src tests`、`PYTHONPATH=tool/src python -m axiomtrace_tools.cli validate --golden tool/golden`。
+4. 运行 golden 校验：`python tool/golden/update_golden.py --check`。
+5. 对 `custom`、`tiny`、`prod`、`field`、`dev` 运行 preset smoke build，使用 `AXIOM_BUILD_TESTS=OFF` 验证每个资源档位都能编译。
+6. 运行集成脚本：Windows 下使用 Git Bash 执行 `./tests/test_integration.sh`。
+7. 运行 benchmark：从已验证构建目录执行 `tests/host/test_benchmark`，若基线变化则更新报告。
+8. 检查无 P0/P1 问题（见 §10）。
+9. 更新 `../changelog/CHANGELOG.md`。
+10. 更新 `PLAN.md` 状态。
+11. 打 git tag：`git tag v0.x-stage`。
+12. 运行 amalgamate 脚本生成单文件库，验证通过测试。
+13. 发布 Release Note（含 binary、单文件库、decoder、docs）。
 
 ### 9.3 问题分级与响应
 
@@ -190,11 +205,11 @@ PR 评审（至少 1 人评审，检查是否违反 RULES.md）
 只有 **全部满足** 才允许打 `v1.0` tag：
 
 - [ ] stable API (`AX_*` 宏锁定)。
-- [ ] stable wire format (header 结构、type tag 定义冻结)。
+- [ ] stable wire format（header、packed 参数与 metadata suffix 契约冻结）。
 - [ ] stable event model (Event Record 语义不变)。
 - [ ] stable backend contract (`axiom_backend_t` 结构体冻结)。
 - [ ] stable capsule format (capsule 布局冻结)。
-- [ ] stable decoder (Python decoder 能解析全部 type tag 与 capsule)。
+- [ ] stable decoder（Python decoder 能解析当前 packed frame、历史 typed frame 与 capsule）。
 - [ ] stable golden tests (全部通过，无 flakiness)。
 - [ ] stable examples (全部可编译、可运行、输出符合预期)。
 - [ ] stable benchmark report (热路径周期数基准锁定)。
@@ -233,7 +248,7 @@ PR 评审（至少 1 人评审，检查是否违反 RULES.md）
 - [ ] 没有 RTOS/Linux 实现分支（port 层隔离，core 无 OS 依赖）。
 - [ ] 热路径无 malloc、无 printf、无 Flash erase、无阻塞。
 - [ ] 新增 backend 未修改 core 代码。
-- [ ] 新增 type tag 同步更新了 decoder 与 spec。
+- [ ] 新增 packed 布局或 metadata suffix 同步更新了 decoder 与 spec。
 - [ ] 新增 API 同步更新了 docs、examples、tests。
 - [ ] 无静默丢弃（有 drop counter + DROP_SUMMARY）。
 - [ ] 示例可独立编译（不依赖未文档化的内部符号）。

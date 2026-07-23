@@ -1,0 +1,3 @@
+#define AXIOMTRACE_NO_DEFAULT_PORT
+#define AXIOMTRACE_IMPLEMENTATION
+#include "axiomtrace.h"

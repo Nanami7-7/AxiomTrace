@@ -78,15 +78,16 @@ static bool test_encoder_roundtrip(void) {
     axiom_enc_u32(enc_buf, &pos, 0xDEADBEEF);
     axiom_enc_bool(enc_buf, &pos, true);
 
-    /* Verify the encoded bytes contain the correct type tags */
-    if (enc_buf[0] != AXIOM_TYPE_U8)  return false; /* u8 tag */
-    if (enc_buf[1] != 0x42)           return false; /* u8 val */
-    if (enc_buf[2] != AXIOM_TYPE_U16) return false; /* u16 tag */
-    if (enc_buf[3] != 0xEF)           return false; /* u16 lo */
-    if (enc_buf[4] != 0xBE)           return false; /* u16 hi */
-    if (enc_buf[5] != AXIOM_TYPE_U32) return false; /* u32 tag */
-    if (enc_buf[10] != AXIOM_TYPE_BOOL) return false; /* bool tag */
-    if (enc_buf[11] != 1u)              return false; /* true */
+    /* Verify the encoded bytes without tags */
+    if (pos != 8u) return false;
+    if (enc_buf[0] != 0x42) return false; /* u8 val */
+    if (enc_buf[1] != 0xEF) return false; /* u16 lo */
+    if (enc_buf[2] != 0xBE) return false; /* u16 hi */
+    if (enc_buf[3] != 0xEF) return false; /* u32 byte0 */
+    if (enc_buf[4] != 0xBE) return false; /* u32 byte1 */
+    if (enc_buf[5] != 0xAD) return false; /* u32 byte2 */
+    if (enc_buf[6] != 0xDE) return false; /* u32 byte3 */
+    if (enc_buf[7] != 1u)   return false; /* bool true */
 
     return true;
 }
@@ -98,14 +99,14 @@ static bool test_encoder_overflow_protection(void) {
     uint8_t buf[AXIOM_MAX_PAYLOAD_LEN];
     uint8_t pos = 0;
 
-    /* Fill with u8 values (2 bytes each: tag + value) */
+    /* Fill with u8 values (1 byte each: value only) */
     uint8_t count = 0;
-    while (pos + 2u <= AXIOM_MAX_PAYLOAD_LEN) {
+    while (pos + 1u <= AXIOM_MAX_PAYLOAD_LEN) {
         axiom_enc_u8(buf, &pos, count++);
     }
 
     /* pos is now at or within 1 byte of AXIOM_MAX_PAYLOAD_LEN.
-     * A u16 needs 3 bytes, which should be rejected. */
+     * A u16 needs 2 bytes, which should be rejected. */
 #if AXIOM_ENCODE_OVERFLOW_DETECTION
     axiom_encode_overflow = false;
 #endif
@@ -131,6 +132,8 @@ static bool run_test(const char *name, bool (*test_fn)(void)) {
         axiom_port_string_out("[selftest] FAIL: ");
         axiom_port_string_out(name);
         axiom_port_string_out("\n");
+#else
+        (void)name;
 #endif
         return false;
     }

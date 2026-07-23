@@ -71,7 +71,7 @@ AxiomTrace/
 **Deliverables**:
 - RAM Ring (Lock-free, IRQ-safe, Single-producer Single-consumer).
 - Event Record (Fixed 8B header + 1B payload_len + payload + 2B crc16).
-- Encoder (`_Generic` type-safe dispatch + type tag writing).
+- Encoder (`_Generic` type-safe dispatch + wire v2 packed value writing).
 - CRC-16/CCITT-FALSE (256B ROM lookup table).
 - Compressed Relative Timestamp (delta encoding).
 - Memory Backend (Directly writing to RAM Ring region).
@@ -139,11 +139,8 @@ AxiomTrace/
 
 **Deliverables**:
 - Memory Backend.
-- UART Backend Template (COBS + 0x00 delimiter).
-- USB CDC Backend Template (bulk IN endpoint).
-- RTT Backend Template (SEGGER RTT up-channel).
-- SWO/ITM Backend Template (32-bit stimulus word stream).
-- CAN-FD Backend Template (frame splitting and ID mapping).
+- Memory and Deferred backends are linked into the main library.
+- Hardware transport backends are outside the v1.0 convergence scope.
 - Flash Capsule Backend (commits on fault, no writes during normal operation).
 
 **Backend Contract**:
@@ -189,7 +186,7 @@ typedef struct {
 - No Flash writes by default during normal operation.
 - Commit capsule only after a fault is triggered.
 - Flash erase/write does not enter the log hot path.
-- Capsule data format is stable, self-describing, and decodable.
+- Capsule framing is stable and decodable; wire v2 event semantics use the identity-matched bundle.
 
 ---
 
@@ -201,14 +198,20 @@ typedef struct {
 - Decoder (binary → structured object).
 - Text Render (structured object → human-readable text, dictionary template filling).
 - JSON Export (structured object → JSON file).
+- Standard Metadata Bundle (`manifest.json`, `dictionary.json`, `source_map.json`, `build_info.json`, optional ELF/map artifacts).
+- Bundle Generator (`axiom-bundle generate`) and CMake helper (`axiomtrace_add_bundle(...)`).
+- Firmware identity matching for bundle-store based decode.
 - Capsule Report (capsule binary → fault analysis report).
 - Dictionary Validator (verify firmware payload matches dictionary template types).
 - Golden Frame Updater (encoder generates standard frames for regression testing).
 - Benchmark Tool (hot path cycle count measurement and reporting).
+- Documentation governance: one canonical doc per topic, no ad-hoc Markdown.
 
 **Acceptance**:
 - binary → text (via decoder + render).
 - binary → json (via decoder + json export).
+- trace + bundle → semantic decode with source location when enabled.
+- trace + bundle-store → exact bundle selected by firmware identity.
 - capsule → report (via capsule decoder).
 - golden → regression test (auto-run in CI).
 
@@ -227,7 +230,7 @@ typedef struct {
 - Fuzz malformed frame (libFuzzer or custom fuzz target).
 - Fault injection (simulate HardFault, verify capsule capture).
 - Power-loss simulation (verify Flash capsule power-loss recovery).
-- Docs complete (README, api_reference, examples comments).
+- Docs complete (README as index, canonical specs, tool help, examples comments; no duplicate standalone Markdown).
 - Examples complete (all compile and run).
 
 ---
@@ -237,11 +240,11 @@ typedef struct {
 Official v1.0 will only be released when **ALL** are met:
 
 - [ ] Stable API (`AX_*` macros locked).
-- [ ] Stable wire format (header structure, type tag definitions frozen).
+- [ ] Stable wire format (header, packed arguments, and metadata suffix definitions frozen).
 - [ ] Stable event model (Event Record semantics unchanged).
 - [ ] Stable backend contract (`axiom_backend_t` struct frozen).
 - [ ] Stable capsule format (capsule layout frozen).
-- [ ] Stable decoder (can parse all type tags and capsules).
+- [ ] Stable decoder (can parse current packed frames, legacy typed frames, and capsules).
 - [ ] Stable golden tests (all passing).
 - [ ] Stable examples (all compile and run).
 - [ ] Stable benchmark report (hot path cycle count baseline locked).

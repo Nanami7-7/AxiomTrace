@@ -1,0 +1,20 @@
+[
+  {
+    "sync": 165,
+    "version": [
+      2,
+      0
+    ],
+    "level": "INFO",
+    "module_id": 0,
+    "event_id": 2,
+    "seq": 2,
+    "payload_len": 9,
+    "payload": [],
+    "crc": 32208,
+    "timestamp_delta": 0,
+    "timestamp_len": 1,
+    "metadata_id": "0123456789abcdef",
+    "timestamp": 0
+  }
+]

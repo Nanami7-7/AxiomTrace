@@ -13,8 +13,8 @@ int main(void) {
     }
 
     /* Verify wire version */
-    if (AXIOM_WIRE_VERSION != 0x10) {
-        printf("test_event: FAILED wire version 0x%02X != 0x10\n", AXIOM_WIRE_VERSION);
+    if (AXIOM_WIRE_VERSION != 0x20) {
+        printf("test_event: FAILED wire version 0x%02X != 0x20\n", AXIOM_WIRE_VERSION);
         return 1;
     }
 
@@ -25,20 +25,13 @@ int main(void) {
     axiom_enc_i16(payload, &pos, (int16_t)(-1));
     axiom_enc_f32(payload, &pos, 1.5f);
 
-    if (pos != 11) {
-        printf("test_event: FAILED payload len %u != 11\n", pos);
-        return 1;
-    }
-
-    /* Verify type tags */
-    if (payload[0] != AXIOM_TYPE_U16 || payload[3] != AXIOM_TYPE_I16 || payload[6] != AXIOM_TYPE_F32) {
-        printf("test_event: FAILED type tags mismatch: got %02X %02X %02X\n",
-               payload[0], payload[3], payload[6]);
+    if (pos != 8) {
+        printf("test_event: FAILED payload len %u != 8\n", pos);
         return 1;
     }
 
     /* Verify little-endian encoding of u16 */
-    if (payload[1] != 0x34 || payload[2] != 0x12) {
+    if (payload[0] != 0x34 || payload[1] != 0x12) {
         printf("test_event: FAILED u16 endianness\n");
         return 1;
     }

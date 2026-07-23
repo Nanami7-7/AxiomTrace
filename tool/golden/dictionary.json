@@ -1,0 +1,38 @@
+{
+  "version": "1.0",
+  "modules": {
+    "3": {
+      "name": "GOLDEN",
+      "events": {
+        "0": {
+          "name": "MINIMAL",
+          "level": "INFO",
+          "text": "",
+          "args": []
+        },
+        "1": {
+          "name": "U16",
+          "level": "INFO",
+          "text": "value={value:u16}",
+          "args": [
+            {
+              "name": "value",
+              "type": "u16"
+            }
+          ]
+        },
+        "2": {
+          "name": "LOCATED_U8",
+          "level": "INFO",
+          "text": "value={value:u8}",
+          "args": [
+            {
+              "name": "value",
+              "type": "u8"
+            }
+          ]
+        }
+      }
+    }
+  }
+}

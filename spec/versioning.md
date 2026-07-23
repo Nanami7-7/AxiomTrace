@@ -15,7 +15,9 @@ AxiomTrace follows [SemVer 2.0.0](https://semver.org/):
 The `version` byte in the event header encodes `major << 4 | minor`.
 
 - Decoders must reject unsupported **major** versions.
-- **Minor** version additions are safe to ignore (new type tags, new reserved fields).
+- **Minor** version additions must preserve the payload interpretation of the current major version.
+
+The current emitted wire version is `v2.0` (`0x20`): normal arguments are packed according to the metadata dictionary. The decoder also supports historical `v1.0` and `v1.1` typed-payload frames.
 
 ## 3. API Stability
 
@@ -30,5 +32,5 @@ The `version` byte in the event header encodes `major << 4 | minor`.
 ## 4. ABI Compatibility
 
 - Header size and field offsets are frozen per major version.
-- New payload type tags are appended, never reordered.
+- Wire v2 metadata suffix tags are appended after packed arguments; ordinary argument types are defined by the matching dictionary.
 - Backend descriptor struct may grow at the end in minor releases; use `AXIOM_BACKEND_INIT(...)` for forward-compatible initialization. Old zero-initialized backends (size==0) are treated as legacy layout.

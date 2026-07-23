@@ -12,10 +12,6 @@
 /* ---------------------------------------------------------------------------
  * STM32F4 Core Register Definitions (CMSIS-style)
  * --------------------------------------------------------------------------- */
-#ifndef __weak
-#define __weak __attribute__((weak))
-#endif
-
 /* CoreDebug */
 typedef struct {
     volatile uint32_t DHCSR;
@@ -124,7 +120,7 @@ void axiom_port_init(void) {
 /* ---------------------------------------------------------------------------
  * String Output - weak implementation (override for actual UART/RTT output)
  * --------------------------------------------------------------------------- */
-__weak void axiom_port_string_out(const char *str) {
+AXIOM_COMPILER_WEAK void axiom_port_string_out(const char *str) {
     (void)str;
     /* Default: no-op. Override with actual UART/RTT implementation. */
 }
@@ -132,7 +128,7 @@ __weak void axiom_port_string_out(const char *str) {
 /* ---------------------------------------------------------------------------
  * Fault Hook - weak implementation
  * --------------------------------------------------------------------------- */
-__weak void axiom_port_fault_hook(uint8_t module_id, uint16_t event_id,
+AXIOM_COMPILER_WEAK void axiom_port_fault_hook(uint8_t module_id, uint16_t event_id,
                                    const uint8_t *payload, uint8_t payload_len) {
     (void)module_id;
     (void)event_id;
@@ -141,13 +137,17 @@ __weak void axiom_port_fault_hook(uint8_t module_id, uint16_t event_id,
     /* Default: no-op. Override to add LED blink, halt, or log to flash. */
 }
 
+AXIOM_COMPILER_WEAK uint8_t axiom_port_reset_reason(void) {
+    return 0u;
+}
+
 /* ---------------------------------------------------------------------------
  * Fault Snapshot - capture registers for fault capsule
  *
  * Captures: R0-R15, xPSR, MSP, PSP, CONTROL, PRIMASK, FAULTMASK, BASEPRI
  * Returns bytes written (32 bytes minimum).
  * --------------------------------------------------------------------------- */
-__weak uint8_t axiom_port_fault_snapshot(uint8_t *buf, uint8_t max_len) {
+AXIOM_COMPILER_WEAK uint8_t axiom_port_fault_snapshot(uint8_t *buf, uint8_t max_len) {
     if (max_len < 32) return 0;
 
     uint32_t *regs = (uint32_t *)buf;
@@ -191,15 +191,22 @@ __weak uint8_t axiom_port_fault_snapshot(uint8_t *buf, uint8_t max_len) {
 /* ---------------------------------------------------------------------------
  * Flash Operations - weak implementation (must be overridden for capsule)
  * --------------------------------------------------------------------------- */
-__weak int axiom_port_flash_erase(uint32_t addr, uint32_t len) {
+AXIOM_COMPILER_WEAK int axiom_port_flash_erase(uint32_t addr, uint32_t len) {
     (void)addr;
     (void)len;
     return -1; /* Not implemented */
 }
 
-__weak int axiom_port_flash_write(uint32_t addr, const uint8_t *data, uint32_t len) {
+AXIOM_COMPILER_WEAK int axiom_port_flash_write(uint32_t addr, const uint8_t *data, uint32_t len) {
     (void)addr;
     (void)data;
+    (void)len;
+    return -1; /* Not implemented */
+}
+
+AXIOM_COMPILER_WEAK int axiom_port_flash_read(uint32_t addr, uint8_t *out, uint32_t len) {
+    (void)addr;
+    (void)out;
     (void)len;
     return -1; /* Not implemented */
 }

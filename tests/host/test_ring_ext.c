@@ -124,7 +124,7 @@ static void test_wraparound(void) {
     CHECK("wraparound: all consumed", axiom_ring_used(&ring) == 0);
 }
 
-/* ---- Test 6: Drop policy (full ring) ---- */
+/* ---- Test 6: Drop / Overwrite policy (full ring) ---- */
 static void test_drop_policy(void) {
     axiom_ring_t ring;
     axiom_ring_init(&ring, ring_mem, RING_SIZE);
@@ -135,12 +135,19 @@ static void test_drop_policy(void) {
     CHECK("drop: fill to capacity", ok == true);
     CHECK("drop: used==16", axiom_ring_used(&ring) == 16);
 
-    /* Now try to write 1 more byte — should drop */
+    /* Now try to write 1 more byte */
     uint8_t extra = 0xBB;
     ok = axiom_ring_write(&ring, &extra, 1);
+
+#if AXIOM_RING_BUFFER_POLICY == AXIOM_RING_BUFFER_POLICY_OVERWRITE
+    CHECK("overwrite: overflow returns true", ok == true);
+    CHECK("overwrite: used remains at capacity", axiom_ring_used(&ring) == 16);
+#else
     CHECK("drop: overflow returns false", ok == false);
     CHECK("drop: used unchanged", axiom_ring_used(&ring) == 16);
+#endif
 }
+
 
 /* ---- Test 7: Zero-length and oversized writes ---- */
 static void test_edge_cases(void) {
@@ -212,6 +219,36 @@ static void test_multi_cycle(void) {
     CHECK("multi_cycle: ring empty after cycles", axiom_ring_used(&ring) == 0);
 }
 
+/* ---- Test 10: Extreme wrap-around and Overwrite logic simulation ---- */
+static void test_blind_overwrite_extreme_reliability(void) {
+    axiom_ring_t ring;
+    uint8_t buffer[8]; /* 8 bytes small buffer */
+    axiom_ring_init(&ring, buffer, 8);
+
+    /* Test 32-bit integer overflow calculation.
+     * Ensure when head wraps around, head - tail still yields correct used bytes */
+    ring.head = 0xFFFFFFFCu;
+    ring.tail = 0xFFFFFFFAu; /* used = 2 */
+    CHECK("extreme: initial used before wrap-around is 2", axiom_ring_used(&ring) == 2);
+
+    /* Write 4 bytes: head advances from 0xFFFFFFFCu to 0x00000000u (wraps around) */
+    uint8_t wdata[4] = {1, 2, 3, 4};
+    bool ok = axiom_ring_write(&ring, wdata, 4);
+    CHECK("extreme: wrap-around write success", ok == true);
+    CHECK("extreme: head wrapped around to 0", ring.head == 0x00000000u);
+    CHECK("extreme: modular used after wrap-around is 6", axiom_ring_used(&ring) == 6);
+
+    /* Under OVERWRITE policy config, verify blind push of tail on overflow */
+#if AXIOM_RING_BUFFER_POLICY == AXIOM_RING_BUFFER_POLICY_OVERWRITE
+    /* Write 4 more bytes (used is 6, space is 2, needs 4 -> overflow by 2) */
+    uint8_t wdata2[4] = {5, 6, 7, 8};
+    ok = axiom_ring_write(&ring, wdata2, 4);
+    CHECK("extreme: overwrite write success", ok == true);
+    CHECK("extreme: tail pushed forward due to overwrite", ring.tail == 0xFFFFFFFCu);
+    CHECK("extreme: used remains filled at capacity", axiom_ring_used(&ring) == 8);
+#endif
+}
+
 int main(void) {
     test_init();
     test_free();
@@ -222,9 +259,10 @@ int main(void) {
     test_edge_cases();
     test_peek_no_consume();
     test_multi_cycle();
+    test_blind_overwrite_extreme_reliability();
 
     if (failures == 0) {
-        printf("test_ring_ext: PASSED (9 test groups)\n");
+        printf("test_ring_ext: PASSED (10 test groups)\n");
     } else {
         printf("test_ring_ext: FAILED (%d failures)\n", failures);
     }

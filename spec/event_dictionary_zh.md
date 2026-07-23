@@ -6,46 +6,59 @@
 
 事件字典是从 `(module_id, event_id)` 到人类可读元数据的权威映射。它存在于主机（构建机器/PC）上，绝不会以文本形式烧录到目标设备中。
 
-## 2. YAML Schema
+## 2. 生成的 JSON Schema
 
-```yaml
-version: "1.0"
-enums:
-  ENUM_NAME:
-    <value>: "LABEL"
-    <value>: "LABEL"
-dictionary:
-  <module_id_hex>:
-    name: "MODULE_NAME"
-    description: "人类可读的模块描述"
-    events:
-      <event_id_hex>:
-        level: "INFO|WARN|ERROR|FAULT|DEBUG"
-        name: "EVENT_NAME"
-        text: "带 {type} 占位符的人类可读模板"
-        args:
-          - name: "arg0_name"
-            type: "u8|i8|u16|i16|u32|i32|f32|ts|bytes"
-            enum: "ENUM_NAME" # 可选：引用定义的枚举
-          - name: "arg1_name"
-            type: "..."
+`dictionary.json` 是 decoder collateral。`axiom-codegen` 可直接接受此 JSON 形态的事件源；安装可选 `PyYAML` 依赖后也可接受 YAML 事件源。
+
+```json
+{
+  "version": "1.0",
+  "enums": {
+    "ENUM_NAME": {
+      "0": "LABEL_OK",
+      "1": "LABEL_ERR"
+    }
+  },
+  "dictionary": {
+    "0x01": {
+      "name": "MODULE_NAME",
+      "description": "人类可读的模块描述",
+      "events": {
+        "0x01": {
+          "level": "INFO",
+          "name": "EVENT_NAME",
+          "text": "带 {type} 占位符的人类可读模板",
+          "args": [
+            {
+              "name": "arg0_name",
+              "type": "bool|u8|i8|u16|i16|u32|i32|f32|timestamp|bytes",
+              "enum": "ENUM_NAME"
+            }
+          ]
+        }
+      }
+    }
+  }
+}
 ```
 
 ## 3. 占位符语法
 
 `text` 字段使用 `{name:type}` 占位符。支持的类型：
 
-| 占位符       | 有效载荷类型标签 | 描述                   |
+| 占位符       | C前端类型        | 描述                   |
 |--------------|------------------|------------------------|
-| `{name:u8}`  | 0x01             | 无符号 8 位            |
-| `{name:i8}`  | 0x02             | 有符号 8 位            |
-| `{name:u16}` | 0x03             | 无符号 16 位           |
-| `{name:i16}` | 0x04             | 有符号 16 位           |
-| `{name:u32}` | 0x05             | 无符号 32 位           |
-| `{name:i32}` | 0x06             | 有符号 32 位           |
-| `{name:f32}` | 0x07             | IEEE-754 浮点数        |
-| `{name:ts}`  | 0x08             | 压缩时间戳             |
-| `{name:bytes}`| 0x09            | 字节数组               |
+| `{name:u8}`  | `uint8_t`        | 无符号 8 位            |
+| `{name:i8}`  | `int8_t`         | 有符号 8 位            |
+| `{name:u16}` | `uint16_t`       | 无符号 16 位           |
+| `{name:i16}` | `int16_t`        | 有符号 16 位           |
+| `{name:u32}` | `uint32_t`       | 无符号 32 位           |
+| `{name:i32}` | `int32_t`        | 有符号 32 位           |
+| `{name:f32}` | `float`          | IEEE-754 浮点数        |
+| `{name:timestamp}`| `uint32_t`    | 固定宽度时间戳参数     |
+| `{name:bytes}`| 字节序列          | 带长度前缀的字节数据   |
+
+对于 wire `v2.0` 中的 `AX_KV` 事件，dictionary `args` 列表必须按精确发送顺序交替声明 `u16` key-hash 字段与其对应的 packed 值字段。
 
 ## 4. 枚举映射 (Enum Mapping)
 
@@ -57,7 +70,7 @@ dictionary:
 
 ## 5. 代码生成 (Code Generation)
 
-`codegen` 工具读取 YAML 字典并输出：
+`codegen` 工具读取 JSON 事件源，或在已安装 `PyYAML` 时读取 YAML 事件源，并输出：
 
 1. `axiom_events_generated.h` — 将 `MODULE_EVENT_NAME` 映射到 `(module_id, event_id)` 的 C 宏。
 2. `axiom_modules_generated.h` — 模块 ID 枚举。

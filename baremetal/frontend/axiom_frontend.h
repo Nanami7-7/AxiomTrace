@@ -13,9 +13,15 @@ extern "C" {
 /* ---------------------------------------------------------------------------
  * Profile control
  * --------------------------------------------------------------------------- */
+#ifndef AXIOM_PROFILE_DEV
 #define AXIOM_PROFILE_DEV    0
+#endif
+#ifndef AXIOM_PROFILE_FIELD
 #define AXIOM_PROFILE_FIELD  1
+#endif
+#ifndef AXIOM_PROFILE_PROD
 #define AXIOM_PROFILE_PROD   2
+#endif
 
 #ifndef AXIOM_PROFILE
 #define AXIOM_PROFILE AXIOM_PROFILE_DEV
@@ -24,12 +30,12 @@ extern "C" {
 /* ---------------------------------------------------------------------------
  * Variadic argument counting (GCC/Clang/MSVC compatible)
  * --------------------------------------------------------------------------- */
-#define _AXIOM_ARG_N(_0, _1, _2, _3, _4, _5, _6, _7, _8, _9, N, ...) N
-#define _AXIOM_NARG_(...) _AXIOM_ARG_N(__VA_ARGS__)
-#define _AXIOM_NARG(...) _AXIOM_NARG_(0, ##__VA_ARGS__, 9, 8, 7, 6, 5, 4, 3, 2, 1, 0)
+#define AXIOM_INTERNAL_ARG_N(a0, a1, a2, a3, a4, a5, a6, a7, a8, a9, count, ...) count
+#define AXIOM_INTERNAL_NARG_EXPAND(...) AXIOM_INTERNAL_ARG_N(__VA_ARGS__)
+#define AXIOM_INTERNAL_NARG(...) AXIOM_INTERNAL_NARG_EXPAND(0, ##__VA_ARGS__, 9, 8, 7, 6, 5, 4, 3, 2, 1, 0)
 
-#define _AXIOM_CONCAT2(a, b) a ## b
-#define _AXIOM_CONCAT(a, b)  _AXIOM_CONCAT2(a, b)
+#define AXIOM_INTERNAL_CONCAT_RAW(a, b) a ## b
+#define AXIOM_INTERNAL_CONCAT(a, b) AXIOM_INTERNAL_CONCAT_RAW(a, b)
 
 /* ---------------------------------------------------------------------------
  * Core write declaration (defined in axiom_event.c)
@@ -38,6 +44,7 @@ void axiom_write(axiom_level_t level, uint8_t module_id, uint16_t event_id,
                  const uint8_t *payload, uint8_t payload_len);
 void axiom_init(void);
 void axiom_flush(void);
+void axiom_internal_record_encode_drop(uint8_t module_id, uint16_t event_id);
 
 /* Runtime filter control — declared in axiom_filter.h, exposed here for convenience.
  * void axiom_level_mask_set(uint32_t mask);
@@ -49,7 +56,7 @@ void axiom_flush(void);
 /* ---------------------------------------------------------------------------
  * FNV-1a 16-bit hash (runtime, for key hashing)
  * --------------------------------------------------------------------------- */
-static inline uint16_t _axiom_fnv1a_16(const char *s) {
+static inline uint16_t axiom_internal_fnv1a_16(const char *s) {
     uint16_t h = 0x811cu;
     while (*s) {
         h ^= (uint16_t)(unsigned char)(*s++);
@@ -59,87 +66,145 @@ static inline uint16_t _axiom_fnv1a_16(const char *s) {
 }
 
 /* ---------------------------------------------------------------------------
+ * Optional source-location metadata
+ * --------------------------------------------------------------------------- */
+#if AXIOM_CFG_LOCATION_MODE == AXIOM_CFG_LOCATION_MODE_FILE_ID
+#define AXIOM_INTERNAL_APPEND_LOCATION(builder) \
+    axiom_builder_location_file_id(&(builder), (uint16_t)AXIOM_SOURCE_FILE_ID, (uint16_t)__LINE__)
+#elif AXIOM_CFG_LOCATION_MODE == AXIOM_CFG_LOCATION_MODE_HASH
+#if AXIOM_CFG_LOCATION_FUNCTION
+#define AXIOM_INTERNAL_APPEND_LOCATION(builder) \
+    axiom_builder_location_hash(&(builder), axiom_internal_fnv1a_16(__FILE__), (uint16_t)__LINE__, axiom_internal_fnv1a_16(__func__))
+#else
+#define AXIOM_INTERNAL_APPEND_LOCATION(builder) \
+    axiom_builder_location_hash(&(builder), axiom_internal_fnv1a_16(__FILE__), (uint16_t)__LINE__, 0u)
+#endif
+#else
+#define AXIOM_INTERNAL_APPEND_LOCATION(builder) ((void)(builder))
+#endif
+
+#define AXIOM_INTERNAL_DECLARE_BUILDER() \
+    uint8_t axiom_internal_buffer[AXIOM_MAX_PAYLOAD_LEN]; \
+    axiom_payload_builder_t axiom_internal_builder; \
+    axiom_payload_builder_init(&axiom_internal_builder, axiom_internal_buffer)
+
+#define AXIOM_INTERNAL_EMIT_BUILDER(level, mod, evt) \
+    do { \
+        AXIOM_INTERNAL_APPEND_LOCATION(axiom_internal_builder); \
+        if (axiom_internal_builder.valid) { \
+            axiom_write((level), (mod), (evt), axiom_internal_builder.data, \
+                        (uint8_t)axiom_internal_builder.pos); \
+        } else { \
+            axiom_internal_record_encode_drop((uint8_t)(mod), (uint16_t)(evt)); \
+        } \
+    } while (0)
+
+/* System-reserved metadata identity event used by host bundle-store selection. */
+#define AXIOM_SYSTEM_MODULE_ID          0x00u
+#define AXIOM_SYSTEM_EVENT_DROP_SUMMARY 0x0001u
+#define AXIOM_SYSTEM_EVENT_METADATA_ID  0x0002u
+
+static inline void axiom_emit_metadata_id(const uint8_t metadata_id[AXIOM_METADATA_ID_LEN]) {
+    AXIOM_INTERNAL_DECLARE_BUILDER();
+    axiom_builder_metadata_identity(&axiom_internal_builder, metadata_id);
+    if (axiom_internal_builder.valid) {
+        axiom_write(AXIOM_LEVEL_INFO, AXIOM_SYSTEM_MODULE_ID,
+                    AXIOM_SYSTEM_EVENT_METADATA_ID, axiom_internal_builder.data,
+                    (uint8_t)axiom_internal_builder.pos);
+    } else {
+        axiom_internal_record_encode_drop(AXIOM_SYSTEM_MODULE_ID,
+                                          AXIOM_SYSTEM_EVENT_METADATA_ID);
+    }
+}
+
+/* ---------------------------------------------------------------------------
  * AX_EVT — Structured Event (always compiled, all profiles)
  * --------------------------------------------------------------------------- */
-#define _AXIOM_EVT_0(level, mod, evt) \
+#if AXIOM_CFG_LOCATION_MODE == AXIOM_CFG_LOCATION_MODE_NONE
+#define AXIOM_INTERNAL_EVT_0(level, mod, evt) \
     axiom_write((level), (mod), (evt), NULL, 0)
+#else
+#define AXIOM_INTERNAL_EVT_0(level, mod, evt) \
+    do { AXIOM_INTERNAL_DECLARE_BUILDER(); \
+         AXIOM_INTERNAL_EMIT_BUILDER((level), (mod), (evt)); } while(0)
+#endif
 
-#define _AXIOM_EVT_1(level, mod, evt, a1) \
-    do { uint8_t _b[AXIOM_MAX_PAYLOAD_LEN]; uint8_t _p = 0; \
-         _AXIOM_ENCODE_ONE(_b, _p, a1); \
-         axiom_write((level), (mod), (evt), _b, _p); } while(0)
+#define AXIOM_INTERNAL_EVT_1(level, mod, evt, a1) \
+    do { AXIOM_INTERNAL_DECLARE_BUILDER(); \
+         AXIOM_INTERNAL_BUILDER_ENCODE_ONE(axiom_internal_builder, a1); \
+         AXIOM_INTERNAL_EMIT_BUILDER((level), (mod), (evt)); } while(0)
 
-#define _AXIOM_EVT_2(level, mod, evt, a1, a2) \
-    do { uint8_t _b[AXIOM_MAX_PAYLOAD_LEN]; uint8_t _p = 0; \
-         _AXIOM_ENCODE_ONE(_b, _p, a1); \
-         _AXIOM_ENCODE_ONE(_b, _p, a2); \
-         axiom_write((level), (mod), (evt), _b, _p); } while(0)
+#define AXIOM_INTERNAL_EVT_2(level, mod, evt, a1, a2) \
+    do { AXIOM_INTERNAL_DECLARE_BUILDER(); \
+         AXIOM_INTERNAL_BUILDER_ENCODE_ONE(axiom_internal_builder, a1); \
+         AXIOM_INTERNAL_BUILDER_ENCODE_ONE(axiom_internal_builder, a2); \
+         AXIOM_INTERNAL_EMIT_BUILDER((level), (mod), (evt)); } while(0)
 
-#define _AXIOM_EVT_3(level, mod, evt, a1, a2, a3) \
-    do { uint8_t _b[AXIOM_MAX_PAYLOAD_LEN]; uint8_t _p = 0; \
-         _AXIOM_ENCODE_ONE(_b, _p, a1); \
-         _AXIOM_ENCODE_ONE(_b, _p, a2); \
-         _AXIOM_ENCODE_ONE(_b, _p, a3); \
-         axiom_write((level), (mod), (evt), _b, _p); } while(0)
+#define AXIOM_INTERNAL_EVT_3(level, mod, evt, a1, a2, a3) \
+    do { AXIOM_INTERNAL_DECLARE_BUILDER(); \
+         AXIOM_INTERNAL_BUILDER_ENCODE_ONE(axiom_internal_builder, a1); \
+         AXIOM_INTERNAL_BUILDER_ENCODE_ONE(axiom_internal_builder, a2); \
+         AXIOM_INTERNAL_BUILDER_ENCODE_ONE(axiom_internal_builder, a3); \
+         AXIOM_INTERNAL_EMIT_BUILDER((level), (mod), (evt)); } while(0)
 
-#define _AXIOM_EVT_4(level, mod, evt, a1, a2, a3, a4) \
-    do { uint8_t _b[AXIOM_MAX_PAYLOAD_LEN]; uint8_t _p = 0; \
-         _AXIOM_ENCODE_ONE(_b, _p, a1); \
-         _AXIOM_ENCODE_ONE(_b, _p, a2); \
-         _AXIOM_ENCODE_ONE(_b, _p, a3); \
-         _AXIOM_ENCODE_ONE(_b, _p, a4); \
-         axiom_write((level), (mod), (evt), _b, _p); } while(0)
+#define AXIOM_INTERNAL_EVT_4(level, mod, evt, a1, a2, a3, a4) \
+    do { AXIOM_INTERNAL_DECLARE_BUILDER(); \
+         AXIOM_INTERNAL_BUILDER_ENCODE_ONE(axiom_internal_builder, a1); \
+         AXIOM_INTERNAL_BUILDER_ENCODE_ONE(axiom_internal_builder, a2); \
+         AXIOM_INTERNAL_BUILDER_ENCODE_ONE(axiom_internal_builder, a3); \
+         AXIOM_INTERNAL_BUILDER_ENCODE_ONE(axiom_internal_builder, a4); \
+         AXIOM_INTERNAL_EMIT_BUILDER((level), (mod), (evt)); } while(0)
 
-#define _AXIOM_EVT_5(level, mod, evt, a1, a2, a3, a4, a5) \
-    do { uint8_t _b[AXIOM_MAX_PAYLOAD_LEN]; uint8_t _p = 0; \
-         _AXIOM_ENCODE_ONE(_b, _p, a1); \
-         _AXIOM_ENCODE_ONE(_b, _p, a2); \
-         _AXIOM_ENCODE_ONE(_b, _p, a3); \
-         _AXIOM_ENCODE_ONE(_b, _p, a4); \
-         _AXIOM_ENCODE_ONE(_b, _p, a5); \
-         axiom_write((level), (mod), (evt), _b, _p); } while(0)
+#define AXIOM_INTERNAL_EVT_5(level, mod, evt, a1, a2, a3, a4, a5) \
+    do { AXIOM_INTERNAL_DECLARE_BUILDER(); \
+         AXIOM_INTERNAL_BUILDER_ENCODE_ONE(axiom_internal_builder, a1); \
+         AXIOM_INTERNAL_BUILDER_ENCODE_ONE(axiom_internal_builder, a2); \
+         AXIOM_INTERNAL_BUILDER_ENCODE_ONE(axiom_internal_builder, a3); \
+         AXIOM_INTERNAL_BUILDER_ENCODE_ONE(axiom_internal_builder, a4); \
+         AXIOM_INTERNAL_BUILDER_ENCODE_ONE(axiom_internal_builder, a5); \
+         AXIOM_INTERNAL_EMIT_BUILDER((level), (mod), (evt)); } while(0)
 
-#define _AXIOM_EVT_6(level, mod, evt, a1, a2, a3, a4, a5, a6) \
-    do { uint8_t _b[AXIOM_MAX_PAYLOAD_LEN]; uint8_t _p = 0; \
-         _AXIOM_ENCODE_ONE(_b, _p, a1); \
-         _AXIOM_ENCODE_ONE(_b, _p, a2); \
-         _AXIOM_ENCODE_ONE(_b, _p, a3); \
-         _AXIOM_ENCODE_ONE(_b, _p, a4); \
-         _AXIOM_ENCODE_ONE(_b, _p, a5); \
-         _AXIOM_ENCODE_ONE(_b, _p, a6); \
-         axiom_write((level), (mod), (evt), _b, _p); } while(0)
+#define AXIOM_INTERNAL_EVT_6(level, mod, evt, a1, a2, a3, a4, a5, a6) \
+    do { AXIOM_INTERNAL_DECLARE_BUILDER(); \
+         AXIOM_INTERNAL_BUILDER_ENCODE_ONE(axiom_internal_builder, a1); \
+         AXIOM_INTERNAL_BUILDER_ENCODE_ONE(axiom_internal_builder, a2); \
+         AXIOM_INTERNAL_BUILDER_ENCODE_ONE(axiom_internal_builder, a3); \
+         AXIOM_INTERNAL_BUILDER_ENCODE_ONE(axiom_internal_builder, a4); \
+         AXIOM_INTERNAL_BUILDER_ENCODE_ONE(axiom_internal_builder, a5); \
+         AXIOM_INTERNAL_BUILDER_ENCODE_ONE(axiom_internal_builder, a6); \
+         AXIOM_INTERNAL_EMIT_BUILDER((level), (mod), (evt)); } while(0)
 
-#define _AXIOM_EVT_7(level, mod, evt, a1, a2, a3, a4, a5, a6, a7) \
-    do { uint8_t _b[AXIOM_MAX_PAYLOAD_LEN]; uint8_t _p = 0; \
-         _AXIOM_ENCODE_ONE(_b, _p, a1); \
-         _AXIOM_ENCODE_ONE(_b, _p, a2); \
-         _AXIOM_ENCODE_ONE(_b, _p, a3); \
-         _AXIOM_ENCODE_ONE(_b, _p, a4); \
-         _AXIOM_ENCODE_ONE(_b, _p, a5); \
-         _AXIOM_ENCODE_ONE(_b, _p, a6); \
-         _AXIOM_ENCODE_ONE(_b, _p, a7); \
-         axiom_write((level), (mod), (evt), _b, _p); } while(0)
+#define AXIOM_INTERNAL_EVT_7(level, mod, evt, a1, a2, a3, a4, a5, a6, a7) \
+    do { AXIOM_INTERNAL_DECLARE_BUILDER(); \
+         AXIOM_INTERNAL_BUILDER_ENCODE_ONE(axiom_internal_builder, a1); \
+         AXIOM_INTERNAL_BUILDER_ENCODE_ONE(axiom_internal_builder, a2); \
+         AXIOM_INTERNAL_BUILDER_ENCODE_ONE(axiom_internal_builder, a3); \
+         AXIOM_INTERNAL_BUILDER_ENCODE_ONE(axiom_internal_builder, a4); \
+         AXIOM_INTERNAL_BUILDER_ENCODE_ONE(axiom_internal_builder, a5); \
+         AXIOM_INTERNAL_BUILDER_ENCODE_ONE(axiom_internal_builder, a6); \
+         AXIOM_INTERNAL_BUILDER_ENCODE_ONE(axiom_internal_builder, a7); \
+         AXIOM_INTERNAL_EMIT_BUILDER((level), (mod), (evt)); } while(0)
 
-#define _AXIOM_EVT_8(level, mod, evt, a1, a2, a3, a4, a5, a6, a7, a8) \
-    do { uint8_t _b[AXIOM_MAX_PAYLOAD_LEN]; uint8_t _p = 0; \
-         _AXIOM_ENCODE_ONE(_b, _p, a1); \
-         _AXIOM_ENCODE_ONE(_b, _p, a2); \
-         _AXIOM_ENCODE_ONE(_b, _p, a3); \
-         _AXIOM_ENCODE_ONE(_b, _p, a4); \
-         _AXIOM_ENCODE_ONE(_b, _p, a5); \
-         _AXIOM_ENCODE_ONE(_b, _p, a6); \
-         _AXIOM_ENCODE_ONE(_b, _p, a7); \
-         _AXIOM_ENCODE_ONE(_b, _p, a8); \
-         axiom_write((level), (mod), (evt), _b, _p); } while(0)
+#define AXIOM_INTERNAL_EVT_8(level, mod, evt, a1, a2, a3, a4, a5, a6, a7, a8) \
+    do { AXIOM_INTERNAL_DECLARE_BUILDER(); \
+         AXIOM_INTERNAL_BUILDER_ENCODE_ONE(axiom_internal_builder, a1); \
+         AXIOM_INTERNAL_BUILDER_ENCODE_ONE(axiom_internal_builder, a2); \
+         AXIOM_INTERNAL_BUILDER_ENCODE_ONE(axiom_internal_builder, a3); \
+         AXIOM_INTERNAL_BUILDER_ENCODE_ONE(axiom_internal_builder, a4); \
+         AXIOM_INTERNAL_BUILDER_ENCODE_ONE(axiom_internal_builder, a5); \
+         AXIOM_INTERNAL_BUILDER_ENCODE_ONE(axiom_internal_builder, a6); \
+         AXIOM_INTERNAL_BUILDER_ENCODE_ONE(axiom_internal_builder, a7); \
+         AXIOM_INTERNAL_BUILDER_ENCODE_ONE(axiom_internal_builder, a8); \
+         AXIOM_INTERNAL_EMIT_BUILDER((level), (mod), (evt)); } while(0)
 
-#define _AXIOM_EVT_DISPATCH(level, mod, evt, ...) \
-    _AXIOM_CONCAT(_AXIOM_EVT_, _AXIOM_NARG(__VA_ARGS__))(level, mod, evt, ##__VA_ARGS__)
+#define AXIOM_INTERNAL_EVT_DISPATCH(level, mod, evt, ...) \
+    AXIOM_INTERNAL_CONCAT(AXIOM_INTERNAL_EVT_, AXIOM_INTERNAL_NARG(__VA_ARGS__))(level, mod, evt, ##__VA_ARGS__)
 
 #define AX_EVT(level, mod, evt, ...) \
-    _AXIOM_EVT_DISPATCH(AXIOM_LEVEL_##level, mod, evt, ##__VA_ARGS__)
+    AXIOM_INTERNAL_EVT_DISPATCH(AXIOM_LEVEL_##level, mod, evt, ##__VA_ARGS__)
 
 #define AX_FAULT(mod, evt, ...) \
-    _AXIOM_EVT_DISPATCH(AXIOM_LEVEL_FAULT, mod, evt, ##__VA_ARGS__)
+    AXIOM_INTERNAL_EVT_DISPATCH(AXIOM_LEVEL_FAULT, mod, evt, ##__VA_ARGS__)
 
 /* ---------------------------------------------------------------------------
  * AX_LOG — Development logging (PROD profile = no-op)
@@ -165,16 +230,20 @@ static inline uint16_t _axiom_fnv1a_16(const char *s) {
 
 /* ---------------------------------------------------------------------------
  * AX_PROBE — Timing probe (PROD profile = no-op)
- * Writes minimal structured event with a 16-bit tag hash + value.
+ * Reserved system event with typed fields: its varying value is intentionally
+ * decodable without an application dictionary under wire v2.
  * --------------------------------------------------------------------------- */
 #if (AXIOM_PROFILE == AXIOM_PROFILE_DEV) || (AXIOM_PROFILE == AXIOM_PROFILE_FIELD)
 
 #define AX_PROBE(tag, value) \
-    do { uint8_t _b[AXIOM_MAX_PAYLOAD_LEN]; uint8_t _p = 0; \
-         uint16_t _th = _axiom_fnv1a_16(tag); \
-         axiom_enc_u16(_b, &_p, _th); \
-         _AXIOM_ENCODE_ONE(_b, _p, value); \
-         axiom_write(AXIOM_LEVEL_DEBUG, 0, 0, _b, _p); } while(0)
+    do { AXIOM_INTERNAL_DECLARE_BUILDER(); \
+         uint16_t axiom_internal_tag_hash = axiom_internal_fnv1a_16(tag); \
+         axiom_builder_tagged_u16(&axiom_internal_builder, axiom_internal_tag_hash); \
+         AXIOM_INTERNAL_BUILDER_ENCODE_TAGGED_ONE(axiom_internal_builder, value); \
+         if (axiom_internal_builder.valid) { \
+             axiom_write(AXIOM_LEVEL_DEBUG, 0, 0, axiom_internal_builder.data, \
+                         (uint8_t)axiom_internal_builder.pos); \
+         } else { axiom_internal_record_encode_drop(0u, 0u); } } while(0)
 
 #else /* PROD */
 
@@ -186,25 +255,25 @@ static inline uint16_t _axiom_fnv1a_16(const char *s) {
  * AX_KV — Key-Value event (always compiled)
  * Keys are hashed at compile-time to 16-bit IDs via FNV-1a.
  * --------------------------------------------------------------------------- */
-#define _AXIOM_KV_KEYVAL(buf, pos, key, val) \
-    do { uint16_t _kh = _axiom_fnv1a_16(key); \
-         axiom_enc_u16(buf, &(pos), _kh); \
-         _AXIOM_ENCODE_ONE(buf, pos, val); \
+#define AXIOM_INTERNAL_KV_KEYVAL(builder, key, val) \
+    do { uint16_t axiom_internal_key_hash = axiom_internal_fnv1a_16(key); \
+         axiom_builder_u16(&(builder), axiom_internal_key_hash); \
+         AXIOM_INTERNAL_BUILDER_ENCODE_ONE(builder, val); \
     } while(0)
 
-#define _AXIOM_KV_2(level, mod, evt, k1, v1) \
-    do { uint8_t _b[AXIOM_MAX_PAYLOAD_LEN]; uint8_t _p = 0; \
-         _AXIOM_KV_KEYVAL(_b, _p, k1, v1); \
-         axiom_write((level), (mod), (evt), _b, _p); } while(0)
+#define AXIOM_INTERNAL_KV_2(level, mod, evt, k1, v1) \
+    do { AXIOM_INTERNAL_DECLARE_BUILDER(); \
+         AXIOM_INTERNAL_KV_KEYVAL(axiom_internal_builder, k1, v1); \
+         AXIOM_INTERNAL_EMIT_BUILDER((level), (mod), (evt)); } while(0)
 
-#define _AXIOM_KV_4(level, mod, evt, k1, v1, k2, v2) \
-    do { uint8_t _b[AXIOM_MAX_PAYLOAD_LEN]; uint8_t _p = 0; \
-         _AXIOM_KV_KEYVAL(_b, _p, k1, v1); \
-         _AXIOM_KV_KEYVAL(_b, _p, k2, v2); \
-         axiom_write((level), (mod), (evt), _b, _p); } while(0)
+#define AXIOM_INTERNAL_KV_4(level, mod, evt, k1, v1, k2, v2) \
+    do { AXIOM_INTERNAL_DECLARE_BUILDER(); \
+         AXIOM_INTERNAL_KV_KEYVAL(axiom_internal_builder, k1, v1); \
+         AXIOM_INTERNAL_KV_KEYVAL(axiom_internal_builder, k2, v2); \
+         AXIOM_INTERNAL_EMIT_BUILDER((level), (mod), (evt)); } while(0)
 
 #define AX_KV(level, mod, evt, ...) \
-    _AXIOM_CONCAT(_AXIOM_KV_, _AXIOM_NARG(__VA_ARGS__))(AXIOM_LEVEL_##level, mod, evt, ##__VA_ARGS__)
+    AXIOM_INTERNAL_CONCAT(AXIOM_INTERNAL_KV_, AXIOM_INTERNAL_NARG(__VA_ARGS__))(AXIOM_LEVEL_##level, mod, evt, ##__VA_ARGS__)
 
 #ifdef __cplusplus
 }

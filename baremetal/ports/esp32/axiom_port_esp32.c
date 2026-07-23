@@ -63,8 +63,7 @@ void axiom_port_init(void) {
  * String Output - weak implementation
  * Override with actual UART/RTT implementation for development logs.
  * --------------------------------------------------------------------------- */
-__attribute__((weak))
-void axiom_port_string_out(const char *str) {
+AXIOM_COMPILER_WEAK void axiom_port_string_out(const char *str) {
     (void)str;
     /* Default: no-op. Override for actual output. */
 }
@@ -74,14 +73,17 @@ void axiom_port_string_out(const char *str) {
  *
  * Called on AX_FAULT events. Override to customize behavior.
  * --------------------------------------------------------------------------- */
-__attribute__((weak))
-void axiom_port_fault_hook(uint8_t module_id, uint16_t event_id,
+AXIOM_COMPILER_WEAK void axiom_port_fault_hook(uint8_t module_id, uint16_t event_id,
                            const uint8_t *payload, uint8_t payload_len) {
     (void)module_id;
     (void)event_id;
     (void)payload;
     (void)payload_len;
     /* Default: no-op. Override to add LED blink, halt, or log to flash. */
+}
+
+AXIOM_COMPILER_WEAK uint8_t axiom_port_reset_reason(void) {
+    return 0u;
 }
 
 /* ---------------------------------------------------------------------------
@@ -91,8 +93,7 @@ void axiom_port_fault_hook(uint8_t module_id, uint16_t event_id,
  * ESP32 has two cores, this captures the current core's state.
  * Returns bytes written.
  * --------------------------------------------------------------------------- */
-__attribute__((weak))
-uint8_t axiom_port_fault_snapshot(uint8_t *buf, uint8_t max_len) {
+AXIOM_COMPILER_WEAK uint8_t axiom_port_fault_snapshot(uint8_t *buf, uint8_t max_len) {
     if (max_len < 64) return 0;
 
     /* ESP32 uses Xtensa architecture - capture key registers */
@@ -120,17 +121,22 @@ uint8_t axiom_port_fault_snapshot(uint8_t *buf, uint8_t max_len) {
  *
  * ESP32 uses esp_partition_* APIs for flash operations.
  * --------------------------------------------------------------------------- */
-__attribute__((weak))
-int axiom_port_flash_erase(uint32_t addr, uint32_t len) {
+AXIOM_COMPILER_WEAK int axiom_port_flash_erase(uint32_t addr, uint32_t len) {
     (void)addr;
     (void)len;
     return -1; /* Not implemented - use esp_partition_* APIs */
 }
 
-__attribute__((weak))
-int axiom_port_flash_write(uint32_t addr, const uint8_t *data, uint32_t len) {
+AXIOM_COMPILER_WEAK int axiom_port_flash_write(uint32_t addr, const uint8_t *data, uint32_t len) {
     (void)addr;
     (void)data;
+    (void)len;
+    return -1; /* Not implemented - use esp_partition_* APIs */
+}
+
+AXIOM_COMPILER_WEAK int axiom_port_flash_read(uint32_t addr, uint8_t *out, uint32_t len) {
+    (void)addr;
+    (void)out;
     (void)len;
     return -1; /* Not implemented - use esp_partition_* APIs */
 }

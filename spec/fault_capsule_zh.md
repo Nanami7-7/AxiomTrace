@@ -2,13 +2,13 @@
 
 # AxiomTrace Fault Capsule 规范
 
-> 版本：v1.0  |  状态：**冻结中（v0.6-capsule 定稿）**  |  对应代码：`baremetal/backend/axiom_capsule_flash.c`, `baremetal/core/axiom_event.c`
+> 版本：v1.0  |  状态：**已实现**  |  当前代码：`baremetal/core/axiom_capsule.c`, `baremetal/core/axiom_event.c`, `tool/src/axiomtrace_tools/capsule.py`
 
 ---
 
 ## 1. 概念
 
-**Fault Capsule (故障舱)** 是当系统记录关键故障 (`AX_FAULT`) 时，对系统状态和近期事件进行冻结的快照。它使得开发者能够在不连接外部调试器的情况下进行事后分析 (Post-mortem analysis)。
+**Fault Capsule (故障舱)** 是用于事后分析的持久化快照格式。v1.0 中，`AX_FAULT` 会发出 fault-level Event Record、调用 `axiom_port_fault_hook()`、冻结保留的故障前窗口、捕获故障后窗口，并允许用户代码将 capsule v1 镜像流式提交到配置的 Flash 区域。
 
 **核心规则**：在系统正常运行时，Flash 写入量为 **零**。只有在触发故障后，在非 ISR 上下文调用 `axiom_capsule_commit()` 时才会触碰 Flash。
 
@@ -20,22 +20,22 @@
 
 | 区域          | 用途                                 | 策略                |
 |---------------|--------------------------------------|---------------------|
-| Normal Ring   | 常规事件日志                         | 覆盖或丢弃          |
-| Capsule Ring  | 预留用于故障捕获                     | 故障时冻结          |
+| Core Ring | 常规事件分发 | 默认 DROP；可选记录感知 OVERWRITE |
+| Capsule 帧环 | 保留完整历史帧 | 故障前按整帧淘汰；故障后只追加 |
 
 ### 2.1 生命周期
 
-1. **正常运行**：事件流向 Normal Ring。Capsule Ring 保持为空。
+1. **正常运行**：事件流经 Core Ring；一个记录感知的 capsule 字节环保留最新完整故障前帧，同时满足数量和字节限制。
 2. **故障触发**：调用 `AX_FAULT()`。
-   - 内核调用 `axiom_port_fault_hook()`。
-   - Normal Ring 被 **冻结**（新的常规事件将被丢弃或重定向）。
-   - 最近的 `N` 个故障前事件从 Normal Ring 尾部拷贝到 Capsule Ring。
-3. **故障后捕获**：最多 `M` 个故障后事件被写入 Capsule Ring。
-4. **冻结完成**：当 Capsule Ring 满或达到故障后窗口 `M` 时，系统进入 **Capsule Frozen (故障舱冻结)** 状态。
+   - Core 调用 `axiom_port_fault_hook()` 并发出 fault Event Record。
+   - capsule observer 冻结自身保留的 pre-window；独立的 Core Ring 继续按自身策略工作。
+   - fault 帧作为 post-window 的第一条记录追加。
+3. **故障后捕获**：最多 `M` 条 fault/故障后事件只追加写入，不淘汰已冻结的 pre-window。
+4. **冻结完成**：当帧环满或达到故障后窗口 `M` 时，系统进入 **Capsule Frozen (故障舱冻结)** 状态。
 5. **提交 (Commit)**：用户代码（或 Port 层）调用 `axiom_capsule_commit()`：
    - 擦除 Flash 故障舱扇区（非 ISR 环境）。
    - 写入故障舱报头（寄存器快照、复位原因、固件哈希、丢弃统计等）。
-   - 写入 Capsule Ring 的内容。
+   - 分块写入 snapshot 与帧环内容。
    - 写入故障舱 CRC 校验值。
 6. **重启转储**：复位后，用户代码调用 `axiom_capsule_present()` / `axiom_capsule_read()` 来获取故障舱内容进行分析。
 
@@ -60,7 +60,7 @@
 │   - 寄存器快照 (变长, 参见 §4)                              │
 ├─────────────────────────────────────────────────────────────┤
 │ 事件记录 (从 Capsule Ring 拷贝)                             │
-│   - 每个记录都是一个完整的 v1.0 帧                          │
+│   - 每个记录都是一个完整的受支持帧（当前为 v2.0）            │
 ├─────────────────────────────────────────────────────────────┤
 │ 故障舱 CRC-32 (4B LE)                                       │
 │   - 覆盖报头 + 所有事件记录                                 │
@@ -99,7 +99,7 @@
 
 ---
 
-## 5. 配置 (Configuration)
+## 5. 目标配置 (Target Configuration)
 
 ```c
 #ifndef AXIOM_CAPSULE_ENABLED
@@ -115,13 +115,36 @@
 #endif
 
 #ifndef AXIOM_CAPSULE_RING_SIZE
-#define AXIOM_CAPSULE_RING_SIZE (2048u)
+#define AXIOM_CAPSULE_RING_SIZE 4096u
+#endif
+
+#ifndef AXIOM_CAPSULE_MAX_SNAPSHOT_LEN
+#define AXIOM_CAPSULE_MAX_SNAPSHOT_LEN 64u
+#endif
+
+#ifndef AXIOM_CAPSULE_FLASH_BASE
+#define AXIOM_CAPSULE_FLASH_BASE 0u
+#endif
+
+#ifndef AXIOM_CAPSULE_FLASH_SIZE
+#define AXIOM_CAPSULE_FLASH_SIZE 8192u
+#endif
+
+#ifndef AXIOM_CAPSULE_FIRMWARE_HASH
+#define AXIOM_CAPSULE_FIRMWARE_HASH 0u
+#endif
+
+#ifndef AXIOM_CAPSULE_SNAPSHOT_ID
+#define AXIOM_CAPSULE_SNAPSHOT_ID 0u
 #endif
 ```
 
-- `AXIOM_CAPSULE_ENABLED == 0`：`AX_FAULT` 的行为与 `AX_ERROR` 完全一致，不编译任何故障舱逻辑。
+- 这些宏属于当前 core `axiom_config.h`。
+- `AXIOM_CAPSULE_ENABLED == 0`：`AX_FAULT` 保持为 fault-level Event Record，不编译 capsule 后端逻辑。
 - `AXIOM_CAPSULE_PRE_EVENTS`：故障前保留的事件数量。
 - `AXIOM_CAPSULE_POST_EVENTS`：故障后保留的事件数量。
+- `AXIOM_CAPSULE_RING_SIZE`：捕获 Event Record 流使用的最大字节数。
+- `AXIOM_CAPSULE_FLASH_BASE` / `AXIOM_CAPSULE_FLASH_SIZE`：commit/read/clear 使用的 Port 侧 Flash 区域。
 
 ---
 
@@ -141,11 +164,14 @@ uint32_t axiom_capsule_read(uint8_t *out, uint32_t max_len);
 void axiom_capsule_clear(void);
 ```
 
+`axiom_capsule_read()` 直接在调用者缓冲区合成既有 capsule v1 镜像，不保留第二份完整 RAM image。`axiom_capsule_present()` 使用固定 64 字节 scratch 流式校验 Flash。两条 Flash 路径都校验 magic、编码长度与 CRC-32；提交失败时，保留的帧环仍可读取。
+
 ---
 
 ## 7. 约束
 
 - Flash 擦除/写入 **绝不会** 在 ISR 或热路径中发生。
 - `axiom_capsule_commit()` 必须从主循环或故障处理程序尾部调用，且中断由 Port 层管理。
-- 故障舱数据格式是自描述且带版本控制的；解码器无需外部 Schema 即可解析。
-- 如果 Flash 提交失败（例如 Flash 控制器忙），故障舱将保留在 RAM 中（如果保留 RAM 可用），且 `commit()` 返回 `false`。
+- 故障舱 framing 与寄存器快照带版本控制。对于 wire v2 事件语义，decoder 需要 identity 匹配的 metadata bundle；未提供时，普通事件 payload 保持 raw 输出。
+- 使用 bundle 生成语义报告时，捕获的事件记录中必须包含元数据身份事件。故障舱中的 `firmware_hash` 仍是固件诊断字段，不等同于 bundle 的 `metadata_id`。
+- 如果 Flash commit 失败（例如 Flash 控制器忙、短写或写入中断），capsule 会保留在 RAM 中，并且 `commit()` 返回 `false`。

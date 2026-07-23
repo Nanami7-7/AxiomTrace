@@ -1,0 +1,29 @@
+[
+  {
+    "sync": 165,
+    "version": [
+      2,
+      0
+    ],
+    "level": "INFO",
+    "module_id": 3,
+    "event_id": 2,
+    "seq": 3,
+    "payload_len": 7,
+    "payload": [
+      {
+        "type": "u8",
+        "value": 42
+      }
+    ],
+    "crc": 59217,
+    "timestamp_delta": 0,
+    "timestamp_len": 1,
+    "location": {
+      "mode": "file_id",
+      "file_id": 4660,
+      "line": 77
+    },
+    "timestamp": 0
+  }
+]

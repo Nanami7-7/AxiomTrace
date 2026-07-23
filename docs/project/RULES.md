@@ -2,7 +2,7 @@
 
 # AxiomTrace RULES.md
 
-> Version: v1.0 | Status: **Enforced** | Update Date: 2026-04-29
+> Version: v1.0 | Status: **Enforced** | Update Date: 2026-05-28
 
 ---
 
@@ -41,8 +41,8 @@ The following behaviors are **strictly prohibited** in `axiom_write()` and all I
 | String compare/search | Runtime string parsing is prohibited. | Rejection of PR. |
 
 **Allowed Items**:
-- Direct-to-Ring (D2R) encoding (streaming directly into ring buffer segments).
-- Blind Overwrite strategy for O(1) deterministic latency when the ring is full.
+- Packed frame encoding with a short critical section.
+- Default DROP-new strategy for bounded O(1) ring-full handling; optional OVERWRITE may discard complete validated frames only and is bounded by maximum frame size.
 - Incremental CRC (streaming calculation without re-reading memory).
 - Writing to RAM Ring (single critical section).
 - Updating global drop counter (`volatile uint32_t` increment).
@@ -70,12 +70,12 @@ The following behaviors are **strictly prohibited** in `axiom_write()` and all I
 | Rule | Description |
 | :--- | :--- |
 | Event Record is the Only Log Entity | No distinction between "text logs" and "binary logs" in firmware; only Event Records exist. |
-| No Private Backend Protocols | All buffers received by backends must be unified Event Record frames. Backends handle transport adaptation (e.g., COBS, CAN-FD framing) but cannot change internal frame structure. |
+| No Private Backend Protocols | All buffers received by backends are complete raw Event Record frames. Any external transport wrapper stays outside Core and cannot change the CRC-covered body. |
 | Text is Just Rendering | Text output is rendered by the host decoder using dictionary templates. |
 | JSON is Just Export | JSON is converted from binary by host tools. |
 | Binary is Storage/Transport Form | Binary frame is the only data form crossing the firmware-host boundary. |
-| Self-describing Payload | Each payload field must have a type tag (`0x01=u8, 0x02=i8...`). Decoder parses structure without external schema; dictionary handles semantic mapping (ID → Name/Template). |
-| Forward Compatibility | Minor version increments only append new type tags or flags; existing field semantics remain unchanged. Major version changes must synchronize decoder, golden frames, specs, and docs. |
+| Versioned Payload Interpretation | Wire v2 normal arguments are packed according to the identity-matched dictionary; metadata suffixes remain tagged. The decoder retains structural decoding for historical wire v1 typed payloads. |
+| Forward Compatibility | Minor version increments preserve the payload interpretation within the major version. Major version changes must synchronize decoder, golden frames, specs, and docs. |
 
 ---
 
@@ -97,7 +97,7 @@ The following behaviors are **strictly prohibited** in `axiom_write()` and all I
 | Rule | Description |
 | :--- | :--- |
 | Zero-Intrusive Backend Extension | New backends only need to implement `axiom_backend_t` and call `axiom_backend_register()`. No modification to `core/` or `frontend/` files. |
-| Extensible Payload Types | Use `0x0A~0x7F` for new type tags. Must update encoder, decoder, spec, golden tests, and docs simultaneously. Decoders should skip unknown tags and mark as `UNKNOWN_TYPE` instead of crashing. |
+| Extensible Payload Metadata | In wire v2, `0x0A` and `0x0B` identify location and metadata identity suffixes after dictionary-defined packed arguments. Any new suffix requires synchronized encoder, decoder, spec, golden, and documentation updates; unknown suffixes must be rejected safely. |
 | Prunable Profiles | `DEV` / `FIELD` / `PROD` profiles controlled by macros. New profiles added in `frontend/` must not alter existing profile semantics. |
 | Weak Port Symbols | All port functions provide `__attribute__((weak))` defaults. New ports (e.g., new MCU series) only override necessary functions without modifying library code. |
 | Extensible Toolchain | Decoder uses pluggable dictionary loading (JSON/YAML/X-Macro). New export formats (e.g., CSV, PCAP) implemented via new render modules. |
@@ -117,6 +117,17 @@ The following behaviors are **strictly prohibited** in `axiom_write()` and all I
 | Synchronized Documentation | Any API change must update `../../spec/api_reference.md`. Any protocol change must update `../../spec/wire_format.md` and the decoder. |
 | Automated Single-file Library | Provide `../../tool/scripts/amalgamate.py` to merge the library into `axiomtrace.h`. Amalgamated output must pass all host tests. |
 
+### Documentation Governance
+
+| Rule | Description |
+| :--- | :--- |
+| Single Owner per Topic | Each concept has one canonical document: API in `spec/api_reference.md`, wire data in `spec/wire_format.md`, event semantics in `spec/event_model.md`, toolchain/bundle behavior in `spec/toolchain_ecosystem_design.md`, and project process in `docs/project/*.md`. |
+| No Ad-hoc Markdown | Do not add new `.md` files unless the topic cannot fit an existing canonical document and the new file is linked from README plus `docs/reference/DIR_STRUCTURE.md`. |
+| README is an Index | README files explain positioning and link to canonical docs; they must not duplicate schemas, long CLI contracts, or implementation plans. |
+| Bilingual Parity | Public docs that already have English and Chinese versions must be updated in both languages in the same change. |
+| Tool Help for Details | CLI option details belong in tool help/docstrings first; Markdown should describe stable contracts and workflows, not copy every flag repeatedly. |
+| Route Before Expansion | Large new toolchain or documentation work must first update `PLAN.md` / `ROUTE.md` so the scope is visible before implementation. |
+
 ---
 
 ## 8. Development Workflow (Mandatory)
@@ -134,7 +145,7 @@ Golden Frame Update (Update golden/*.bin and expected.json if wire format change
     ↓
 Implementation (Follow all RULES.md)
     ↓
-Decoder Update (Update Python decoder if protocol or type tags change)
+Decoder Update (Update Python decoder if protocol, packed schema, or metadata suffixes change)
     ↓
 Tests (C host unit tests + Python decoder regression tests)
     ↓
@@ -158,21 +169,25 @@ Merge
 ### 9.1 Daily Maintenance
 
 - **Iteration Start**: Check `ROUTE.md` goals, ensure no scope creep.
-- **Each Commit**: Run `ctest` (host tests) locally before pushing.
-- **Protocol Tweaks**: Run `../../tool/golden/update_golden.py` and commit new golden frames.
+- **Each Commit**: Run host `ctest` plus `python -m pytest -q` locally before pushing.
+- **Protocol Tweaks**: Run `python tool/golden/update_golden.py --check` first; commit regenerated golden frames only when the wire contract intentionally changes.
 - **Weekly**: Check `tests/` coverage; add tests for any uncovered new code.
 
 ### 9.2 Release Workflow
 
 1. Confirm all `ROUTE.md` tasks for the stage are complete.
-2. Run full tests: `ctest --output-on-failure` + `python ../../tool/tests/test_decoder.py`.
-3. Run benchmark: `../../tool/benchmark/host_benchmark` and update the report.
-4. Check for no P0/P1 issues (see §10).
-5. Update `../changelog/CHANGELOG.md`.
-6. Update `PLAN.md` status.
-7. Tag git: `git tag v0.x-stage`.
-8. Run amalgamation script and verify the single-file library passes tests.
-9. Publish Release Note (including binaries, single-file library, decoder, and docs).
+2. Run host C matrix: Clang and GCC builds, then `ctest --test-dir <build-dir> --output-on-failure` for each.
+3. Run Python/tooling matrix: `python -m pytest -q`, `python -m compileall -q tool/src tests`, and `PYTHONPATH=tool/src python -m axiomtrace_tools.cli validate --golden tool/golden`.
+4. Run golden verification: `python tool/golden/update_golden.py --check`.
+5. Run preset smoke builds for `custom`, `tiny`, `prod`, `field`, and `dev` with `AXIOM_BUILD_TESTS=OFF`.
+6. Run integration: on Windows use Git Bash for `./tests/test_integration.sh`.
+7. Run benchmark: `tests/host/test_benchmark` from a verified build directory and update the report if the baseline changes.
+8. Check for no P0/P1 issues (see §10).
+9. Update `../changelog/CHANGELOG.md`.
+10. Update `PLAN.md` status.
+11. Tag git: `git tag v0.x-stage`.
+12. Run amalgamation script and verify the single-file library passes tests.
+13. Publish Release Note (including binaries, single-file library, decoder, and docs).
 
 ### 9.3 Issue Grading and Response
 
@@ -190,11 +205,11 @@ Merge
 Official `v1.0` tag allowed **ONLY** when all are met:
 
 - [ ] Stable API (`AX_*` macros locked).
-- [ ] Stable wire format (header structure, type tag definition frozen).
+- [ ] Stable wire format (header, packed-argument, and metadata-suffix contracts frozen).
 - [ ] Stable event model (Event Record semantics unchanged).
 - [ ] Stable backend contract (`axiom_backend_t` struct frozen).
 - [ ] Stable capsule format (capsule layout frozen).
-- [ ] Stable decoder (Python decoder can parse all type tags and capsules).
+- [ ] Stable decoder (Python decoder can parse current packed frames, legacy typed frames, and capsules).
 - [ ] Stable golden tests (all passing, no flakiness).
 - [ ] Stable examples (all compile and run as expected).
 - [ ] Stable benchmark report (hot path cycle count baseline locked).
@@ -233,7 +248,7 @@ Authors must self-assess this checklist before submitting new code:
 - [ ] No RTOS/Linux implementation branches (port layer isolation, core has no OS dependency).
 - [ ] Hot path has no malloc, no printf, no Flash erase, no blocking.
 - [ ] New backend did not modify core code.
-- [ ] New type tags synchronized with decoder and spec.
+- [ ] New packed layouts or metadata suffixes synchronized with decoder and spec.
 - [ ] New APIs synchronized with docs, examples, and tests.
 - [ ] No silent dropping (drop counter + `DROP_SUMMARY` present).
 - [ ] Examples compile independently (no reliance on undocumented internal symbols).

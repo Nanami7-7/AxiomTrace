@@ -1,2 +1,0 @@
-[console_scripts]
-axiom-decoder = axiomtrace_tools.cli:main

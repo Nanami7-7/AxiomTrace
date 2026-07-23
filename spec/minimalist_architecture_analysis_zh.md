@@ -128,7 +128,7 @@ static inline void _axiom_enc_f32(uint8_t *b, uint8_t *p, float    v) { b[(*p)++
 __attribute__((weak)) uint32_t axiom_timestamp(void) { return 0; }
 __attribute__((weak)) void axiom_critical_enter(void) { }
 __attribute__((weak)) void axiom_critical_exit(void) { }
-__attribute__((weak)) void axiom_byte_out(uint8_t b) { (void)b; }
+__attribute__((weak)) void backend_send_byte(uint8_t b) { (void)b; }
 
 /* ---- 前向声明 ---- */
 void axiom_write(axiom_level_t lvl, uint8_t mod, uint16_t evt,
@@ -164,7 +164,7 @@ static void _ring_put(const uint8_t *data, uint8_t len) {
 
 void axiom_write(axiom_level_t lvl, uint8_t mod, uint16_t evt,
                  const uint8_t *payload, uint8_t len) {
-    /* Direct-to-Ring (D2R) 实现 */
+    /* 历史直接写入草图；当前 core 默认使用 AXIOM_SHORT_CS。 */
     axiom_critical_enter();
     uint16_t total_len = 8 + 1 + len + 2; /* 报头 + 长度 + 有效载荷 + CRC (为简洁忽略变长时间戳) */
     if (_ring_has_space(total_len)) {
@@ -181,7 +181,7 @@ void axiom_write(axiom_level_t lvl, uint8_t mod, uint16_t evt,
 void axiom_flush(void) {
     axiom_critical_enter();
     while (_ring_tail != _ring_head) {
-        axiom_byte_out(_ring[_ring_tail]);
+        backend_send_byte(_ring[_ring_tail]);
         _ring_tail = (_ring_tail + 1) % AXIOM_RING_SIZE;
     }
     axiom_critical_exit();
@@ -199,7 +199,7 @@ void axiom_flush(void) {
 #include "axiom.h"
 
 /* 覆盖弱符号：提供实际输出 */
-void axiom_byte_out(uint8_t b) {
+void backend_send_byte(uint8_t b) {
     UART_DR = b; /* 伪代码 */
 }
 
@@ -313,7 +313,7 @@ int main(void) {
 | 方案 | 文件数量 | 构成 | 适用场景 |
 |----------|------------|-------------|----------|
 | **极端极简** | 2 | `axiom.h` + `axiom.c` | 快速验证、教学、超小项目。 |
-| **推荐默认** | 3 | `axiom.h` + `axiom.c` + `axiom_events.h` (+ D2R) | 需要模块/事件管理的正式项目。 |
+| **推荐默认** | 3 | `axiom.h` + `axiom.c` + `axiom_events.h` (+ 短临界区编码) | 需要模块/事件管理的正式项目。 |
 | **当前设计** | 14+ | 7 个 .h + 7 个 .c + 各类 backend | 分拆过度，应推迟到 v0.5+。 |
 
 **3 文件方案的内容分配**：

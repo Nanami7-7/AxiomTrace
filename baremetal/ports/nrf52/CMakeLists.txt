@@ -8,9 +8,6 @@
 #   In your nRF52 project CMakeLists.txt, add:
 #     add_subdirectory(path/to/axiomtrace/baremetal/ports/nrf52 axiom_build)
 #
-#   Or use the AXIOM_PORT option in the main build:
-#     cmake -DAXIOM_PORT=nrf52 ...
-#
 # Requirements:
 #   - SEGGER J-Link RTT support (RTT.h included via SEGGER_JLink.h)
 #   - nRF52 SDK or standalone CMSIS headers
@@ -19,10 +16,15 @@
 
 cmake_minimum_required(VERSION 3.16)
 
+if(NOT TARGET AxiomTrace::axiomtrace)
+    message(FATAL_ERROR
+        "AxiomTrace nRF52 port requires AxiomTrace::axiomtrace; "
+        "add the core project before this directory")
+endif()
+
 # ---------------------------------------------------------------------------
 # Port Name and Sources
 # ---------------------------------------------------------------------------
-set(AXIOM_PORT_NAME "nrf52")
 set(AXIOM_PORT_DIR ${CMAKE_CURRENT_LIST_DIR})
 
 # nRF52 port source files
@@ -47,8 +49,8 @@ target_sources(axiom_port_nrf52 INTERFACE
 )
 target_include_directories(axiom_port_nrf52 INTERFACE
     ${AXIOM_PORT_DIR}
-    ${AXIOM_INCLUDE_DIRS}
 )
+target_link_libraries(axiom_port_nrf52 INTERFACE AxiomTrace::axiomtrace)
 target_compile_definitions(axiom_port_nrf52 INTERFACE
     AXIOM_PORT_NRF52
     NRF52_SERIES
@@ -115,8 +117,3 @@ if(CMAKE_C_COMPILER_ID MATCHES "GNU|Clang")
         -flto
     )
 endif()
-
-# ---------------------------------------------------------------------------
-# Export for use with ExternalProject
-# ---------------------------------------------------------------------------
-export(TARGETS axiom_port_nrf52 FILE ${CMAKE_BINARY_DIR}/axiom_port_nrf52-targets.cmake)

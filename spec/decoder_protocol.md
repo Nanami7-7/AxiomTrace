@@ -2,7 +2,7 @@
 
 # AxiomTrace Decoder Protocol Specification
 
-> Version: v1.0 | Status: **Building (v0.7-toolchain finalized)**
+> Wire Version: v2.0 | Status: **Building**
 
 ---
 
@@ -12,9 +12,10 @@ The AxiomTrace decoder toolchain runs on the host (Linux/macOS/Windows) and conv
 
 **Components**:
 
-- `axiom_decoder.py` — Parses binary frames into structured objects
-- `axiom_render.py` — Renders structured objects to text or JSON
-- `dict_loader.py` — Loads and validates event dictionaries
+- `axiom-decoder` — Parses binary frames and renders text/json/jsonl/raw output
+- `axiom-codegen` — Generates C headers and `dictionary.json` from event definitions
+- `axiom-bundle` — Creates the standard metadata bundle
+- `axiom-validate` — Validates dictionaries, event sources, bundles, and golden inputs
 
 ---
 
@@ -22,10 +23,10 @@ The AxiomTrace decoder toolchain runs on the host (Linux/macOS/Windows) and conv
 
 ### 2.1 Raw Binary Stream
 
-A concatenation of complete v1.0 frames. For UART/USB transports, the stream is COBS-encoded with `0x00` delimiters.
+A concatenation of complete raw v2.0 Frame Bodies. Historical v1.0/v1.1 typed-payload frames remain structurally decodable. Transport wrappers such as COBS are outside the decoder input contract and must be removed first.
 
 ```bash
-python -m axiom_decoder --input trace.bin --format binary --dict dictionary.json
+axiom-decoder trace.bin --bundle build/axiomtrace-bundle --format text
 ```
 
 ### 2.2 Memory Dump
@@ -39,7 +40,7 @@ A raw memory dump containing the ring buffer metadata + raw ring data:
 ```
 
 ```bash
-python -m axiom_decoder --input trace_ram.bin --format memory --dict dictionary.json
+axiom-decoder trace_ram.bin --bundle build/axiomtrace-bundle --format raw
 ```
 
 ### 2.3 Capsule Binary
@@ -47,7 +48,7 @@ python -m axiom_decoder --input trace_ram.bin --format memory --dict dictionary.
 A fault capsule committed to Flash. See `spec/fault_capsule.md` for layout.
 
 ```bash
-python -m axiom_decoder --input capsule.bin --format capsule --dict dictionary.json
+axiom-decoder capsule.bin --bundle build/axiomtrace-bundle --format raw
 ```
 
 ---
@@ -71,7 +72,7 @@ Template syntax in dictionary:
 }
 ```
 
-Type hints (`{u8}`, `{i16}`, `{f32}`) must match the decoded payload type tags. Mismatch triggers a validator warning.
+Type hints (`{u8}`, `{i16}`, `{f32}`) define the packed v2 payload layout used during bundle-backed decoding.
 
 ### 3.2 JSON Export
 
@@ -131,7 +132,9 @@ Markdown or HTML report containing:
 ### 4.2 Validation Rules
 
 - Every `(module_id, event_id)` referenced in the binary must exist in the dictionary, or the decoder marks it as `UNKNOWN_EVENT`.
-- `text` template type hints must match the payload's type tag sequence. Mismatch = `TYPE_MISMATCH` warning.
+- For v2, `text`/`args` types define the packed argument boundaries; truncated values or unknown metadata suffixes are validation failures.
+- Reserved v2 system events are decoded by fixed schemas: typed `AX_PROBE` `(0,0)`, packed `DROP_SUMMARY` `(0,1)`, and exact-length metadata identity `(0,2)`.
+- For historical v1, typed fields continue to be parsed structurally without requiring a dictionary.
 - `level` in dictionary should match the frame's `level` field. Mismatch = `LEVEL_MISMATCH` warning.
 
 ---
@@ -140,19 +143,20 @@ Markdown or HTML report containing:
 
 ```bash
 # Decode binary to text
-python -m axiom_decoder trace.bin --dict dict.json --output text
+axiom-decoder trace.bin --bundle build/axiomtrace-bundle --format text
 
 # Decode binary to JSON
-python -m axiom_decoder trace.bin --dict dict.json --output json > trace.json
+axiom-decoder trace.bin --bundle build/axiomtrace-bundle --format json > trace.json
 
-# Decode capsule to report
-python -m axiom_decoder capsule.bin --dict dict.json --output report --format capsule
+# Compatibility path using only dictionary.json
+axiom-decoder trace.bin --dictionary dictionary.json --format jsonl
 
 # Validate dictionary against golden frames
-python -m axiom_decoder --validate-dict dict.json --golden golden/
+axiom-validate --bundle build/axiomtrace-bundle --golden golden/
 
-# Update golden frames from encoder
-python tool/golden/update_golden.py --output golden/
+# Generate code and bundle
+axiom-codegen --events events.yaml --out build/generated
+axiom-bundle generate --events events.yaml --compile-db build/compile_commands.json --out build/axiomtrace-bundle
 ```
 
 ---
@@ -163,8 +167,10 @@ python tool/golden/update_golden.py --output golden/
 |------------|-------------|----------------|
 | `FRAME_INVALID` | CRC mismatch, bad sync, or bad version | Skip to next delimiter/sync, log warning |
 | `UNKNOWN_EVENT` | (module_id, event_id) not in dictionary | Output raw IDs and hex payload, continue |
-| `TYPE_MISMATCH` | Dictionary template type != payload type tag | Output with `[!]` warning, continue |
+| `UNKNOWN_EVENT_SCHEMA` | v2 event lacks dictionary metadata | Output raw payload; semantic validation fails |
 | `TRUNCATED_PAYLOAD` | payload_len > actual bytes available | Mark as truncated, skip frame |
-| `UNKNOWN_TYPE_TAG` | Type tag in reserved/user range not recognized | Skip field or mark as unknown, continue |
+| `UNKNOWN_METADATA_SUFFIX` | Bytes remain after v2 packed args but do not form metadata | Mark malformed; semantic validation fails |
+| `INVALID_METADATA_IDENTITY` | System metadata identity payload is not exactly tag plus 8-byte ID | Mark malformed; semantic validation fails |
+| `UNKNOWN_TYPE_TAG` | Historical v1 type tag is not recognized | Mark unknown, continue |
 
 **Critical rule**: The decoder must never crash or enter undefined state, regardless of input corruption.

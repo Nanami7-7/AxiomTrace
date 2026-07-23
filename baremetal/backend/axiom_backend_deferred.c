@@ -1,4 +1,5 @@
 #include "axiom_backend_deferred.h"
+#include "axiom_frame.h"
 #include "axiom_timestamp.h"
 #include "axiom_port.h"
 #include <string.h>
@@ -13,12 +14,9 @@ static int deferred_write(const uint8_t *data, uint16_t len, void *ctx) {
         return -1;
     }
 
-    /*
-     * 写入 deferred ring，使用 DROP 策略。
-     * 热路径不阻塞，如果 ring 满则丢弃最老的数据。
-     * axiom_ring_write 已使用临界区保护，ISR 安全。
-     */
-    bool ok = axiom_ring_write(&d->deferred_ring.ring, data, len);
+    /* Deferred queues always preserve existing complete frames and DROP the
+     * new frame when full, regardless of the main ring policy. */
+    bool ok = axiom_ring_try_write(&d->deferred_ring.ring, data, len);
     return ok ? 0 : -2;
 }
 
@@ -27,15 +25,9 @@ static int deferred_ready(void *ctx) {
     if (!d || !d->downstream) {
         return 0;
     }
-
-    /*
-     * 如果下游 backend 提供了 ready 回调，则检查其就绪状态。
-     * 否则默认认为就绪。
-     */
-    if (d->downstream->ready) {
-        return d->downstream->ready(d->downstream->ctx);
-    }
-    return 1;
+    /* ready() has no frame-length argument, so only claim readiness when the
+     * local queue can accept any valid frame the Core may dispatch. */
+    return axiom_ring_free(&d->deferred_ring.ring) >= AXIOM_MAX_FRAME_LEN;
 }
 
 static int deferred_flush(void *ctx) {
@@ -60,12 +52,14 @@ static int deferred_flush(void *ctx) {
 
     while (axiom_ring_used(ring) > 0) {
         uint16_t avail = axiom_ring_peek(ring, frame_buf, sizeof(frame_buf));
-        if (avail < 12) break; /* minimum: 8 header + 1 ts + 1 len + 0 payload + 2 crc */
-        /* Decode variable-length timestamp to locate payload_len */
-        uint8_t ts_len = axiom_timestamp_decode_len(frame_buf[8]);
-        uint16_t payload_len = frame_buf[8 + ts_len];
-        uint16_t frame_len = (uint16_t)(8u + ts_len + 1u + payload_len + 2u);
-        if (avail < frame_len) break;
+        uint16_t frame_len = 0;
+        if (!axiom_frame_validate(frame_buf, avail, &frame_len)) {
+            axiom_ring_consume(ring, 1u);
+            continue;
+        }
+        if (downstream->ready && !downstream->ready(downstream->ctx)) {
+            break;
+        }
         /* Forward BEFORE consuming from ring, so a failed write does not lose data */
         if (downstream->write) {
             int rc = downstream->write(frame_buf, frame_len, downstream->ctx);
@@ -137,8 +131,10 @@ int axiom_backend_deferred_init(axiom_backend_deferred_ctx_t *ctx,
                     AXIOM_DEFERRED_RING_SIZE);
     (void)deferred_ring_ctx; /* API compatibility — not used */
 
-    /* 初始化 embedded backend 结构，用于注册到 registry */
-    ctx->backend = (axiom_backend_t){
+    /* 初始化 embedded backend 结构，使用 AXIOM_BACKEND_INIT 宏
+     * 自动填充 size 字段，确保前向兼容的结构体演进机制。
+     * 赋值场景需显式转换为 compound literal。 */
+    ctx->backend = (axiom_backend_t)AXIOM_BACKEND_INIT(
         .name = "deferred",
         .caps = 0,  /* deferred 不声明具体 capability */
         .write = deferred_write,
@@ -147,7 +143,7 @@ int axiom_backend_deferred_init(axiom_backend_deferred_ctx_t *ctx,
         .panic_write = deferred_panic_write,
         .on_drop = deferred_on_drop,
         .ctx = ctx,
-    };
+    );
 
     return 0;
 }

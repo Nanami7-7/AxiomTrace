@@ -41,11 +41,224 @@ add_executable(test_event_ext test_event_ext.c)
 target_link_libraries(test_event_ext PRIVATE axiomtrace)
 add_test(NAME test_event_ext COMMAND test_event_ext)
 
+add_executable(test_capsule test_capsule.c)
+target_link_libraries(test_capsule PRIVATE axiomtrace)
+add_test(NAME test_capsule COMMAND test_capsule)
+
+add_executable(test_dynamic_call_chain test_dynamic_call_chain.c)
+target_link_libraries(test_dynamic_call_chain PRIVATE axiomtrace)
+add_test(NAME test_dynamic_call_chain COMMAND test_dynamic_call_chain)
+
+add_executable(test_profile_dev test_profiles.c)
+target_compile_definitions(test_profile_dev PRIVATE AXIOM_PROFILE=0)
+target_link_libraries(test_profile_dev PRIVATE axiomtrace)
+add_test(NAME test_profile_dev COMMAND test_profile_dev)
+
+add_executable(test_profile_field test_profiles.c)
+target_compile_definitions(test_profile_field PRIVATE AXIOM_PROFILE=1)
+target_link_libraries(test_profile_field PRIVATE axiomtrace)
+add_test(NAME test_profile_field COMMAND test_profile_field)
+
+add_executable(test_profile_prod test_profiles.c)
+target_compile_definitions(test_profile_prod PRIVATE AXIOM_PROFILE=2)
+target_link_libraries(test_profile_prod PRIVATE axiomtrace)
+add_test(NAME test_profile_prod COMMAND test_profile_prod)
+
+function(add_config_preset_test name preset profile ring payload modules location time_sync short_cs degradation capsule pre post cap_ring ring_policy overflow_detection selftest debug fail_threshold recovery_us snapshot_len flash_size)
+    add_executable(test_config_preset_${name} test_config_presets.c)
+    target_include_directories(test_config_preset_${name} PRIVATE
+        ${CMAKE_SOURCE_DIR}/baremetal
+        ${CMAKE_SOURCE_DIR}/baremetal/include
+        ${CMAKE_SOURCE_DIR}/baremetal/port
+        ${CMAKE_SOURCE_DIR}/baremetal/core
+        ${CMAKE_SOURCE_DIR}/baremetal/frontend
+        ${CMAKE_SOURCE_DIR}/baremetal/backend
+    )
+    target_compile_definitions(test_config_preset_${name} PRIVATE
+        AXIOM_PRESET=${preset}
+        EXPECT_PRESET=${preset}
+        EXPECT_PROFILE=${profile}
+        EXPECT_RING_BUFFER_SIZE=${ring}
+        EXPECT_MAX_PAYLOAD_LEN=${payload}
+        EXPECT_MODULE_MAX=${modules}
+        EXPECT_LOCATION_MODE=${location}
+        EXPECT_TIME_SYNC_ENABLED=${time_sync}
+        EXPECT_SHORT_CS=${short_cs}
+        EXPECT_BACKEND_DEGRADATION=${degradation}
+        EXPECT_CAPSULE_ENABLED=${capsule}
+        EXPECT_CAPSULE_PRE_EVENTS=${pre}
+        EXPECT_CAPSULE_POST_EVENTS=${post}
+        EXPECT_CAPSULE_RING_SIZE=${cap_ring}
+        EXPECT_RING_BUFFER_POLICY=${ring_policy}
+        EXPECT_ENCODE_OVERFLOW_DETECTION=${overflow_detection}
+        EXPECT_SELFTEST=${selftest}
+        EXPECT_DEBUG=${debug}
+        EXPECT_BACKEND_FAIL_THRESHOLD=${fail_threshold}
+        EXPECT_BACKEND_RECOVERY_US=${recovery_us}
+        EXPECT_CAPSULE_MAX_SNAPSHOT_LEN=${snapshot_len}
+        EXPECT_CAPSULE_FLASH_SIZE=${flash_size}
+    )
+    add_test(NAME test_config_preset_${name} COMMAND test_config_preset_${name})
+endfunction()
+
+add_config_preset_test(tiny   AXIOM_PRESET_TINY   AXIOM_PROFILE_PROD  256u  32u  16u AXIOM_CFG_LOCATION_MODE_NONE 0 0 0 0 32u 16u 4096u 0 1 0 0 5 1000000u 64u 8192u)
+add_config_preset_test(prod   AXIOM_PRESET_PROD   AXIOM_PROFILE_PROD  1024u 64u  32u AXIOM_CFG_LOCATION_MODE_NONE 0 1 1 0 32u 16u 4096u 0 1 0 0 5 1000000u 64u 8192u)
+add_config_preset_test(field  AXIOM_PRESET_FIELD  AXIOM_PROFILE_FIELD 2048u 96u  32u AXIOM_CFG_LOCATION_MODE_NONE 1 1 1 1 16u 8u  2048u 0 1 0 0 5 1000000u 64u 8192u)
+add_config_preset_test(dev    AXIOM_PRESET_DEV    AXIOM_PROFILE_DEV   4096u 128u 32u AXIOM_CFG_LOCATION_MODE_NONE 1 1 1 1 32u 16u 4096u 0 1 0 0 5 1000000u 64u 8192u)
+add_config_preset_test(custom AXIOM_PRESET_CUSTOM AXIOM_PROFILE_DEV   4096u 128u 32u AXIOM_CFG_LOCATION_MODE_NONE 1 1 1 1 32u 16u 4096u 0 1 0 0 5 1000000u 64u 8192u)
+
+
+add_executable(test_location_file_id test_location.c)
+target_compile_definitions(test_location_file_id PRIVATE AXIOM_CFG_LOCATION_MODE=2 AXIOM_SOURCE_FILE_ID=0x1234u)
+target_link_libraries(test_location_file_id PRIVATE axiomtrace)
+add_test(NAME test_location_file_id COMMAND test_location_file_id)
+
+add_executable(test_location_hash test_location.c)
+target_compile_definitions(test_location_hash PRIVATE AXIOM_CFG_LOCATION_MODE=1 AXIOM_CFG_LOCATION_FUNCTION=1)
+target_link_libraries(test_location_hash PRIVATE axiomtrace)
+add_test(NAME test_location_hash COMMAND test_location_hash)
+
+add_executable(test_location_none test_location.c)
+target_compile_definitions(test_location_none PRIVATE AXIOM_CFG_LOCATION_MODE=0)
+target_link_libraries(test_location_none PRIVATE axiomtrace)
+add_test(NAME test_location_none COMMAND test_location_none)
+
 add_executable(test_backend_ext test_backend_ext.c)
 target_link_libraries(test_backend_ext PRIVATE axiomtrace)
 add_test(NAME test_backend_ext COMMAND test_backend_ext)
 
+# ---- Wave 2: Core module dedicated tests ----
+
+add_executable(test_timestamp test_timestamp.c)
+target_link_libraries(test_timestamp PRIVATE axiomtrace)
+add_test(NAME test_timestamp COMMAND test_timestamp)
+
+add_executable(test_filter_dedicated test_filter.c)
+target_link_libraries(test_filter_dedicated PRIVATE axiomtrace)
+add_test(NAME test_filter_dedicated COMMAND test_filter_dedicated)
+
+add_executable(test_backend_deferred test_backend_deferred.c)
+target_link_libraries(test_backend_deferred PRIVATE axiomtrace)
+add_test(NAME test_backend_deferred COMMAND test_backend_deferred)
+
+add_executable(test_backend_memory test_backend_memory.c)
+target_link_libraries(test_backend_memory PRIVATE axiomtrace)
+add_test(NAME test_backend_memory COMMAND test_backend_memory)
+
+add_library(axiomtrace_overwrite STATIC ${AXIOM_CORE_SOURCES} ${AXIOM_PORT_SOURCES})
+target_compile_features(axiomtrace_overwrite PUBLIC c_std_11)
+target_include_directories(axiomtrace_overwrite PUBLIC
+    ${CMAKE_SOURCE_DIR}/baremetal
+    ${CMAKE_SOURCE_DIR}/baremetal/include
+    ${CMAKE_SOURCE_DIR}/baremetal/port
+    ${CMAKE_SOURCE_DIR}/baremetal/core
+    ${CMAKE_SOURCE_DIR}/baremetal/frontend
+    ${CMAKE_SOURCE_DIR}/baremetal/backend)
+target_compile_definitions(axiomtrace_overwrite PUBLIC
+    AXIOM_PRESET=0
+    AXIOM_RING_BUFFER_POLICY=1
+    AXIOM_RING_BUFFER_SIZE=256u
+    AXIOM_CAPSULE_ENABLED=0
+    AXIOM_HOST_TESTING=1)
+add_executable(test_core_overwrite test_core_overwrite.c)
+target_link_libraries(test_core_overwrite PRIVATE axiomtrace_overwrite)
+add_test(NAME test_core_overwrite COMMAND test_core_overwrite)
+
+add_library(axiomtrace_small_payload STATIC ${AXIOM_CORE_SOURCES} ${AXIOM_PORT_SOURCES})
+target_compile_features(axiomtrace_small_payload PUBLIC c_std_11)
+target_include_directories(axiomtrace_small_payload PUBLIC
+    ${CMAKE_SOURCE_DIR}/baremetal
+    ${CMAKE_SOURCE_DIR}/baremetal/include
+    ${CMAKE_SOURCE_DIR}/baremetal/port
+    ${CMAKE_SOURCE_DIR}/baremetal/core
+    ${CMAKE_SOURCE_DIR}/baremetal/frontend
+    ${CMAKE_SOURCE_DIR}/baremetal/backend)
+target_compile_definitions(axiomtrace_small_payload PUBLIC
+    AXIOM_PRESET=0
+    AXIOM_MAX_PAYLOAD_LEN=7u
+    AXIOM_RING_BUFFER_SIZE=64u
+    AXIOM_CAPSULE_ENABLED=0
+    AXIOM_HOST_TESTING=1)
+add_executable(test_frontend_overflow test_frontend_overflow.c)
+target_link_libraries(test_frontend_overflow PRIVATE axiomtrace_small_payload)
+add_test(NAME test_frontend_overflow COMMAND test_frontend_overflow)
+# Encoder-backed generator for tracked wire-format golden vectors.
+add_executable(generate_golden generate_golden.c)
+target_link_libraries(generate_golden PRIVATE axiomtrace)
+
 # ---- Performance benchmark ----
 add_executable(test_benchmark test_benchmark.c)
 target_link_libraries(test_benchmark PRIVATE axiomtrace)
-# Not registered as CTest — run manually: ./test_benchmark
+# Host regression benchmark; target-MCU timing still requires platform measurement.
+add_test(NAME test_benchmark COMMAND test_benchmark)
+
+# Release single-header: one implementation TU plus two ordinary consumers.
+find_package(Python3 3.12 COMPONENTS Interpreter REQUIRED)
+set(AXIOM_SINGLE_HEADER_DIR ${CMAKE_CURRENT_BINARY_DIR}/single_header)
+set(AXIOM_SINGLE_HEADER ${AXIOM_SINGLE_HEADER_DIR}/axiomtrace.h)
+add_custom_command(
+    OUTPUT ${AXIOM_SINGLE_HEADER}
+    COMMAND ${Python3_EXECUTABLE} ${CMAKE_SOURCE_DIR}/tool/scripts/amalgamate.py
+            --output ${AXIOM_SINGLE_HEADER}
+    DEPENDS ${CMAKE_SOURCE_DIR}/tool/scripts/amalgamate.py
+            ${AXIOM_CORE_HEADERS} ${AXIOM_CORE_SOURCES}
+    VERBATIM)
+add_custom_target(generate_single_header DEPENDS ${AXIOM_SINGLE_HEADER})
+
+add_executable(test_single_header
+    single_header_impl.c single_header_consumer_a.c single_header_consumer_b.c
+    single_header_main.c ${AXIOM_SINGLE_HEADER})
+add_dependencies(test_single_header generate_single_header)
+target_include_directories(test_single_header PRIVATE ${AXIOM_SINGLE_HEADER_DIR})
+add_test(NAME test_single_header COMMAND test_single_header)
+
+add_executable(test_single_header_custom_port
+    single_header_custom_impl.c single_header_custom_port.c
+    single_header_consumer_a.c single_header_consumer_b.c single_header_main.c
+    ${AXIOM_SINGLE_HEADER})
+add_dependencies(test_single_header_custom_port generate_single_header)
+target_include_directories(test_single_header_custom_port PRIVATE ${AXIOM_SINGLE_HEADER_DIR})
+add_test(NAME test_single_header_custom_port COMMAND test_single_header_custom_port)
+
+# CMake consumption fixtures.
+set(AXIOM_ADDSUB_BUILD ${CMAKE_CURRENT_BINARY_DIR}/consumer-addsub-${CMAKE_C_COMPILER_ID})
+add_test(NAME cmake_add_subdirectory_configure
+    COMMAND ${CMAKE_COMMAND}
+        -G "${CMAKE_GENERATOR}"
+        -S ${CMAKE_SOURCE_DIR}/tests/consumer/add_subdirectory
+        -B ${AXIOM_ADDSUB_BUILD}
+        -DCMAKE_C_COMPILER=${CMAKE_C_COMPILER}
+        "-DCMAKE_C_FLAGS=${CMAKE_C_FLAGS}"
+        -DAXIOMTRACE_SOURCE=${CMAKE_SOURCE_DIR})
+set_tests_properties(cmake_add_subdirectory_configure PROPERTIES
+    FIXTURES_SETUP axiom_addsub)
+add_test(NAME cmake_add_subdirectory_build
+    COMMAND ${CMAKE_COMMAND} --build ${AXIOM_ADDSUB_BUILD})
+set_tests_properties(cmake_add_subdirectory_build PROPERTIES
+    FIXTURES_REQUIRED axiom_addsub)
+
+set(AXIOM_INSTALL_PREFIX ${CMAKE_CURRENT_BINARY_DIR}/installed)
+add_test(NAME cmake_install_package
+    COMMAND ${CMAKE_COMMAND} --install ${CMAKE_BINARY_DIR}
+        --prefix ${AXIOM_INSTALL_PREFIX})
+set_tests_properties(cmake_install_package PROPERTIES FIXTURES_SETUP axiom_install)
+set(AXIOM_FIND_PACKAGE_BUILD ${CMAKE_CURRENT_BINARY_DIR}/consumer-find-package-${CMAKE_C_COMPILER_ID})
+add_test(NAME cmake_find_package_configure
+    COMMAND ${CMAKE_COMMAND}
+        -G "${CMAKE_GENERATOR}"
+        -S ${CMAKE_SOURCE_DIR}/tests/consumer/find_package
+        -B ${AXIOM_FIND_PACKAGE_BUILD}
+        -DCMAKE_C_COMPILER=${CMAKE_C_COMPILER}
+        "-DCMAKE_C_FLAGS=${CMAKE_C_FLAGS}"
+        -DCMAKE_PREFIX_PATH=${AXIOM_INSTALL_PREFIX})
+set_tests_properties(cmake_find_package_configure PROPERTIES
+    FIXTURES_REQUIRED axiom_install FIXTURES_SETUP axiom_find_package)
+add_test(NAME cmake_find_package_build
+    COMMAND ${CMAKE_COMMAND} --build ${AXIOM_FIND_PACKAGE_BUILD})
+set_tests_properties(cmake_find_package_build PROPERTIES
+    FIXTURES_REQUIRED axiom_find_package)
+
+get_property(AXIOM_HOST_TESTS DIRECTORY PROPERTY TESTS)
+foreach(AXIOM_HOST_TEST IN LISTS AXIOM_HOST_TESTS)
+    axiom_configure_test_runtime(${AXIOM_HOST_TEST})
+endforeach()

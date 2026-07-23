@@ -15,23 +15,23 @@
 #define AXIOM_ENCODE_OVERFLOW_DETECTION 1
 #endif
 
-#if AXIOM_ENCODE_OVERFLOW_DETECTION
-extern volatile bool axiom_encode_overflow;
-#endif
-
 #ifdef __cplusplus
 extern "C" {
+#endif
+
+#if AXIOM_ENCODE_OVERFLOW_DETECTION
+extern volatile bool axiom_encode_overflow;
 #endif
 
 /* ---------------------------------------------------------------------------
  * Payload encoding constants
  * --------------------------------------------------------------------------- */
-#define AXIOM_TAG_SIZE 1u  /* Each encoded value starts with a 1-byte type tag */
+#define AXIOM_TAG_SIZE 0u  /* Wire v2 normal arguments carry no type-tag byte. */
 
 /* ---------------------------------------------------------------------------
  * Type-safe payload encoding helpers
- * Each function writes: [type_tag (1B)] [value (N bytes)]
- * Overflow check: pos + AXIOM_TAG_SIZE + value_bytes <= AXIOM_MAX_PAYLOAD_LEN
+ * Each function writes: [value (N bytes)] in the wire v2 packed payload.
+ * Overflow check: pos + value_bytes <= AXIOM_MAX_PAYLOAD_LEN
  * --------------------------------------------------------------------------- */
 
 /**
@@ -41,80 +41,75 @@ extern "C" {
  * @param val   Value to encode
  *
  * Overflow protection: silently skips write if buf cannot fit
- * AXIOM_TAG_SIZE(1) + sizeof(bool)(1) = 2 bytes.
+ * value(1) = 1 byte.
  * When AXIOM_ENCODE_OVERFLOW_DETECTION is enabled, axiom_encode_overflow
  * is set to true on overflow.
  */
 static inline void axiom_enc_bool(uint8_t *buf, uint8_t *pos, bool val) {
-    if (*pos + 2u > AXIOM_MAX_PAYLOAD_LEN) {
+    if (*pos + 1u > AXIOM_MAX_PAYLOAD_LEN) {
 #if AXIOM_ENCODE_OVERFLOW_DETECTION
         axiom_encode_overflow = true;
 #endif
         return;
     }
-    buf[(*pos)++] = AXIOM_TYPE_BOOL;
     buf[(*pos)++] = val ? 1u : 0u;
 }
 
 static inline void axiom_enc_u8(uint8_t *buf, uint8_t *pos, uint8_t val) {
-    /* Required: AXIOM_TAG_SIZE(1) + value(1) = 2 bytes */
-    if (*pos + 2u > AXIOM_MAX_PAYLOAD_LEN) {
+    /* Required: value(1) = 1 byte */
+    if (*pos + 1u > AXIOM_MAX_PAYLOAD_LEN) {
 #if AXIOM_ENCODE_OVERFLOW_DETECTION
         axiom_encode_overflow = true;
 #endif
         return;
     }
-    buf[(*pos)++] = AXIOM_TYPE_U8;
     buf[(*pos)++] = val;
 }
 
 static inline void axiom_enc_i8(uint8_t *buf, uint8_t *pos, int8_t val) {
-    /* Required: AXIOM_TAG_SIZE(1) + value(1) = 2 bytes */
+    /* Required: value(1) = 1 byte */
+    if (*pos + 1u > AXIOM_MAX_PAYLOAD_LEN) {
+#if AXIOM_ENCODE_OVERFLOW_DETECTION
+        axiom_encode_overflow = true;
+#endif
+        return;
+    }
+    buf[(*pos)++] = (uint8_t)val;
+}
+
+static inline void axiom_enc_u16(uint8_t *buf, uint8_t *pos, uint16_t val) {
+    /* Required: value(2) = 2 bytes */
     if (*pos + 2u > AXIOM_MAX_PAYLOAD_LEN) {
 #if AXIOM_ENCODE_OVERFLOW_DETECTION
         axiom_encode_overflow = true;
 #endif
         return;
     }
-    buf[(*pos)++] = AXIOM_TYPE_I8;
-    buf[(*pos)++] = (uint8_t)val;
-}
-
-static inline void axiom_enc_u16(uint8_t *buf, uint8_t *pos, uint16_t val) {
-    /* Required: AXIOM_TAG_SIZE(1) + value(2) = 3 bytes */
-    if (*pos + 3u > AXIOM_MAX_PAYLOAD_LEN) {
-#if AXIOM_ENCODE_OVERFLOW_DETECTION
-        axiom_encode_overflow = true;
-#endif
-        return;
-    }
-    buf[(*pos)++] = AXIOM_TYPE_U16;
     buf[(*pos)++] = (uint8_t)(val & 0xFFu);
     buf[(*pos)++] = (uint8_t)(val >> 8);
 }
 
 static inline void axiom_enc_i16(uint8_t *buf, uint8_t *pos, int16_t val) {
-    /* Required: AXIOM_TAG_SIZE(1) + value(2) = 3 bytes */
-    if (*pos + 3u > AXIOM_MAX_PAYLOAD_LEN) {
+    /* Required: value(2) = 2 bytes */
+    if (*pos + 2u > AXIOM_MAX_PAYLOAD_LEN) {
 #if AXIOM_ENCODE_OVERFLOW_DETECTION
         axiom_encode_overflow = true;
 #endif
         return;
     }
-    buf[(*pos)++] = AXIOM_TYPE_I16;
-    buf[(*pos)++] = (uint8_t)(val & 0xFFu);
-    buf[(*pos)++] = (uint8_t)((uint16_t)val >> 8);
+    uint16_t u = (uint16_t)val;
+    buf[(*pos)++] = (uint8_t)(u & 0xFFu);
+    buf[(*pos)++] = (uint8_t)(u >> 8);
 }
 
 static inline void axiom_enc_u32(uint8_t *buf, uint8_t *pos, uint32_t val) {
-    /* Required: AXIOM_TAG_SIZE(1) + value(4) = 5 bytes */
-    if (*pos + 5u > AXIOM_MAX_PAYLOAD_LEN) {
+    /* Required: value(4) = 4 bytes */
+    if (*pos + 4u > AXIOM_MAX_PAYLOAD_LEN) {
 #if AXIOM_ENCODE_OVERFLOW_DETECTION
         axiom_encode_overflow = true;
 #endif
         return;
     }
-    buf[(*pos)++] = AXIOM_TYPE_U32;
     buf[(*pos)++] = (uint8_t)(val & 0xFFu);
     buf[(*pos)++] = (uint8_t)((val >> 8) & 0xFFu);
     buf[(*pos)++] = (uint8_t)((val >> 16) & 0xFFu);
@@ -122,15 +117,14 @@ static inline void axiom_enc_u32(uint8_t *buf, uint8_t *pos, uint32_t val) {
 }
 
 static inline void axiom_enc_i32(uint8_t *buf, uint8_t *pos, int32_t val) {
-    /* Required: AXIOM_TAG_SIZE(1) + value(4) = 5 bytes */
-    if (*pos + 5u > AXIOM_MAX_PAYLOAD_LEN) {
+    /* Required: value(4) = 4 bytes */
+    if (*pos + 4u > AXIOM_MAX_PAYLOAD_LEN) {
 #if AXIOM_ENCODE_OVERFLOW_DETECTION
         axiom_encode_overflow = true;
 #endif
         return;
     }
     uint32_t u = (uint32_t)val; /* cast to unsigned to avoid sign-extension */
-    buf[(*pos)++] = AXIOM_TYPE_I32;
     buf[(*pos)++] = (uint8_t)(u & 0xFFu);
     buf[(*pos)++] = (uint8_t)((u >> 8) & 0xFFu);
     buf[(*pos)++] = (uint8_t)((u >> 16) & 0xFFu);
@@ -138,14 +132,13 @@ static inline void axiom_enc_i32(uint8_t *buf, uint8_t *pos, int32_t val) {
 }
 
 static inline void axiom_enc_f32(uint8_t *buf, uint8_t *pos, float val) {
-    /* Required: AXIOM_TAG_SIZE(1) + value(4) = 5 bytes */
-    if (*pos + 5u > AXIOM_MAX_PAYLOAD_LEN) {
+    /* Required: value(4) = 4 bytes */
+    if (*pos + 4u > AXIOM_MAX_PAYLOAD_LEN) {
 #if AXIOM_ENCODE_OVERFLOW_DETECTION
         axiom_encode_overflow = true;
 #endif
         return;
     }
-    buf[(*pos)++] = AXIOM_TYPE_F32;
     uint32_t u;
     memcpy(&u, &val, sizeof(u));
     buf[(*pos)++] = (uint8_t)(u & 0xFFu);
@@ -155,14 +148,13 @@ static inline void axiom_enc_f32(uint8_t *buf, uint8_t *pos, float val) {
 }
 
 static inline void axiom_enc_timestamp(uint8_t *buf, uint8_t *pos, uint32_t val) {
-    /* Required: AXIOM_TAG_SIZE(1) + value(4) = 5 bytes */
-    if (*pos + 5u > AXIOM_MAX_PAYLOAD_LEN) {
+    /* Required: value(4) = 4 bytes */
+    if (*pos + 4u > AXIOM_MAX_PAYLOAD_LEN) {
 #if AXIOM_ENCODE_OVERFLOW_DETECTION
         axiom_encode_overflow = true;
 #endif
         return;
     }
-    buf[(*pos)++] = AXIOM_TYPE_TIMESTAMP;
     buf[(*pos)++] = (uint8_t)(val & 0xFFu);
     buf[(*pos)++] = (uint8_t)((val >> 8) & 0xFFu);
     buf[(*pos)++] = (uint8_t)((val >> 16) & 0xFFu);
@@ -170,17 +162,132 @@ static inline void axiom_enc_timestamp(uint8_t *buf, uint8_t *pos, uint32_t val)
 }
 
 static inline void axiom_enc_bytes(uint8_t *buf, uint8_t *pos, const uint8_t *data, uint8_t len) {
-    /* Required: AXIOM_TAG_SIZE(1) + length(1) + data(len) bytes */
-    if ((uint16_t)(*pos) + (uint16_t)len + 2u > AXIOM_MAX_PAYLOAD_LEN) {
+    /* Required: length(1) + data(len) bytes */
+    if ((uint16_t)(*pos) + (uint16_t)len + 1u > AXIOM_MAX_PAYLOAD_LEN) {
 #if AXIOM_ENCODE_OVERFLOW_DETECTION
         axiom_encode_overflow = true;
 #endif
         return;
     }
-    buf[(*pos)++] = AXIOM_TYPE_BYTES;
     buf[(*pos)++] = len;
     for (uint8_t i = 0; i < len; ++i) {
         buf[(*pos)++] = data[i];
+    }
+}
+
+/* Reserved system probes retain typed fields because their value type is not
+ * described by an application event dictionary. */
+static inline bool axiom_enc_tagged_prefix(uint8_t *buf, uint8_t *pos,
+                                           uint8_t tag, uint8_t value_size) {
+    if ((uint16_t)(*pos) + 1u + (uint16_t)value_size > AXIOM_MAX_PAYLOAD_LEN) {
+#if AXIOM_ENCODE_OVERFLOW_DETECTION
+        axiom_encode_overflow = true;
+#endif
+        return false;
+    }
+    buf[(*pos)++] = tag;
+    return true;
+}
+
+static inline void axiom_enc_tagged_bool(uint8_t *buf, uint8_t *pos, bool val) {
+    if (axiom_enc_tagged_prefix(buf, pos, AXIOM_TYPE_BOOL, 1u)) {
+        axiom_enc_bool(buf, pos, val);
+    }
+}
+
+static inline void axiom_enc_tagged_u8(uint8_t *buf, uint8_t *pos, uint8_t val) {
+    if (axiom_enc_tagged_prefix(buf, pos, AXIOM_TYPE_U8, 1u)) {
+        axiom_enc_u8(buf, pos, val);
+    }
+}
+
+static inline void axiom_enc_tagged_i8(uint8_t *buf, uint8_t *pos, int8_t val) {
+    if (axiom_enc_tagged_prefix(buf, pos, AXIOM_TYPE_I8, 1u)) {
+        axiom_enc_i8(buf, pos, val);
+    }
+}
+
+static inline void axiom_enc_tagged_u16(uint8_t *buf, uint8_t *pos, uint16_t val) {
+    if (axiom_enc_tagged_prefix(buf, pos, AXIOM_TYPE_U16, 2u)) {
+        axiom_enc_u16(buf, pos, val);
+    }
+}
+
+static inline void axiom_enc_tagged_i16(uint8_t *buf, uint8_t *pos, int16_t val) {
+    if (axiom_enc_tagged_prefix(buf, pos, AXIOM_TYPE_I16, 2u)) {
+        axiom_enc_i16(buf, pos, val);
+    }
+}
+
+static inline void axiom_enc_tagged_u32(uint8_t *buf, uint8_t *pos, uint32_t val) {
+    if (axiom_enc_tagged_prefix(buf, pos, AXIOM_TYPE_U32, 4u)) {
+        axiom_enc_u32(buf, pos, val);
+    }
+}
+
+static inline void axiom_enc_tagged_i32(uint8_t *buf, uint8_t *pos, int32_t val) {
+    if (axiom_enc_tagged_prefix(buf, pos, AXIOM_TYPE_I32, 4u)) {
+        axiom_enc_i32(buf, pos, val);
+    }
+}
+
+static inline void axiom_enc_tagged_f32(uint8_t *buf, uint8_t *pos, float val) {
+    if (axiom_enc_tagged_prefix(buf, pos, AXIOM_TYPE_F32, 4u)) {
+        axiom_enc_f32(buf, pos, val);
+    }
+}
+
+/* Metadata: [tag][mode=FILE_ID][file_id:u16][line:u16]. */
+static inline void axiom_enc_meta_location_file_id(uint8_t *buf, uint8_t *pos,
+                                                    uint16_t file_id, uint16_t line) {
+    if (*pos + 6u > AXIOM_MAX_PAYLOAD_LEN) {
+#if AXIOM_ENCODE_OVERFLOW_DETECTION
+        axiom_encode_overflow = true;
+#endif
+        return;
+    }
+    buf[(*pos)++] = AXIOM_TYPE_META_LOCATION;
+    buf[(*pos)++] = AXIOM_CFG_LOCATION_MODE_FILE_ID;
+    buf[(*pos)++] = (uint8_t)(file_id & 0xFFu);
+    buf[(*pos)++] = (uint8_t)(file_id >> 8);
+    buf[(*pos)++] = (uint8_t)(line & 0xFFu);
+    buf[(*pos)++] = (uint8_t)(line >> 8);
+}
+
+/* Metadata: [tag][mode=HASH][file_hash:u16][line:u16][func_hash:u16]. */
+static inline void axiom_enc_meta_location_hash(uint8_t *buf, uint8_t *pos,
+                                                uint16_t file_hash, uint16_t line,
+                                                uint16_t func_hash) {
+    if (*pos + 8u > AXIOM_MAX_PAYLOAD_LEN) {
+#if AXIOM_ENCODE_OVERFLOW_DETECTION
+        axiom_encode_overflow = true;
+#endif
+        return;
+    }
+    buf[(*pos)++] = AXIOM_TYPE_META_LOCATION;
+    buf[(*pos)++] = AXIOM_CFG_LOCATION_MODE_HASH;
+    buf[(*pos)++] = (uint8_t)(file_hash & 0xFFu);
+    buf[(*pos)++] = (uint8_t)(file_hash >> 8);
+    buf[(*pos)++] = (uint8_t)(line & 0xFFu);
+    buf[(*pos)++] = (uint8_t)(line >> 8);
+    buf[(*pos)++] = (uint8_t)(func_hash & 0xFFu);
+    buf[(*pos)++] = (uint8_t)(func_hash >> 8);
+}
+
+#define AXIOM_METADATA_ID_LEN 8u
+
+/* Metadata: [tag][metadata_id:8]. This selects host decode metadata, not an ELF image. */
+static inline void axiom_enc_meta_identity(uint8_t *buf, uint8_t *pos,
+                                           const uint8_t metadata_id[AXIOM_METADATA_ID_LEN]) {
+    if (*pos + 9u > AXIOM_MAX_PAYLOAD_LEN) {
+#if AXIOM_ENCODE_OVERFLOW_DETECTION
+        axiom_encode_overflow = true;
+#endif
+        return;
+    }
+    buf[(*pos)++] = AXIOM_TYPE_META_IDENTITY;
+    for (uint8_t i = 0; i < AXIOM_METADATA_ID_LEN; ++i) {
+        buf[(*pos)++] = metadata_id[i];
     }
 }
 
@@ -189,7 +296,7 @@ static inline void axiom_enc_bytes(uint8_t *buf, uint8_t *pos, const uint8_t *da
  * Note: double literals (e.g., 3.14) are NOT supported.
  * Use float literals (e.g., 3.14f) or explicit (float)3.14 cast.
  * --------------------------------------------------------------------------- */
-#define _AXIOM_ENCODE_ONE(buf, pos, arg) \
+#define AXIOM_INTERNAL_ENCODE_ONE(buf, pos, arg) \
     _Generic((arg), \
         bool:     axiom_enc_bool, \
         uint8_t:  axiom_enc_u8,  \
@@ -201,8 +308,183 @@ static inline void axiom_enc_bytes(uint8_t *buf, uint8_t *pos, const uint8_t *da
         float:    axiom_enc_f32  \
     )(buf, &(pos), arg)
 
+#define AXIOM_INTERNAL_ENCODE_TAGGED_ONE(buf, pos, arg) \
+    _Generic((arg), \
+        bool:     axiom_enc_tagged_bool, \
+        uint8_t:  axiom_enc_tagged_u8,  \
+        int8_t:   axiom_enc_tagged_i8,  \
+        uint16_t: axiom_enc_tagged_u16, \
+        int16_t:  axiom_enc_tagged_i16, \
+        uint32_t: axiom_enc_tagged_u32, \
+        int32_t:  axiom_enc_tagged_i32, \
+        float:    axiom_enc_tagged_f32  \
+    )(buf, &(pos), arg)
+
 #ifdef __cplusplus
 }
 #endif
 
+/* ---------------------------------------------------------------------------
+ * Per-emission checked builder used by public frontend macros. The legacy
+ * axiom_enc_* functions above remain source-compatible for direct callers.
+ * --------------------------------------------------------------------------- */
+typedef struct {
+    uint8_t *data;
+    uint16_t pos;
+    bool valid;
+} axiom_payload_builder_t;
+
+static inline void axiom_payload_builder_init(axiom_payload_builder_t *builder,
+                                              uint8_t *data) {
+    builder->data = data;
+    builder->pos = 0u;
+    builder->valid = data != NULL;
+}
+
+static inline bool axiom_payload_builder_reserve(axiom_payload_builder_t *builder,
+                                                 uint16_t count) {
+    if (!builder->valid || builder->pos + count > AXIOM_MAX_PAYLOAD_LEN) {
+        builder->valid = false;
+        return false;
+    }
+    return true;
+}
+
+static inline void axiom_builder_u8(axiom_payload_builder_t *builder, uint8_t value) {
+    if (axiom_payload_builder_reserve(builder, 1u)) {
+        builder->data[builder->pos++] = value;
+    }
+}
+
+static inline void axiom_builder_bool(axiom_payload_builder_t *builder, bool value) {
+    axiom_builder_u8(builder, value ? 1u : 0u);
+}
+
+static inline void axiom_builder_i8(axiom_payload_builder_t *builder, int8_t value) {
+    axiom_builder_u8(builder, (uint8_t)value);
+}
+
+static inline void axiom_builder_u16(axiom_payload_builder_t *builder, uint16_t value) {
+    if (axiom_payload_builder_reserve(builder, 2u)) {
+        builder->data[builder->pos++] = (uint8_t)(value & 0xFFu);
+        builder->data[builder->pos++] = (uint8_t)(value >> 8u);
+    }
+}
+
+static inline void axiom_builder_i16(axiom_payload_builder_t *builder, int16_t value) {
+    axiom_builder_u16(builder, (uint16_t)value);
+}
+
+static inline void axiom_builder_u32(axiom_payload_builder_t *builder, uint32_t value) {
+    if (axiom_payload_builder_reserve(builder, 4u)) {
+        builder->data[builder->pos++] = (uint8_t)(value & 0xFFu);
+        builder->data[builder->pos++] = (uint8_t)((value >> 8u) & 0xFFu);
+        builder->data[builder->pos++] = (uint8_t)((value >> 16u) & 0xFFu);
+        builder->data[builder->pos++] = (uint8_t)(value >> 24u);
+    }
+}
+
+static inline void axiom_builder_i32(axiom_payload_builder_t *builder, int32_t value) {
+    axiom_builder_u32(builder, (uint32_t)value);
+}
+
+static inline void axiom_builder_f32(axiom_payload_builder_t *builder, float value) {
+    uint32_t raw = 0u;
+    memcpy(&raw, &value, sizeof(raw));
+    axiom_builder_u32(builder, raw);
+}
+
+static inline void axiom_builder_tagged_bool(axiom_payload_builder_t *builder, bool value) {
+    axiom_builder_u8(builder, AXIOM_TYPE_BOOL);
+    axiom_builder_bool(builder, value);
+}
+
+static inline void axiom_builder_tagged_u8(axiom_payload_builder_t *builder, uint8_t value) {
+    axiom_builder_u8(builder, AXIOM_TYPE_U8);
+    axiom_builder_u8(builder, value);
+}
+
+static inline void axiom_builder_tagged_i8(axiom_payload_builder_t *builder, int8_t value) {
+    axiom_builder_u8(builder, AXIOM_TYPE_I8);
+    axiom_builder_i8(builder, value);
+}
+
+static inline void axiom_builder_tagged_u16(axiom_payload_builder_t *builder, uint16_t value) {
+    axiom_builder_u8(builder, AXIOM_TYPE_U16);
+    axiom_builder_u16(builder, value);
+}
+
+static inline void axiom_builder_tagged_i16(axiom_payload_builder_t *builder, int16_t value) {
+    axiom_builder_u8(builder, AXIOM_TYPE_I16);
+    axiom_builder_i16(builder, value);
+}
+
+static inline void axiom_builder_tagged_u32(axiom_payload_builder_t *builder, uint32_t value) {
+    axiom_builder_u8(builder, AXIOM_TYPE_U32);
+    axiom_builder_u32(builder, value);
+}
+
+static inline void axiom_builder_tagged_i32(axiom_payload_builder_t *builder, int32_t value) {
+    axiom_builder_u8(builder, AXIOM_TYPE_I32);
+    axiom_builder_i32(builder, value);
+}
+
+static inline void axiom_builder_tagged_f32(axiom_payload_builder_t *builder, float value) {
+    axiom_builder_u8(builder, AXIOM_TYPE_F32);
+    axiom_builder_f32(builder, value);
+}
+
+static inline void axiom_builder_location_file_id(axiom_payload_builder_t *builder,
+                                                  uint16_t file_id, uint16_t line) {
+    axiom_builder_u8(builder, AXIOM_TYPE_META_LOCATION);
+    axiom_builder_u8(builder, AXIOM_CFG_LOCATION_MODE_FILE_ID);
+    axiom_builder_u16(builder, file_id);
+    axiom_builder_u16(builder, line);
+}
+
+static inline void axiom_builder_location_hash(axiom_payload_builder_t *builder,
+                                               uint16_t file_hash, uint16_t line,
+                                               uint16_t function_hash) {
+    axiom_builder_u8(builder, AXIOM_TYPE_META_LOCATION);
+    axiom_builder_u8(builder, AXIOM_CFG_LOCATION_MODE_HASH);
+    axiom_builder_u16(builder, file_hash);
+    axiom_builder_u16(builder, line);
+    axiom_builder_u16(builder, function_hash);
+}
+
+static inline void axiom_builder_metadata_identity(
+    axiom_payload_builder_t *builder,
+    const uint8_t metadata_id[AXIOM_METADATA_ID_LEN]) {
+    if (!metadata_id || !axiom_payload_builder_reserve(builder, 1u + AXIOM_METADATA_ID_LEN)) {
+        builder->valid = false;
+        return;
+    }
+    builder->data[builder->pos++] = AXIOM_TYPE_META_IDENTITY;
+    memcpy(builder->data + builder->pos, metadata_id, AXIOM_METADATA_ID_LEN);
+    builder->pos = (uint16_t)(builder->pos + AXIOM_METADATA_ID_LEN);
+}
+
+#define AXIOM_INTERNAL_BUILDER_ENCODE_ONE(builder, arg) \
+    _Generic((arg), \
+        bool:     axiom_builder_bool, \
+        uint8_t:  axiom_builder_u8,  \
+        int8_t:   axiom_builder_i8,  \
+        uint16_t: axiom_builder_u16, \
+        int16_t:  axiom_builder_i16, \
+        uint32_t: axiom_builder_u32, \
+        int32_t:  axiom_builder_i32, \
+        float:    axiom_builder_f32  \
+    )(&(builder), arg)
+
+#define AXIOM_INTERNAL_BUILDER_ENCODE_TAGGED_ONE(builder, arg) \
+    _Generic((arg), \
+        bool:     axiom_builder_tagged_bool, \
+        uint8_t:  axiom_builder_tagged_u8,  \
+        int8_t:   axiom_builder_tagged_i8,  \
+        uint16_t: axiom_builder_tagged_u16, \
+        int16_t:  axiom_builder_tagged_i16, \
+        uint32_t: axiom_builder_tagged_u32, \
+        int32_t:  axiom_builder_tagged_i32, \
+        float:    axiom_builder_tagged_f32  \
+    )(&(builder), arg)
 #endif /* AXIOM_ENCODE_H */
