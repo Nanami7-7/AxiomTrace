@@ -104,12 +104,17 @@ typedef struct {
 
 /* ======================== 全局变量 ======================== */
 
-/** 阶跃响应数据缓冲区(控制任务写入, 菜单任务读取) */
+/**
+ * @brief 阶跃响应数据缓冲区（控制任务写入，菜单/VOFA任务读取）
+ *
+ * 只保存辨识计算实际使用的转速轨迹。阶跃 PWM 在一次辨识过程中恒定，
+ * 已由状态机保存为 s_pwm_step，因此不重复保存 400 份 PWM 样本，
+ * 可节省 1600 字节 RAM。
+ */
 typedef struct {
     volatile uint32_t write_idx;     /**< 已写入样本数, ==最大值时采集完成 */
     volatile bool     done;         /**< 数据采集完成标志(控制任务置位, 菜单任务读取) */
     float             rpm_buf[ID_STEP_MAX_SAMPLES];
-    int32_t           pwm_buf[ID_STEP_MAX_SAMPLES];
     app_id_step_result_t result;
 } app_id_data_t;
 

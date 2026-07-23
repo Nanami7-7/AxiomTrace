@@ -19,6 +19,8 @@
 #include <stdlib.h>
 #include <string.h>
 
+#if FILTER_ENABLE_MAHONY
+
 /* ---- 本地常量 (复用 filter_config.h 宏) ---- */
 
 void mahony_update(filter_t *self, const filter_input_t *in, filter_output_t *out)
@@ -256,3 +258,4 @@ filter_t* filter_create_mahony(float kp, float ki)
     f->is_static = 0;
     return f;
 }
+#endif /* FILTER_ENABLE_MAHONY */

@@ -42,6 +42,8 @@
 #include "bsp_mathacl.h"
 #include "mathacl_matrix.h"
 
+#if FILTER_ENABLE_KF
+
 /* KF_STATE_SIZE, KF_AXIS_COUNT, KF_HW_S_MIN 已在 filter_internal.h 中定义 */
 
 /* 前向声明 (kf_update 内部调用 kf_reset) */
@@ -590,3 +592,4 @@ filter_t* filter_create_kf(float q_angle, float q_bias, float r_measure)
 
     return f;
 }
+#endif /* FILTER_ENABLE_KF */

@@ -207,7 +207,8 @@ static int bsp_lsm6dsr_init_ctx_impl(bsp_lsm6dsr_ctx_t *ctx,
         ctx->active_filter = initial_filter;
         ctx->current_filter_type = initial_filter->type;
     } else {
-        ctx->current_filter_type = FILTER_TYPE_COMPLEMENTARY;
+        /* 默认上下文同样使用量产默认 KF，避免回退路径拉入已禁用算法。 */
+        ctx->current_filter_type = FILTER_TYPE_KF;
         ctx->active_filter = filter_create(ctx->current_filter_type);
     }
     if (!ctx->active_filter) {

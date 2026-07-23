@@ -33,6 +33,8 @@
 #include <string.h>
 #include "bsp_mathacl.h"
 
+#if FILTER_ENABLE_LKF
+
 /* ---- 数值安全阈值 ---- */
 #define LKF_COV_MIN         1e-10f   /* 最小对角元素 */
 #define LKF_COV_MAX         1e6f     /* 最大对角元素 */
@@ -325,3 +327,4 @@ filter_t* filter_create_lkf(float q_angle, float q_bias, float r_measure)
     f->is_static = 0;
     return f;
 }
+#endif /* FILTER_ENABLE_LKF */

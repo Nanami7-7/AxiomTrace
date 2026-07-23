@@ -117,10 +117,11 @@ Lib (FreeRTOS + OSAL + AxiomTrace + Math)
 
 ### IMU 滤波生命周期
 
-- `task_imu` 持有 `filter_static_storage_t`，生产路径不使用堆内存；
+- `task_imu` 持有 `filter_static_storage_t`，生产路径不使用堆内存，并默认使用三轴标量 KF；
 - `bsp_lsm6dsr_init_ctx_with_filter()` 只保留调用方滤波器引用，存储必须覆盖上下文生命周期；
 - BSP 通过 `filter_update_checked()` 发布结果，输入或输出数值异常时保留上一帧共享状态；
-- 兼容 API `bsp_lsm6dsr_init_ctx()` 仍可创建默认互补滤波器；运行时切换采用“先创建、后替换”，创建失败不会销毁当前实例；
+- `filter_config.h` 的 `FILTER_ENABLE_*` 是可用算法的唯一配置入口：默认仅启用 KF；修改后必须执行完整 Rebuild，菜单/协议可通过 `filter_get_enabled_type_mask()` 隐藏未编译算法；
+- 兼容 API `bsp_lsm6dsr_init_ctx()` 默认创建 KF；运行时切换采用“先创建、后替换”，未编译类型或创建失败均不会销毁当前实例；
 - 参数统一经 `filter_set_param_checked()` 做范围和滤波器能力检查，废弃或不支持的参数返回错误。
 
 ## 添加新模块指南

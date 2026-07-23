@@ -284,6 +284,17 @@ filter_t* filter_create_static(filter_type_t type, void *buf, size_t buf_size);
 size_t filter_get_static_size(filter_type_t type);
 
 /**
+ * @brief 查询该类型是否已编译进当前固件。
+ * @note  菜单、串口协议和上位机可据此隐藏不可用算法。
+ */
+int filter_type_is_enabled(filter_type_t type);
+
+/**
+ * @brief 获取可用滤波器位图；bit n 对应 FILTER_TYPE n。
+ */
+uint32_t filter_get_enabled_type_mask(void);
+
+/**
  * @brief Validate input, run one update and publish only a valid output.
  * @return FILTER_OK on success, otherwise a filter_error_t code.
  */

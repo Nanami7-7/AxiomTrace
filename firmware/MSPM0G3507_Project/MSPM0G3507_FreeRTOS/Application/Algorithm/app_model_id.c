@@ -105,7 +105,6 @@ void app_id_control_cycle(const int32_t *rpm, app_id_cycle_out_t *out)
         uint32_t idx = g_id_data.write_idx;
         if (idx < ID_STEP_MAX_SAMPLES) {
             g_id_data.rpm_buf[idx] = (float)rpm[s_motor_id];
-            g_id_data.pwm_buf[idx] = s_pwm_step;
             g_id_data.write_idx = idx + 1U;
 
             out->action = ID_ACTION_APPLY_PWM;

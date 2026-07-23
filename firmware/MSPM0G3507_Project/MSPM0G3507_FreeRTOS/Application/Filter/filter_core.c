@@ -354,29 +354,44 @@ filter_t* filter_create(filter_type_t type)
 {
     filter_t *f = NULL;
     switch (type) {
+#if FILTER_ENABLE_COMPLEMENTARY
         case FILTER_TYPE_COMPLEMENTARY:
             f = filter_create_complementary(COMP_ALPHA_DEFAULT);
             break;
+#endif
+#if FILTER_ENABLE_LPF
         case FILTER_TYPE_LPF:
             f = filter_create_lpf(LPF_CUTOFF_DEFAULT);
             break;
+#endif
+#if FILTER_ENABLE_ESKF
         case FILTER_TYPE_ESKF:
             f = filter_create_eskf(EKF_Q_ANGLE_DEFAULT, EKF_Q_BIAS_DEFAULT, EKF_R_MEASURE_DEFAULT);
             break;
+#endif
+#if FILTER_ENABLE_LKF
         case FILTER_TYPE_LKF:
             f = filter_create_lkf(KF_Q_ANGLE_DEFAULT, KF_Q_BIAS_DEFAULT, KF_R_MEASURE_DEFAULT);
             break;
+#endif
+#if FILTER_ENABLE_MAHONY
         case FILTER_TYPE_MAHONY:
             f = filter_create_mahony(MAHONY_KP_DEFAULT, MAHONY_KI_DEFAULT);
             break;
+#endif
+#if FILTER_ENABLE_MADGWICK
         case FILTER_TYPE_MADGWICK:
             f = filter_create_madgwick(MADGWICK_BETA_DEFAULT);
             break;
+#endif
+#if FILTER_ENABLE_KF
         case FILTER_TYPE_KF:
             f = filter_create_kf(KF_Q_ANGLE_DEFAULT, KF_Q_BIAS_DEFAULT, KF_R_MEASURE_DEFAULT);
             break;
+#endif
         default:
-            FILTER_REPORT_ERROR(FILTER_ERR_INVALID_TYPE, "Invalid filter type");
+            FILTER_REPORT_ERROR(FILTER_ERR_INVALID_TYPE,
+                                "Filter type is not enabled in this firmware");
             return NULL;
     }
     if (f) {
@@ -483,25 +498,53 @@ void static_destroy_noop(filter_t *self)
 
 /* 各滤波器私有数据大小 */
 const size_t priv_sizes[] = {
+#if FILTER_ENABLE_COMPLEMENTARY
     [FILTER_TYPE_COMPLEMENTARY] = sizeof(complementary_priv_t),
+#endif
+#if FILTER_ENABLE_LPF
     [FILTER_TYPE_LPF]           = sizeof(lpf_priv_t),
+#endif
+#if FILTER_ENABLE_ESKF
     [FILTER_TYPE_ESKF]          = sizeof(eskf_priv_t),
+#endif
+#if FILTER_ENABLE_LKF
     [FILTER_TYPE_LKF]           = sizeof(lkf_priv_t),
+#endif
+#if FILTER_ENABLE_MAHONY
     [FILTER_TYPE_MAHONY]        = sizeof(mahony_priv_t),
+#endif
+#if FILTER_ENABLE_MADGWICK
     [FILTER_TYPE_MADGWICK]      = sizeof(madgwick_priv_t),
+#endif
+#if FILTER_ENABLE_KF
     [FILTER_TYPE_KF]            = sizeof(kf_priv_t),
+#endif
 };
 
 #define FILTER_STORAGE_ASSERT(type_) \
     _Static_assert(sizeof(filter_t) + sizeof(type_) <= FILTER_STATIC_STORAGE_SIZE, \
                    "FILTER_STATIC_STORAGE_SIZE is too small")
+#if FILTER_ENABLE_COMPLEMENTARY
 FILTER_STORAGE_ASSERT(complementary_priv_t);
+#endif
+#if FILTER_ENABLE_LPF
 FILTER_STORAGE_ASSERT(lpf_priv_t);
+#endif
+#if FILTER_ENABLE_ESKF
 FILTER_STORAGE_ASSERT(eskf_priv_t);
+#endif
+#if FILTER_ENABLE_LKF
 FILTER_STORAGE_ASSERT(lkf_priv_t);
+#endif
+#if FILTER_ENABLE_MAHONY
 FILTER_STORAGE_ASSERT(mahony_priv_t);
+#endif
+#if FILTER_ENABLE_MADGWICK
 FILTER_STORAGE_ASSERT(madgwick_priv_t);
+#endif
+#if FILTER_ENABLE_KF
 FILTER_STORAGE_ASSERT(kf_priv_t);
+#endif
 #undef FILTER_STORAGE_ASSERT
 
 size_t filter_get_static_size(filter_type_t type) {
@@ -509,8 +552,24 @@ size_t filter_get_static_size(filter_type_t type) {
     return sizeof(filter_t) + priv_sizes[type];
 }
 
+int filter_type_is_enabled(filter_type_t type)
+{
+    return type >= 0 && type < FILTER_TYPE_COUNT && priv_sizes[type] != 0U;
+}
+
+uint32_t filter_get_enabled_type_mask(void)
+{
+    uint32_t mask = 0U;
+    for (int type = 0; type < (int)FILTER_TYPE_COUNT; ++type) {
+        if (filter_type_is_enabled((filter_type_t)type)) {
+            mask |= (1UL << (uint32_t)type);
+        }
+    }
+    return mask;
+}
+
 filter_t* filter_create_static(filter_type_t type, void *buf, size_t buf_size) {
-    if (!buf || type < 0 || type >= FILTER_TYPE_COUNT) return NULL;
+    if (!buf || !filter_type_is_enabled(type)) return NULL;
     
     size_t required = filter_get_static_size(type);
     if (buf_size < required) return NULL;
@@ -526,6 +585,7 @@ filter_t* filter_create_static(filter_type_t type, void *buf, size_t buf_size) {
     
     /* 根据类型初始化 */
     switch (type) {
+#if FILTER_ENABLE_COMPLEMENTARY
         case FILTER_TYPE_COMPLEMENTARY: {
             complementary_priv_t *p = (complementary_priv_t *)priv;
             p->alpha = COMP_ALPHA_DEFAULT;
@@ -534,6 +594,8 @@ filter_t* filter_create_static(filter_type_t type, void *buf, size_t buf_size) {
             f->set_param = complementary_set_param;
             break;
         }
+#endif
+#if FILTER_ENABLE_LPF
         case FILTER_TYPE_LPF: {
             lpf_priv_t *p = (lpf_priv_t *)priv;
             p->cutoff_freq = LPF_CUTOFF_DEFAULT;
@@ -545,6 +607,8 @@ filter_t* filter_create_static(filter_type_t type, void *buf, size_t buf_size) {
             f->set_param = lpf_set_param;
             break;
         }
+#endif
+#if FILTER_ENABLE_ESKF
         case FILTER_TYPE_ESKF: {
             eskf_priv_t *p = (eskf_priv_t *)priv;
             p->q0 = 1.0f; /* q0 = 1 */
@@ -559,6 +623,8 @@ filter_t* filter_create_static(filter_type_t type, void *buf, size_t buf_size) {
             f->set_param = eskf_set_param;
             break;
         }
+#endif
+#if FILTER_ENABLE_LKF
         case FILTER_TYPE_LKF: {
             lkf_priv_t *p = (lkf_priv_t *)priv;
             p->Q_angle = EKF_Q_ANGLE_DEFAULT;
@@ -570,6 +636,8 @@ filter_t* filter_create_static(filter_type_t type, void *buf, size_t buf_size) {
             f->set_param = lkf_set_param;
             break;
         }
+#endif
+#if FILTER_ENABLE_MAHONY
         case FILTER_TYPE_MAHONY: {
             mahony_priv_t *p = (mahony_priv_t *)priv;
             p->q0 = 1.0f;
@@ -588,6 +656,8 @@ filter_t* filter_create_static(filter_type_t type, void *buf, size_t buf_size) {
             f->set_param = mahony_set_param;
             break;
         }
+#endif
+#if FILTER_ENABLE_MADGWICK
         case FILTER_TYPE_MADGWICK: {
             madgwick_priv_t *p = (madgwick_priv_t *)priv;
             p->q0 = 1.0f;
@@ -597,6 +667,8 @@ filter_t* filter_create_static(filter_type_t type, void *buf, size_t buf_size) {
             f->set_param = madgwick_set_param;
             break;
         }
+#endif
+#if FILTER_ENABLE_KF
         case FILTER_TYPE_KF: {
             kf_priv_t *p = (kf_priv_t *)priv;
             p->Q_angle   = KF_Q_ANGLE_DEFAULT;
@@ -619,6 +691,7 @@ filter_t* filter_create_static(filter_type_t type, void *buf, size_t buf_size) {
             f->set_param = kf_set_param;
             break;
         }
+#endif
         default:
             return NULL;
     }
@@ -712,28 +785,42 @@ filter_error_t filter_update_checked(filter_t *f,
 int filter_supports_param(filter_type_t type, filter_param_t param)
 {
     switch (type) {
+#if FILTER_ENABLE_COMPLEMENTARY
         case FILTER_TYPE_COMPLEMENTARY:
             return param == FILTER_PARAM_ALPHA;
+#endif
+#if FILTER_ENABLE_LPF
         case FILTER_TYPE_LPF:
             return param == FILTER_PARAM_CUTOFF_FREQ;
+#endif
+#if FILTER_ENABLE_ESKF
         case FILTER_TYPE_ESKF:
             return param == FILTER_PARAM_Q_ANGLE ||
                    param == FILTER_PARAM_Q_BIAS ||
                    param == FILTER_PARAM_R_MEASURE ||
                    param == FILTER_PARAM_BIAS_LIMIT_DPS;
+#endif
+#if FILTER_ENABLE_LKF
         case FILTER_TYPE_LKF:
             return param == FILTER_PARAM_Q_ANGLE ||
                    param == FILTER_PARAM_Q_BIAS ||
                    param == FILTER_PARAM_R_MEASURE;
+#endif
+#if FILTER_ENABLE_MAHONY
         case FILTER_TYPE_MAHONY:
             return param == FILTER_PARAM_KP || param == FILTER_PARAM_KI;
+#endif
+#if FILTER_ENABLE_MADGWICK
         case FILTER_TYPE_MADGWICK:
             return param == FILTER_PARAM_KP;
+#endif
+#if FILTER_ENABLE_KF
         case FILTER_TYPE_KF:
             return param == FILTER_PARAM_KF_Q_ANGLE ||
                    param == FILTER_PARAM_KF_Q_BIAS ||
                    param == FILTER_PARAM_KF_R_MEASURE ||
                    param == FILTER_PARAM_KF_R_ZUPT;
+#endif
         default:
             return 0;
     }

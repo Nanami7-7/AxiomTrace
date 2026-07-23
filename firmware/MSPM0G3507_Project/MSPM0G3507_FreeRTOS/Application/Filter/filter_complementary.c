@@ -15,6 +15,8 @@
 #include "bsp_mathacl.h"
 #include "mathacl_matrix.h"
 
+#if FILTER_ENABLE_COMPLEMENTARY
+
 /* ============================================================
  * 1. 互补滤波器 (Complementary Filter)
  * ============================================================ */
@@ -140,3 +142,4 @@ filter_t* filter_create_complementary(float alpha)
 
     return f;
 }
+#endif /* FILTER_ENABLE_COMPLEMENTARY */

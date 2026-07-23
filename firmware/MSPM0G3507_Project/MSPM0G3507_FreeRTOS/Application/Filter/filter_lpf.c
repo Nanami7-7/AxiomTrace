@@ -15,6 +15,8 @@
 #include "bsp_mathacl.h"
 #include "mathacl_matrix.h"
 
+#if FILTER_ENABLE_LPF
+
 /* ============================================================
  * 2. 一阶低通滤波器 (Low-Pass Filter)
  * ============================================================ */
@@ -127,3 +129,4 @@ filter_t* filter_create_lpf(float cutoff_freq)
 
     return f;
 }
+#endif /* FILTER_ENABLE_LPF */

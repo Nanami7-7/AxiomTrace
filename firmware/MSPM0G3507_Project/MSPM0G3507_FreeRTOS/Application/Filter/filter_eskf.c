@@ -28,6 +28,8 @@
 #include <stdlib.h>
 #include <string.h>
 
+#if FILTER_ENABLE_ESKF
+
 /* ---- ESKF 本地常量 ---- */
 #define ESKF_COV_MIN        1e-10f
 #define ESKF_COV_MAX        1e6f
@@ -420,3 +422,4 @@ filter_t* filter_create_eskf(float q_angle, float q_bias, float r_measure)
 
     return f;
 }
+#endif /* FILTER_ENABLE_ESKF */

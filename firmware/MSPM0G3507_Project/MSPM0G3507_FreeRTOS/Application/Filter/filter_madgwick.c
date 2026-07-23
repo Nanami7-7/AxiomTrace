@@ -15,6 +15,8 @@
 #include "bsp_mathacl.h"
 #include "mathacl_matrix.h"
 
+#if FILTER_ENABLE_MADGWICK
+
 /* ============================================================
  * 5. Madgwick 滤波器
  * ============================================================ */
@@ -152,3 +154,4 @@ filter_t* filter_create_madgwick(float beta)
 
     return f;
 }
+#endif /* FILTER_ENABLE_MADGWICK */

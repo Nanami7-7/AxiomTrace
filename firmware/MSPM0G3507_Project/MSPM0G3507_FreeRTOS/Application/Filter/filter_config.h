@@ -19,6 +19,44 @@
 #include "filter.h"
 
 /* ============================================================
+ * 编译期可用滤波器配置
+ *
+ * 修改本节的 0/1 后执行“Rebuild All”。值为 1 的实现会被编译并允许运
+ * 行时切换；值为 0 的实现不会进入最终固件镜像。默认只保留当前 IMU
+ * 任务使用的三轴标量 KF，以降低 Flash 占用并保持最小实时计算量。
+ *
+ * 公共枚举和接口保持不变。请求未启用类型会明确失败，不会静默替换为
+ * 其他算法；以后需要其他算法时，只修改本节并重新构建即可。
+ * ============================================================ */
+#ifndef FILTER_ENABLE_COMPLEMENTARY
+#define FILTER_ENABLE_COMPLEMENTARY  (0)
+#endif
+#ifndef FILTER_ENABLE_LPF
+#define FILTER_ENABLE_LPF            (0)
+#endif
+#ifndef FILTER_ENABLE_ESKF
+#define FILTER_ENABLE_ESKF           (0)
+#endif
+#ifndef FILTER_ENABLE_LKF
+#define FILTER_ENABLE_LKF            (0)
+#endif
+#ifndef FILTER_ENABLE_MAHONY
+#define FILTER_ENABLE_MAHONY         (0)
+#endif
+#ifndef FILTER_ENABLE_MADGWICK
+#define FILTER_ENABLE_MADGWICK       (0)
+#endif
+#ifndef FILTER_ENABLE_KF
+#define FILTER_ENABLE_KF             (1)
+#endif
+
+#if !(FILTER_ENABLE_COMPLEMENTARY || FILTER_ENABLE_LPF || FILTER_ENABLE_ESKF || \
+      FILTER_ENABLE_LKF || FILTER_ENABLE_MAHONY || FILTER_ENABLE_MADGWICK || \
+      FILTER_ENABLE_KF)
+#error "At least one filter implementation must be enabled"
+#endif
+
+/* ============================================================
  * 调试详细输出开关
  * 0 = 关闭（默认，省 Flash，避免拉入浮点 printf 库）
  * 1 = 开启（输出滤波器中间值，用于调试）

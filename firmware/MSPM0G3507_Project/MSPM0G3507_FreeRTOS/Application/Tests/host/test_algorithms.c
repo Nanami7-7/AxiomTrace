@@ -3,6 +3,7 @@
 #include "app_planner.h"
 #include "app_position_control.h"
 #include "filter.h"
+#include "filter_config.h"
 
 #include <math.h>
 #include <stddef.h>
@@ -30,6 +31,7 @@ static float angle_error(float actual, float expected)
 static void test_filter_stationary(void)
 {
     for (int type = 0; type < (int)FILTER_TYPE_COUNT; type++) {
+        if (!filter_type_is_enabled((filter_type_t)type)) continue;
         size_t size = filter_get_static_size((filter_type_t)type);
         void *storage = malloc(size);
         CHECK("filter storage", storage != NULL);
@@ -56,7 +58,10 @@ static void test_filter_checked_api(void)
 {
     filter_static_storage_t storage;
     CHECK("public static storage size",
-          sizeof(storage) >= filter_get_static_size(FILTER_TYPE_ESKF));
+          sizeof(storage) >= filter_get_static_size(FILTER_TYPE_KF));
+    CHECK("KF is enabled", filter_type_is_enabled(FILTER_TYPE_KF) == 1);
+    CHECK("ESKF availability follows configuration",
+          filter_type_is_enabled(FILTER_TYPE_ESKF) == FILTER_ENABLE_ESKF);
 
     filter_t *filter = filter_create_static(FILTER_TYPE_KF,
                                              &storage, sizeof(storage));
@@ -86,6 +91,7 @@ static void test_filter_checked_api(void)
 static void test_filter_yaw(void)
 {
     for (int type = 0; type < (int)FILTER_TYPE_COUNT; type++) {
+        if (!filter_type_is_enabled((filter_type_t)type)) continue;
         filter_t *filter = filter_create((filter_type_t)type);
         CHECK("dynamic filter create", filter != NULL);
         if (!filter) continue;
@@ -103,6 +109,7 @@ static void test_filter_yaw(void)
 
 static void test_eskf_bias_units(void)
 {
+    if (!filter_type_is_enabled(FILTER_TYPE_ESKF)) return;
     filter_t *filter = filter_create(FILTER_TYPE_ESKF);
     CHECK("ESKF create", filter != NULL);
     if (!filter) return;

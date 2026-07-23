@@ -79,7 +79,7 @@ MSPM0G3507_FreeRTOS/
 │  └─ IMU/                          LSM6DSR 驱动
 ├─ Application/                     应用层
 │  ├─ Algorithm/                    控制算法（PID/前馈/规划/位置控制/辨识）
-│  ├─ Filter/                       滤波算法（互补/Madgwick/ESKF/Mahony/KF/LKF/LPF）
+│  ├─ Filter/                       滤波算法（默认仅KF；其他算法由 filter_config.h 按需启用）
 │  ├─ Tasks/                         FreeRTOS 任务（控制/IMU/菜单）
 │  ├─ Tests/                        测试代码
 │  ├─ app_main.c/h                  应用入口与共享上下文

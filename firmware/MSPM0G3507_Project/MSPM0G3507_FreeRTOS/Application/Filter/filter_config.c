@@ -322,6 +322,11 @@ static const preset_config_t preset_configs[] = {
 
 const filter_param_desc_t* filter_config_get_params(filter_type_t type, int *count)
 {
+    if (count == NULL || !filter_type_is_enabled(type)) {
+        if (count != NULL) *count = 0;
+        return NULL;
+    }
+
     switch (type) {
         case FILTER_TYPE_COMPLEMENTARY:
             *count = sizeof(comp_params) / sizeof(comp_params[0]);
