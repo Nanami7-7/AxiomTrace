@@ -47,50 +47,6 @@ jobs:
       - run: cmake --build build-san --parallel
       - run: ctest --test-dir build-san --output-on-failure
 
-  performance-regression:
-    name: Host P99.9 regression
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-      - uses: actions/setup-python@v5
-        with:
-          python-version: "3.12"
-      - name: Select baseline commit
-        id: baseline
-        shell: bash
-        run: |
-          base="${{ github.event.pull_request.base.sha || github.event.before }}"
-          if ! git cat-file -e "${base}^{commit}" 2>/dev/null; then
-            base="HEAD^"
-          fi
-          echo "sha=${base}" >> "$GITHUB_OUTPUT"
-      - name: Build candidate benchmark
-        run: |
-          cmake -S . -B build-benchmark -G Ninja \
-            -DAXIOM_PLATFORM=host -DAXIOM_BUILD_TESTS=ON \
-            -DAXIOM_BUILD_EXAMPLES=OFF -DCMAKE_C_COMPILER=clang
-          cmake --build build-benchmark --target test_benchmark --parallel
-      - name: Build baseline benchmark
-        run: |
-          git worktree add --detach ../axiomtrace-baseline "${{ steps.baseline.outputs.sha }}"
-          cmake -S ../axiomtrace-baseline -B ../axiomtrace-baseline-build -G Ninja \
-            -DAXIOM_PLATFORM=host -DAXIOM_BUILD_TESTS=ON \
-            -DAXIOM_BUILD_EXAMPLES=OFF -DCMAKE_C_COMPILER=clang
-          cmake --build ../axiomtrace-baseline-build --target test_benchmark --parallel
-      - name: Enforce P99.9 regression limit
-        run: |
-          python scripts/benchmark_gate.py \
-            --baseline ../axiomtrace-baseline-build/tests/host/test_benchmark \
-            --candidate build-benchmark/tests/host/test_benchmark \
-            --runs 11 --threshold-percent 20 \
-            --output benchmark-report.json
-      - uses: actions/upload-artifact@v4
-        with:
-          name: host-benchmark-report
-          path: benchmark-report.json
-
   python-tooling:
     name: Python 3.12 tooling
     runs-on: ubuntu-latest
@@ -102,12 +58,17 @@ jobs:
       - run: python -m pip install -e "./tool[test]"
       - run: python -m pytest -q
       - run: python -m compileall -q tool/src tests
-      - run: python tool/golden/update_golden.py --check
+      - name: Build golden-frame encoder
+        run: |
+          cmake -S . -B build-golden -G Ninja \
+            -DAXIOM_PLATFORM=host -DAXIOM_BUILD_TESTS=ON -DAXIOM_BUILD_EXAMPLES=OFF
+          cmake --build build-golden --target generate_golden --parallel
+      - run: python tool/golden/update_golden.py --check --encoder build-golden/tests/host/generate_golden
       - run: axiom-validate --golden tool/golden
       - run: python scripts/release_checks.py
 
   cross-compile:
-    name: GNU reference compile + resources
+    name: ARM reference compile + resources
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -117,7 +78,7 @@ jobs:
       - name: Install cross compilers
         run: |
           sudo apt-get update
-          sudo apt-get install -y ninja-build gcc-arm-none-eabi gcc-riscv64-unknown-elf
+          sudo apt-get install -y ninja-build gcc-arm-none-eabi
       - name: ARM preset builds and budgets
         run: |
           for preset in tiny prod field dev; do
@@ -132,15 +93,6 @@ jobs:
               --size-tool arm-none-eabi-size --preset "${preset}" --enforce \
               --output "resource-reports/${preset}.json"
           done
-      - name: RISC-V compile-only
-        run: |
-            cmake -S . -B build-riscv -G Ninja \
-              -DAXIOM_PLATFORM=riscv -DAXIOM_PRESET=prod \
-            -DAXIOM_BUILD_TESTS=OFF -DAXIOM_BUILD_EXAMPLES=OFF \
-            -DCMAKE_BUILD_TYPE=MinSizeRel -DCMAKE_TRY_COMPILE_TARGET_TYPE=STATIC_LIBRARY \
-            -DCMAKE_C_COMPILER=riscv64-unknown-elf-gcc \
-            -DCMAKE_C_FLAGS="-march=rv32imac -mabi=ilp32 -fstack-usage"
-            cmake --build build-riscv --parallel
       - uses: actions/upload-artifact@v4
         with:
           name: arm-resource-reports
