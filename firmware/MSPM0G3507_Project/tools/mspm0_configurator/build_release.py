@@ -83,6 +83,8 @@ def build_executable() -> Path:
         "--clean",
         "--name",
         "mspm0-configurator",
+        "--paths",
+        str(root / "src"),
         "--windowed",  # GUI application, no console
         "--onedir",    # One-dir mode for faster startup and smaller size
         "--distpath",
@@ -117,8 +119,11 @@ def write_release_info(output_dir: Path) -> None:
     info = output_dir.parent / "RELEASE_INFO.txt"
     import datetime
 
-    content = f"""MSPM0 Configurator - Release Build
-===================================
+    # Read version from the package __init__.py to avoid hard-coding.
+    from mspm0_configurator import __version__
+
+    content = f"""MSPM0 Control Studio {__version__} - Release Build
+=============================================
 
 Build timestamp: {datetime.datetime.now().isoformat()}
 Platform: {platform.platform()}
@@ -149,10 +154,17 @@ def main() -> int:
 
     try:
         check_build_deps()
+        # Ensure the package is importable for version discovery.
+        root = get_project_root()
+        src_path = str(root / "src")
+        if src_path not in sys.path:
+            sys.path.insert(0, src_path)
         if args.clean:
             clean_build_dirs()
         output = build_executable()
         write_release_info(output)
+        if args.clean:
+            clean_build_dirs()
         print("\n=== Build Complete ===")
         print(f"Output: {output}")
         return 0

@@ -1,9 +1,9 @@
-﻿from __future__ import annotations
+from __future__ import annotations
 
 import json
 import os
 import tempfile
-from dataclasses import asdict, dataclass
+from dataclasses import asdict, dataclass, field
 from math import isfinite
 from numbers import Integral, Real
 from pathlib import Path
@@ -24,15 +24,33 @@ class AppSettings:
     ff_b: float = 0.0
     ff_enabled: bool = False
     plot_window_s: int = 15
+    # v0.3.0 — window geometry & sidebar state
+    window_x: int = -1
+    window_y: int = -1
+    window_w: int = 1360
+    window_h: int = 860
+    window_maximized: bool = False
+    left_panel_visible: bool = True
+    right_panel_visible: bool = True
+    main_splitter_sizes: tuple[int, ...] = (410, 900)
+    telemetry_splitter_sizes: tuple[int, ...] = (780, 240)
 
     def __post_init__(self) -> None:
         if self.language not in {"zh", "en"}:
             raise ValueError("language must be zh or en")
         if not isinstance(self.ff_enabled, bool):
             raise ValueError("ff_enabled must be boolean")
+        if not isinstance(self.window_maximized, bool):
+            raise ValueError("window_maximized must be boolean")
+        if not isinstance(self.left_panel_visible, bool):
+            raise ValueError("left_panel_visible must be boolean")
+        if not isinstance(self.right_panel_visible, bool):
+            raise ValueError("right_panel_visible must be boolean")
         self.baud = self._integer(self.baud, "baud")
         self.motor = self._integer(self.motor, "motor")
         self.plot_window_s = self._integer(self.plot_window_s, "plot_window_s")
+        for name in ("window_x", "window_y", "window_w", "window_h"):
+            setattr(self, name, self._integer(getattr(self, name), name))
         if self.baud not in SUPPORTED_BAUDS:
             raise ValueError(f"baud must be one of {SUPPORTED_BAUDS}")
         if self.motor not in range(MOTOR_COUNT):
@@ -54,6 +72,9 @@ class AppSettings:
             )
         if not 3 <= self.plot_window_s <= 300:
             raise ValueError("plot_window_s must be 3..300")
+        # Coerce splitter tuples
+        self.main_splitter_sizes = tuple(int(v) for v in self.main_splitter_sizes)
+        self.telemetry_splitter_sizes = tuple(int(v) for v in self.telemetry_splitter_sizes)
 
     @staticmethod
     def _integer(value: object, name: str) -> int:

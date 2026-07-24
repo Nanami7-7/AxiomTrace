@@ -53,11 +53,116 @@ class MachineMessage:
 
 
 @dataclass(frozen=True)
+class DeviceInfo:
+    firmware: str
+    protocol: int
+    board: str
+    driver: str
+    motors: int
+    baud: int
+    telemetry: str
+
+
+@dataclass(frozen=True)
+class MotorStatus:
+    motor: int
+    enabled: bool
+    power: bool
+    rpm: float
+    target: float
+    output: float
+    kp: float
+    ki: float
+    kd: float
+    ff_enabled: bool
+    ff_k: float
+    ff_b: float
+    mode: str
+
+
+@dataclass(frozen=True)
 class DecodedLine:
     kind: LineKind
     raw: str
     telemetry: TelemetryFrame | None = None
     machine: MachineMessage | None = None
+
+
+def _field(message: MachineMessage, name: str) -> str:
+    try:
+        return message.fields[name]
+    except KeyError as exc:
+        raise ValueError(f"@{message.topic} is missing {name}") from exc
+
+
+def _field_int(message: MachineMessage, name: str) -> int:
+    raw = _field(message, name)
+    try:
+        return int(raw, 10)
+    except ValueError as exc:
+        raise ValueError(f"@{message.topic} {name} must be an integer") from exc
+
+
+def _field_float(message: MachineMessage, name: str) -> float:
+    raw = _field(message, name)
+    try:
+        value = float(raw)
+    except ValueError as exc:
+        raise ValueError(f"@{message.topic} {name} must be a number") from exc
+    if not isfinite(value):
+        raise ValueError(f"@{message.topic} {name} must be finite")
+    return value
+
+
+def _field_bool(message: MachineMessage, name: str) -> bool:
+    value = _field_int(message, name)
+    if value not in (0, 1):
+        raise ValueError(f"@{message.topic} {name} must be 0 or 1")
+    return bool(value)
+
+
+def parse_device_info(message: MachineMessage) -> DeviceInfo:
+    if message.topic != "INFO":
+        raise ValueError("expected @INFO")
+    motors = _field_int(message, "motors")
+    if motors <= 0:
+        raise ValueError("@INFO motors must be positive")
+    baud = _field_int(message, "baud")
+    if baud <= 0:
+        raise ValueError("@INFO baud must be positive")
+    return DeviceInfo(
+        firmware=_field(message, "fw"),
+        protocol=_field_int(message, "proto"),
+        board=_field(message, "board"),
+        driver=_field(message, "driver"),
+        motors=motors,
+        baud=baud,
+        telemetry=_field(message, "telemetry"),
+    )
+
+
+def parse_motor_status(message: MachineMessage) -> MotorStatus:
+    if message.topic != "STATUS":
+        raise ValueError("expected @STATUS")
+    motor = _motor_id(_field_int(message, "motor"))
+    mode = _field(message, "mode")
+    if mode not in {"speed", "position", "angle"}:
+        raise ValueError("@STATUS mode is unsupported")
+    return MotorStatus(
+        motor=motor,
+        enabled=_field_bool(message, "enabled"),
+        power=_field_bool(message, "power"),
+        rpm=_field_float(message, "rpm"),
+        target=_field_float(message, "target"),
+        output=_field_float(message, "output"),
+        kp=_field_float(message, "kp"),
+        ki=_field_float(message, "ki"),
+        kd=_field_float(message, "kd"),
+        ff_enabled=_field_bool(message, "ff_en"),
+        ff_k=_field_float(message, "ff_k"),
+        ff_b=_field_float(message, "ff_b"),
+        mode=mode,
+    )
 
 
 def _number(value: float, low: float, high: float, name: str) -> str:

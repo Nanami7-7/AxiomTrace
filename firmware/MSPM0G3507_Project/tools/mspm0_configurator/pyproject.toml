@@ -4,8 +4,8 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "mspm0-configurator"
-version = "0.1.0"
-description = "Bilingual serial configuration and telemetry GUI for MSPM0G3507 motor controller"
+version = "0.3.1"
+description = "Safety-gated control and real-time telemetry studio for the MSPM0G3507 motor controller"
 readme = "README.md"
 requires-python = ">=3.10"
 dependencies = [

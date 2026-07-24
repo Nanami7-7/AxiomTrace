@@ -14,6 +14,7 @@ class SerialWorker(QThread):
     """Own the serial port in a worker thread and exchange complete text lines."""
 
     MAX_PENDING_COMMANDS = 256
+    MAX_URGENT_COMMANDS = 8
     MAX_COMMAND_BATCH = 32
     MAX_RX_LINE_BYTES = 4096
 
@@ -29,6 +30,9 @@ class SerialWorker(QThread):
         self._commands: queue.Queue[bytes] = queue.Queue(
             maxsize=self.MAX_PENDING_COMMANDS
         )
+        self._urgent_commands: queue.Queue[bytes] = queue.Queue(
+            maxsize=self.MAX_URGENT_COMMANDS
+        )
         self._close_requested = threading.Event()
 
     def send(self, command: str) -> None:
@@ -39,6 +43,23 @@ class SerialWorker(QThread):
         except queue.Full as exc:
             raise RuntimeError("serial command queue is full") from exc
 
+    @staticmethod
+    def _clear(command_queue: queue.Queue[bytes]) -> None:
+        while True:
+            try:
+                command_queue.get_nowait()
+            except queue.Empty:
+                return
+
+    def emergency_stop(self) -> None:
+        """Discard normal work and put the safety sequence on the urgent lane."""
+        if self._close_requested.is_set():
+            return
+        self._clear(self._commands)
+        self._clear(self._urgent_commands)
+        self._urgent_commands.put_nowait(encode_command("StopAll"))
+        self._urgent_commands.put_nowait(encode_command("Stream=0"))
+
     def shutdown(self, final_commands: Iterable[str] = ()) -> None:
         """Flush final safety commands, then close the port.
 
@@ -48,13 +69,10 @@ class SerialWorker(QThread):
         if self._close_requested.is_set():
             return
         # Shutdown safety commands supersede queued UI commands.
-        while True:
-            try:
-                self._commands.get_nowait()
-            except queue.Empty:
-                break
+        self._clear(self._commands)
+        self._clear(self._urgent_commands)
         for command in final_commands:
-            self._commands.put_nowait(encode_command(command))
+            self._urgent_commands.put_nowait(encode_command(command))
         self._close_requested.set()
 
     def close(self) -> None:
@@ -63,9 +81,12 @@ class SerialWorker(QThread):
     def _drain_commands(self, ser) -> None:
         for _ in range(self.MAX_COMMAND_BATCH):
             try:
-                payload = self._commands.get_nowait()
+                payload = self._urgent_commands.get_nowait()
             except queue.Empty:
-                return
+                try:
+                    payload = self._commands.get_nowait()
+                except queue.Empty:
+                    return
             ser.write(payload)
 
     def run(self) -> None:
@@ -84,7 +105,11 @@ class SerialWorker(QThread):
 
                 while not self.isInterruptionRequested():
                     self._drain_commands(ser)
-                    if self._close_requested.is_set() and self._commands.empty():
+                    if (
+                        self._close_requested.is_set()
+                        and self._commands.empty()
+                        and self._urgent_commands.empty()
+                    ):
                         ser.flush()
                         break
 

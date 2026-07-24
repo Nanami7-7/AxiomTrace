@@ -5,11 +5,15 @@ on:
     branches: [main]
     paths:
       - 'firmware/MSPM0G3507_Project/tools/mspm0_configurator/**'
+      - 'firmware/MSPM0G3507_Project/MSPM0G3507_FreeRTOS/Application/app_vofa.[ch]'
+      - 'firmware/MSPM0G3507_Project/MSPM0G3507_FreeRTOS/Config/project_config.h'
       - '.github/workflows/build-mspm0-configurator.yml'
   pull_request:
     branches: [main]
     paths:
       - 'firmware/MSPM0G3507_Project/tools/mspm0_configurator/**'
+      - 'firmware/MSPM0G3507_Project/MSPM0G3507_FreeRTOS/Application/app_vofa.[ch]'
+      - 'firmware/MSPM0G3507_Project/MSPM0G3507_FreeRTOS/Config/project_config.h'
       - '.github/workflows/build-mspm0-configurator.yml'
   workflow_dispatch:
 
@@ -28,8 +32,12 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.11'
+      - name: Install GUI dependencies
+        run: python -m pip install -e .
       - name: Run unit tests
-        run: PYTHONPATH=src python -m unittest discover -s tests -v
+        env:
+          QT_QPA_PLATFORM: offscreen
+        run: python -m unittest discover -s tests -v
 
   build-windows:
     name: Build Windows EXE

@@ -5,6 +5,8 @@ from mspm0_configurator.protocol import (
     LineKind,
     decode_line,
     encode_command,
+    parse_device_info,
+    parse_motor_status,
 )
 
 
@@ -18,6 +20,38 @@ class ProtocolTests(unittest.TestCase):
         decoded = decode_line("@INFO,fw=0.1.0,proto=1")
         self.assertEqual(decoded.kind, LineKind.MACHINE)
         self.assertEqual(decoded.machine.fields["fw"], "0.1.0")
+
+    def test_typed_device_info(self):
+        decoded = decode_line(
+            "@INFO,fw=0.1.0,proto=1,board=LP-MSPM0G3507,driver=DRV8870,"
+            "motors=4,baud=115200,telemetry=firewater"
+        )
+        info = parse_device_info(decoded.machine)
+        self.assertEqual(info.protocol, 1)
+        self.assertEqual(info.motors, 4)
+        self.assertEqual(info.telemetry, "firewater")
+
+    def test_typed_motor_status(self):
+        decoded = decode_line(
+            "@STATUS,motor=2,enabled=1,power=1,rpm=123,target=150,output=87,"
+            "kp=0.8,ki=0.3,kd=0,ff_en=1,ff_k=1.2,ff_b=3,mode=speed"
+        )
+        status = parse_motor_status(decoded.machine)
+        self.assertEqual(status.motor, 2)
+        self.assertTrue(status.enabled)
+        self.assertEqual(status.rpm, 123.0)
+        self.assertEqual(status.ff_k, 1.2)
+
+    def test_typed_messages_reject_incomplete_or_invalid_values(self):
+        with self.assertRaises(ValueError):
+            parse_device_info(decode_line("@INFO,fw=0.1.0").machine)
+        with self.assertRaises(ValueError):
+            parse_motor_status(
+                decode_line(
+                    "@STATUS,motor=0,enabled=2,power=1,rpm=0,target=0,output=0,"
+                    "kp=0,ki=0,kd=0,ff_en=0,ff_k=0,ff_b=0,mode=speed"
+                ).machine
+            )
 
     def test_text(self):
         self.assertEqual(decode_line("All stopped").kind, LineKind.TEXT)

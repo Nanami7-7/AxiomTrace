@@ -1,9 +1,9 @@
-MSPM0 Configurator - Release Build
-===================================
+MSPM0 Control Studio 0.3.1 - Release Build
+=============================================
 
-Build timestamp: 2026-07-19T07:47:52.797249
-Platform: Windows-10-10.0.26100-SP0
-Python: 3.11.9 (tags/v3.11.9:de54cf5, Apr  2 2024, 10:12:12) [MSC v.1938 64 bit (AMD64)]
+Build timestamp: 2026-07-25T03:17:24.499247
+Platform: Windows-11-10.0.26200-SP0
+Python: 3.13.13 (main, May 10 2026, 19:31:06) [MSC v.1944 64 bit (AMD64)]
 Builder: local build_release.py
 
 Usage:
