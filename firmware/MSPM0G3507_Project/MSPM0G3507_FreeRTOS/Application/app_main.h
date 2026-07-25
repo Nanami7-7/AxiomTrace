@@ -63,6 +63,8 @@ typedef struct {
     int32_t rpm[BSP_MOTOR_COUNT];
     int32_t output[BSP_MOTOR_COUNT];
     float   pid_correction[BSP_MOTOR_COUNT];  /**< FF模式PID修正量 */
+    float   current_ma[BSP_MOTOR_COUNT];     /**< 4路电机电流(mA) */
+    uint32_t bus_voltage_mv;                  /**< 母线电压(mV) */
 } app_control_status_t;
 
 /** IMU姿态数据(由IMU任务写入, 控制/菜单任务读取) */
@@ -88,6 +90,7 @@ typedef struct app_shared_ctx_s {
     app_control_status_t status;                     /**< 控制任务状态 */
     app_imu_data_t       imu;                        /**< IMU姿态数据 */
     app_position_ctrl_t  posctrl;                    /**< 位置-速度串级控制器 */
+    uint32_t             overload_cnt[BSP_MOTOR_COUNT]; /**< 过流持续周期计数 */
 } app_shared_ctx_t;
 
 /* ======================== 函数接口 ======================== */

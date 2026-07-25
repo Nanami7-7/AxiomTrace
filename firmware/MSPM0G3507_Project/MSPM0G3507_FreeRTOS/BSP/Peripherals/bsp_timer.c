@@ -1,6 +1,13 @@
+/**
+ * @file    bsp_timer.c
+ * @brief   微秒级计时器驱动
+ * @note    基于TIMER0溢出计数, 提供us级计时/ms级延时
+ *          临界区使用OSAL_CRITICAL_SECTION, 正确处理PRIMASK嵌套
+ */
 #include "bsp_timer.h"
 #include "ti_msp_dl_config.h"
 #include "project_config.h" /* PRJ_US_PER_MS */
+#include "osal_api.h"       /* OSAL_CRITICAL_SECTION */
 
 static volatile uint32_t s_timer_overflow = 0;
 
@@ -21,10 +28,10 @@ uint32_t bsp_get_us(void)
     uint32_t overflow;
     uint32_t counter;
 
-    __disable_irq();
-    overflow = s_timer_overflow;
-    counter = DL_TimerG_getTimerCount(TIMER_0_INST);
-    __enable_irq();
+    OSAL_CRITICAL_SECTION {
+        overflow = s_timer_overflow;
+        counter = DL_TimerG_getTimerCount(TIMER_0_INST);
+    }
 
     return overflow * (TIMER_0_INST_LOAD_VALUE + 1) + counter;
 }

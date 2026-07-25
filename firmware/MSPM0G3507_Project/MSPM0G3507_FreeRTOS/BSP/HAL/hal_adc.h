@@ -15,6 +15,18 @@ extern "C" {
 /* ======================== 包含 ======================== */
 #include "hal_common.h"
 
+/* ======================== 类型定义 ======================== */
+
+/** ADC MEM通道编号(对应ADC1的5个转换结果寄存器) */
+typedef enum {
+    HAL_ADC_MEM0 = 0,   /* PA15 / ch0  - 电机1电流 */
+    HAL_ADC_MEM1,       /* PA16 / ch1  - 电机2电流 */
+    HAL_ADC_MEM2,       /* PA17 / ch2  - 电机3电流 */
+    HAL_ADC_MEM3,       /* PA22 / ch8  - 电机4电流 */
+    HAL_ADC_MEM4,       /* PA27 / ch0  - 母线电压 */
+    HAL_ADC_MEM_COUNT
+} hal_adc_mem_t;
+
 /* ======================== 函数接口 ======================== */
 
 /**
@@ -43,6 +55,16 @@ hal_status_t hal_adc_read_result(hal_adc_id_t id, uint16_t *result);
  * @retval false 转换完成或空闲
  */
 bool hal_adc_is_busy(hal_adc_id_t id);
+
+/**
+ * @brief  读取指定MEM通道的转换结果
+ * @note   可在ISR或任务中调用, 直接读寄存器, 无阻塞
+ * @param  mem     MEM通道编号
+ * @param  result  转换结果存放指针(12位无符号值:0~4095)
+ * @retval HAL_OK              读取成功
+ * @retval HAL_ERR_INVALID_PARAM 参数无效
+ */
+hal_status_t hal_adc_read_mem(hal_adc_mem_t mem, uint16_t *result);
 
 /**
  * @brief  使能ADC中断

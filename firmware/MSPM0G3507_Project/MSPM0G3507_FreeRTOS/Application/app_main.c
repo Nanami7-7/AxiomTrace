@@ -21,6 +21,8 @@
 #include "bsp_motor.h"
 #include "bsp_encoder.h"
 #include "bsp_uart.h"
+#include "bsp_adc.h"
+#include "ti_msp_dl_config.h"
 #include "app_complementary_filter.h"
 #include "app_model_id.h"
 #include "app_position_control.h"
@@ -77,6 +79,14 @@ static int32_t bsp_modules_init(void)
     ret = bsp_encoder_init(s_encoder_cfg, BSP_ENCODER_COUNT,
         PRJ_ENCODER_PULSES_PER_REV);
     if (ret != BSP_OK) { return -4; }
+
+    ret = bsp_adc_init();
+    if (ret != BSP_OK) { return -5; }
+
+    /* Enable ADC1 interrupt for MEM4 (last channel) result-loaded event */
+    DL_ADC12_enableInterrupt(ADC_VOLTAGE_INST,
+        DL_ADC12_INTERRUPT_MEM4_RESULT_LOADED);
+    NVIC_EnableIRQ(ADC_VOLTAGE_INST_INT_IRQN);
 
     /* LSM6DSR 初始化在 task_imu.c 中完成 (需要 TimerG8 先启动) */
     /* 此处不再需要初始化 IMU */
@@ -191,6 +201,7 @@ int32_t app_main_init(void)
     /* 清零共享上下文 */
     for (uint32_t i = 0; i < BSP_MOTOR_COUNT; i++) {
         s_shared_ctx.motor_enabled[i] = false;
+        s_shared_ctx.overload_cnt[i] = 0;
     }
 
     /* 串口输出启动信息 */

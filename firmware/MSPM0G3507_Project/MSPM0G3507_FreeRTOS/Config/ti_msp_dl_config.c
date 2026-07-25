@@ -717,10 +717,13 @@ SYSCONFIG_WEAK void SYSCFG_DL_ADC_VOLTAGE_init(void)
     DL_ADC12_configConversionMem(ADC_VOLTAGE_INST, ADC_VOLTAGE_ADCMEM_4,
         DL_ADC12_INPUT_CHAN_0, DL_ADC12_REFERENCE_VOLTAGE_VDDA, DL_ADC12_SAMPLE_TIMER_SOURCE_SCOMP0, DL_ADC12_AVERAGING_MODE_DISABLED,
         DL_ADC12_BURN_OUT_SOURCE_DISABLED, DL_ADC12_TRIGGER_MODE_AUTO_NEXT, DL_ADC12_WINDOWS_COMP_MODE_DISABLED);
-    DL_ADC12_setSampleTime0(ADC_VOLTAGE_INST,40000);
-    /* Enable ADC12 interrupt */
-    DL_ADC12_clearInterruptStatus(ADC_VOLTAGE_INST,(DL_ADC12_INTERRUPT_MEM0_RESULT_LOADED));
-    DL_ADC12_enableInterrupt(ADC_VOLTAGE_INST,(DL_ADC12_INTERRUPT_MEM0_RESULT_LOADED));
+    /* Sample time: 5 cycles @ 4MHz ADC clock = 1.25us per channel
+     * 5 channels total = 6.25us, compatible with 5ms control loop.
+     * Previous value was 40000 (10ms/channel) — unsuitable for current feedback. */
+    DL_ADC12_setSampleTime0(ADC_VOLTAGE_INST, 5);
+    /* Enable ADC12 interrupt on MEM4 (last channel) to signal full sequence completion */
+    DL_ADC12_clearInterruptStatus(ADC_VOLTAGE_INST, (DL_ADC12_INTERRUPT_MEM4_RESULT_LOADED));
+    DL_ADC12_enableInterrupt(ADC_VOLTAGE_INST, (DL_ADC12_INTERRUPT_MEM4_RESULT_LOADED));
     DL_ADC12_enableConversions(ADC_VOLTAGE_INST);
 }
 

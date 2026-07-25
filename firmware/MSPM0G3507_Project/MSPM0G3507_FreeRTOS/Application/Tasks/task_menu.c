@@ -299,7 +299,13 @@ static void menu_print_status(const app_shared_ctx_t *ctx,
             rpm = ctx->status.rpm[motor];
         }
         if (en) {
-            (void)printf("Motor: running (%ld RPM)\r\n", (long)rpm);
+            (void)printf("Motor: running (%ld RPM)", (long)rpm);
+            float curr_ma;
+            OSAL_CRITICAL_SECTION {
+                curr_ma = ctx->status.current_ma[motor];
+            }
+            (void)printf(" | I=%.0fmA", (double)curr_ma);
+            (void)printf("\r\n");
         } else {
             (void)printf("Motor: stopped\r\n");
         }
@@ -318,6 +324,22 @@ static void menu_print_status(const app_shared_ctx_t *ctx,
         (void)printf("IMU: R=%.1f P=%.1f Y=%.1f H=%.1f V=%.3f\r\n",
             (double)roll, (double)pitch, (double)yaw,
             (double)heading, (double)vx);
+    }
+
+    /* Bus voltage + all currents */
+    {
+        uint32_t bus_mv;
+        float currents[4];
+        OSAL_CRITICAL_SECTION {
+            bus_mv = ctx->status.bus_voltage_mv;
+            for (uint32_t i = 0; i < 4; i++) {
+                currents[i] = ctx->status.current_ma[i];
+            }
+        }
+        (void)printf("PWR: VBUS=%lumV  I=[%.0f %.0f %.0f %.0f]mA\r\n",
+            (unsigned long)bus_mv,
+            (double)currents[0], (double)currents[1],
+            (double)currents[2], (double)currents[3]);
     }
 }
 

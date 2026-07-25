@@ -13,6 +13,7 @@
 #include "osal_api.h"
 #include "bsp_motor.h"
 #include "bsp_encoder.h"
+#include "bsp_adc.h"
 #include "project_config.h"
 #include "axiomtrace.h"
 #include <math.h>
@@ -53,6 +54,9 @@ void app_control_task(void *param)
     /* 外环周期计数器(5ms×4=20ms) */
     uint32_t outer_counter = 0U;
 
+    /* 初始化ADC驱动 */
+    (void)bsp_adc_init();
+
 #if (PRJ_DRV8870_FACTORY_TEST_ENABLE == 0U)
     /* Production: enable once in task context, then wait before any command. */
     if (bsp_motor_power_enable() != BSP_OK) {
@@ -67,12 +71,18 @@ void app_control_task(void *param)
 
     for (;;) {
         /* M/T法测速: 读取边沿数和时间戳, 换算RPM
-         * 高速用M/T法, 低速用T法, 无脉冲时平滑衰减 */
+         * 高速用M/T法, 低速用T法, 无脉冲时平滑衰减
+         * 滑动窗口多周期累积已内置于bsp_encoder_get_all_rpm_mt */
         bool encoder_had_edge[BSP_ENCODER_COUNT];
         int32_t encoder_rpm[BSP_ENCODER_COUNT];
         bool had_edge[BSP_MOTOR_COUNT];
         int32_t rpm_local[BSP_MOTOR_COUNT];
         (void)bsp_encoder_get_all_rpm_mt(encoder_rpm, encoder_had_edge);
+
+        /* 启动ADC多通道转换(非阻塞, ~6us后结果就绪)
+         * 时序: ADC在编码器读取后启动, 在PID计算前读取
+         * ADC后台转换期间CPU继续执行重排/堵转检测/滤波等逻辑 */
+        (void)bsp_adc_start_all();
 
         /*
          * BSP编码器数组按车轮位置排列，控制器数组按电机接口排列。
@@ -106,6 +116,34 @@ void app_control_task(void *param)
         OSAL_CRITICAL_SECTION {
             for (uint32_t i = 0; i < BSP_MOTOR_COUNT; i++) {
                 ctx->status.rpm[i] = rpm_local[i];
+            }
+        }
+
+        /* 读取ADC结果(此时转换早已完成, ~6us << 编码器+重排+堵转+滤波耗时)
+         * 一次性获取4路电机电流和母线电压 */
+        float current_ma_local[BSP_MOTOR_COUNT];
+        bsp_adc_get_all_currents_ma(current_ma_local);
+        uint32_t bus_voltage_mv = bsp_adc_get_bus_voltage_mv();
+
+        OSAL_CRITICAL_SECTION {
+            for (uint32_t i = 0; i < BSP_MOTOR_COUNT; i++) {
+                ctx->status.current_ma[i] = current_ma_local[i];
+            }
+            ctx->status.bus_voltage_mv = bus_voltage_mv;
+        }
+
+        /* 过流保护: 超过阈值且持续PRJ_ADC_CURRENT_OVERLOAD_TICKS个周期则停机
+         * 比堵转检测快20倍(50ms vs 1000ms) */
+        for (uint32_t i = 0; i < BSP_MOTOR_COUNT; i++) {
+            if (current_ma_local[i] > (float)PRJ_ADC_CURRENT_OVERLOAD_MA) {
+                ctx->overload_cnt[i]++;
+                if (ctx->overload_cnt[i] >= PRJ_ADC_CURRENT_OVERLOAD_TICKS) {
+                    app_motor_stop(ctx, i);
+                    (void)printf("[WARN] Motor %lu overcurrent: %dmA\r\n",
+                        (unsigned long)i, (int)current_ma_local[i]);
+                }
+            } else {
+                ctx->overload_cnt[i] = 0;
             }
         }
 
@@ -223,23 +261,31 @@ void app_control_task(void *param)
                 ctx->pid[i].use_ff = ctx->ff[i].enabled;
 
                 if (ctx->ff[i].enabled) {
-                    /* FF模式: FF duty + 位置式PID修正量 */
+                    /* FF模式: FF duty + 位置式PID修正量 + 电流前馈修正 */
                     float ff_duty = app_ff_compute(
                         &ctx->ff[i], ctx->pid[i].setpoint);
                     float pid_corr = app_pid_compute(
                         &ctx->pid[i], feedback, dt_s);
 
-                    if (!isfinite(ff_duty) || !isfinite(pid_corr)) {
+                    /* 电流前馈修正: 基于稳态电流模型检测扰动
+                     * i_ff_gain=0时返回0, 不影响现有行为 */
+                    float current_corr = app_ff_compute_current_correction(
+                        &ctx->ff[i], ctx->pid[i].setpoint,
+                        current_ma_local[i]);
+
+                    if (!isfinite(ff_duty) || !isfinite(pid_corr) ||
+                        !isfinite(current_corr)) {
                         nan_detected = true;
                         ff_duty = 0.0f;
                         pid_corr = 0.0f;
+                        current_corr = 0.0f;
                         OSAL_CRITICAL_SECTION {
                             app_pid_reset(&ctx->pid[i]);
                         }
                     }
 
                     ctx->status.pid_correction[i] = pid_corr;
-                    output_local = ff_duty + pid_corr;
+                    output_local = ff_duty + pid_corr + current_corr;
                 } else {
                     /* 普通模式: 增量式PID */
                     output_local = app_pid_compute(

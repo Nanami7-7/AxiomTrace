@@ -1,0 +1,16 @@
+*** Using Compiler 'V6.24', folder: 'D:\Keil_v5\ARM\ARMCLANG\Bin'
+Build target 'MSPM0G3507_FreeRTOS'
+armclang: error: no such file or directory: '../Application/Filter/filter_ekf.c'
+armclang: error: no input files
+compiling filter_ekf.c...
+../Application/Filter/filter_kf.c(194): error: use of undeclared identifier 'EKF_ZUPT_AXIS_GATE'
+  194 |     if (fabsf(y) > EKF_ZUPT_AXIS_GATE) return;
+      |                    ^
+../Application/Filter/filter_kf.c(235): error: unterminated conditional directive
+  235 | #if defined(BSP_MATHACL_KF_HW)
+      |  ^
+2 errors generated.
+compiling filter_kf.c...
+".\Objects\MSPM0G3507_FreeRTOS.axf" - 4 Error(s), 0 Warning(s).
+Target not created.
+Build Time Elapsed:  00:00:01

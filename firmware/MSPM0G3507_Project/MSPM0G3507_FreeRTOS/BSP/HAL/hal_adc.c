@@ -15,14 +15,14 @@
  * @note  顺序必须与hal_adc_id_t枚举一致
  */
 static ADC12_Regs *const s_adc_inst_map[HAL_ADC_COUNT] = {
-    ADC0,  /**< HAL_ADC_VOLTAGE -> ADC0 */
+    ADC_VOLTAGE_INST,  /**< HAL_ADC_VOLTAGE -> ADC1 (via SysConfig) */
 };
 
 /**
  * @brief ADC中断号映射表
  */
 static const IRQn_Type s_adc_irq_map[HAL_ADC_COUNT] = {
-    ADC0_INT_IRQn,  /**< HAL_ADC_VOLTAGE -> ADC0中断 */
+    ADC_VOLTAGE_INST_INT_IRQN,  /**< HAL_ADC_VOLTAGE -> ADC1中断 */
 };
 
 /**
@@ -31,6 +31,18 @@ static const IRQn_Type s_adc_irq_map[HAL_ADC_COUNT] = {
  */
 static const DL_ADC12_MEM_IDX s_adc_mem_map[HAL_ADC_COUNT] = {
     DL_ADC12_MEM_IDX_0,  /**< HAL_ADC_VOLTAGE -> MEM0 */
+};
+
+/**
+ * @brief 全部MEM通道的硬件索引映射表
+ * @note  对应ADC_VOLTAGE_INST的5个MEM通道
+ */
+static const DL_ADC12_MEM_IDX s_adc_all_mem_map[HAL_ADC_MEM_COUNT] = {
+    DL_ADC12_MEM_IDX_0,  /* HAL_ADC_MEM0 */
+    DL_ADC12_MEM_IDX_1,  /* HAL_ADC_MEM1 */
+    DL_ADC12_MEM_IDX_2,  /* HAL_ADC_MEM2 */
+    DL_ADC12_MEM_IDX_3,  /* HAL_ADC_MEM3 */
+    DL_ADC12_MEM_IDX_4,  /* HAL_ADC_MEM4 */
 };
 
 /* ======================== 内联辅助函数 ======================== */
@@ -109,5 +121,25 @@ hal_status_t hal_adc_disable_irq(hal_adc_id_t id)
     }
 
     NVIC_DisableIRQ(s_adc_irq_map[id]);
+    return HAL_OK;
+}
+
+hal_status_t hal_adc_read_mem(hal_adc_mem_t mem, uint16_t *result)
+{
+    if (result == NULL) {
+        return HAL_ERR_INVALID_PARAM;
+    }
+    if ((uint32_t)mem >= HAL_ADC_MEM_COUNT) {
+        return HAL_ERR_INVALID_PARAM;
+    }
+
+    /*
+     * 直接读取ADC_VOLTAGE_INST的MEM结果寄存器
+     * ADC1硬件实例已由SYSCFG_DL_ADC_VOLTAGE_init()配置,
+     * 5个MEM通道在repeat模式下自动循环转换
+     */
+    *result = (uint16_t)DL_ADC12_getMemResult(
+        ADC_VOLTAGE_INST, s_adc_all_mem_map[(uint32_t)mem]);
+
     return HAL_OK;
 }

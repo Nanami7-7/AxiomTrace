@@ -74,6 +74,30 @@ static volatile uint32_t s_mt_last_abs[BSP_ENCODER_COUNT];
 /** 初始化标志 */
 static bool s_encoder_inited = false;
 
+/* ======================== 多周期滑动窗口变量 ======================== */
+
+/** 滑动窗口深度: 窗口内保存最近N个5ms周期的累积数据 */
+#define MT_WIN_SIZE             (8U)
+
+/** 滑动窗口条目: 记录每个5ms周期的脉冲数和首末边沿时间戳 */
+typedef struct {
+    int32_t  m_sum;        /**< 累积脉冲数(有符号) */
+    uint32_t first_abs;    /**< 窗口起始绝对时间戳 */
+    uint32_t last_abs;     /**< 窗口末尾绝对时间戳 */
+    bool     has_edge;     /**< 本周期是否有边沿 */
+    int32_t  last_dir;     /**< 本周期最后方向 */
+    uint16_t last_period;  /**< CC1硬件周期(用于M=0衰减) */
+} mt_win_entry_t;
+
+/** 每编码器的滑动窗口环形缓冲区 */
+static mt_win_entry_t s_mt_win[BSP_ENCODER_COUNT][MT_WIN_SIZE];
+
+/** 每编码器的窗口写入索引 */
+static uint8_t s_mt_win_idx[BSP_ENCODER_COUNT] = {0};
+
+/** 每编码器的窗口有效深度(初始化后逐步填满) */
+static uint8_t s_mt_win_depth[BSP_ENCODER_COUNT] = {0};
+
 /* ======================== 公共函数实现 ======================== */
 
 bsp_status_t bsp_encoder_init(const bsp_encoder_config_t *cfg,
@@ -105,6 +129,17 @@ bsp_status_t bsp_encoder_init(const bsp_encoder_config_t *cfg,
         s_mt_last_period[i]   = 0;
         s_mt_overflow_cnt[i]  = 0;
         s_mt_last_abs[i]      = 0;
+        /* 清零滑动窗口 */
+        s_mt_win_idx[i]       = 0;
+        s_mt_win_depth[i]     = 0;
+        for (uint32_t j = 0; j < MT_WIN_SIZE; j++) {
+            s_mt_win[i][j].m_sum      = 0;
+            s_mt_win[i][j].first_abs  = 0;
+            s_mt_win[i][j].last_abs   = 0;
+            s_mt_win[i][j].has_edge   = false;
+            s_mt_win[i][j].last_dir   = 0;
+            s_mt_win[i][j].last_period = 0;
+        }
     }
 
     /* 使能4路编码器定时器的NVIC中断并启动计数 */
@@ -349,6 +384,7 @@ bsp_status_t bsp_encoder_get_all_rpm_mt(int32_t rpms[], bool had_edge[])
             uint32_t last_abs  = s_mt_last_abs[i];
             uint32_t overflow  = s_mt_overflow_cnt[i];
 
+            /* 清零ISR侧变量, 供下个周期使用 */
             s_encoder_count[i] = 0;
             s_mt_has_edge[i]   = false;
 
@@ -356,7 +392,8 @@ bsp_status_t bsp_encoder_get_all_rpm_mt(int32_t rpms[], bool had_edge[])
                 had_edge[i] = has_edge;
             }
 
-            int32_t rpm = 0;
+            /* ---- 单周期RPM计算(与原逻辑一致) ---- */
+            int32_t rpm_single = 0;
 
             if (M >= 2 || M <= -2) {
                 /* M/T法: T_ref = 末边沿 - 首边沿 */
@@ -368,46 +405,38 @@ bsp_status_t bsp_encoder_get_all_rpm_mt(int32_t rpms[], bool had_edge[])
                 int64_t num = (int64_t)M * PRJ_ENCODER_RPM_CALC_CONST;
                 int64_t den = (int64_t)t_ref
                     * (int64_t)s_encoder_pulses_per_rev;
-                rpm = (int32_t)(num / den);
+                rpm_single = (int32_t)(num / den);
 
             } else if (M == 1 || M == -1) {
                 /* T法: 用CC1硬件周期 */
                 if (period == 0) {
                     /* CC0首沿, period尚未更新, 改用time_since估算 */
-                    uint16_t now_cnt;
-                    uint32_t now_abs;
-                    OSAL_CRITICAL_SECTION {
-                        now_cnt = (uint16_t)hal_timer_get_count(
-                            s_encoder_cfg[i].timer);
-                        now_abs = (s_mt_overflow_cnt[i] << 16) | now_cnt;
-                    }
+                    uint16_t now_cnt = (uint16_t)hal_timer_get_count(
+                        s_encoder_cfg[i].timer);
+                    uint32_t now_abs = (overflow << 16) | now_cnt;
                     uint32_t time_since = now_abs - last_abs;
                     if (time_since == 0) time_since = 1;
                     int64_t num = (int64_t)M * PRJ_ENCODER_RPM_CALC_CONST;
                     int64_t den = (int64_t)time_since
                         * (int64_t)s_encoder_pulses_per_rev;
-                    rpm = (int32_t)(num / den);
+                    rpm_single = (int32_t)(num / den);
                 } else {
                     int64_t num = (int64_t)M * PRJ_ENCODER_RPM_CALC_CONST;
                     int64_t den = (int64_t)period
                         * (int64_t)s_encoder_pulses_per_rev;
-                    rpm = (int32_t)(num / den);
+                    rpm_single = (int32_t)(num / den);
                 }
 
             } else {
                 /* M=0: 无当前窗口内边沿 */
                 if (last_dir == 0) {
                     /* 从未捕获到边沿(初始化后首次运行) */
-                    rpm = 0;
+                    rpm_single = 0;
                 } else {
                     /* 平滑衰减: MAX(time_since, last_period) */
-                    uint16_t now_cnt;
-                    uint32_t now_abs;
-                    OSAL_CRITICAL_SECTION {
-                        now_cnt = (uint16_t)hal_timer_get_count(
-                            s_encoder_cfg[i].timer);
-                        now_abs = (s_mt_overflow_cnt[i] << 16) | now_cnt;
-                    }
+                    uint16_t now_cnt = (uint16_t)hal_timer_get_count(
+                        s_encoder_cfg[i].timer);
+                    uint32_t now_abs = (overflow << 16) | now_cnt;
                     uint32_t time_since = now_abs - last_abs;
 
                     if (period == 0) period = 1;
@@ -417,8 +446,111 @@ bsp_status_t bsp_encoder_get_all_rpm_mt(int32_t rpms[], bool had_edge[])
                     int64_t num = (int64_t)last_dir * PRJ_ENCODER_RPM_CALC_CONST;
                     int64_t den = (int64_t)effective
                         * (int64_t)s_encoder_pulses_per_rev;
+                    rpm_single = (int32_t)(num / den);
+                }
+            }
+
+            /* ---- 多周期滑动窗口累积 ----
+             * Hall编码器磁体安装不均匀导致单脉冲速度误差约7%,
+             * 该误差是确定性的(每转重复). 多周期累积可使误差按1/K衰减.
+             *
+             * 自适应窗口大小:
+             *   |M| >= 6  → K=1  (高速, 单窗口精度足够)
+             *   |M| 2~5   → K=3  (中速, 3窗口累积)
+             *   |M| 0~1   → K=8  (低速, 8窗口累积=40ms)
+             *
+             * 窗口内用ΣM和ΔT(首到末)重新计算RPM, 消除单周期抖动.
+             */
+            uint8_t K;
+            int32_t abs_M = (M >= 0) ? M : -M;
+            if (abs_M >= 6) {
+                K = 1;
+            } else if (abs_M >= 2) {
+                K = 3;
+            } else {
+                K = MT_WIN_SIZE;  /* 8 */
+            }
+
+            /* 将当前周期数据写入滑动窗口 */
+            uint8_t widx = s_mt_win_idx[i];
+            s_mt_win[i][widx].m_sum      = M;
+            s_mt_win[i][widx].first_abs  = (has_edge)
+                ? ((overflow << 16) | first_cnt) : 0;
+            s_mt_win[i][widx].last_abs   = (has_edge)
+                ? ((overflow << 16) | last_cnt) : 0;
+            s_mt_win[i][widx].has_edge   = has_edge;
+            s_mt_win[i][widx].last_dir   = last_dir;
+            s_mt_win[i][widx].last_period = period;
+
+            /* 更新窗口索引和有效深度 */
+            s_mt_win_idx[i] = (uint8_t)((widx + 1U) % MT_WIN_SIZE);
+            if (s_mt_win_depth[i] < MT_WIN_SIZE) {
+                s_mt_win_depth[i]++;
+            }
+
+            /* K不能超过当前有效深度 */
+            if (K > s_mt_win_depth[i]) {
+                K = s_mt_win_depth[i];
+            }
+
+            int32_t rpm = rpm_single;  /* 默认使用单周期结果 */
+
+            if (K >= 2) {
+                /* 从最新写入的条目开始, 向前累积K个周期 */
+                int32_t  sum_M = 0;
+                uint32_t win_first_abs = 0;
+                uint32_t win_last_abs  = 0;
+                bool     any_edge = false;
+                int32_t  win_last_dir = 0;
+                uint16_t win_last_period = 0;
+
+                for (uint8_t k = 0; k < K; k++) {
+                    /* widx已指向下一个写入位置, 最新条目在(widx-1) */
+                    int8_t ridx = (int8_t)(((int16_t)widx - 1 - (int16_t)k)
+                                 % (int16_t)MT_WIN_SIZE);
+                    if (ridx < 0) {
+                        ridx += (int8_t)MT_WIN_SIZE;
+                    }
+                    mt_win_entry_t *e = &s_mt_win[i][(uint8_t)ridx];
+                    sum_M += e->m_sum;
+                    if (e->has_edge) {
+                        if (!any_edge) {
+                            /* 第一个(最新的)有边沿的条目 → 末边沿 */
+                            win_last_abs = e->last_abs;
+                            win_last_dir = e->last_dir;
+                            win_last_period = e->last_period;
+                            any_edge = true;
+                            win_first_abs = e->first_abs;
+                        } else {
+                            /* 后续更早的条目 → 首边沿 */
+                            win_first_abs = e->first_abs;
+                        }
+                    }
+                }
+
+                if (any_edge && sum_M != 0) {
+                    /* 多周期M/T法: rpm = ΣM × CALC_CONST / (ΔT × PPR) */
+                    uint32_t delta_t = win_last_abs - win_first_abs;
+                    if (delta_t == 0) delta_t = 1;
+                    int64_t num = (int64_t)sum_M * PRJ_ENCODER_RPM_CALC_CONST;
+                    int64_t den = (int64_t)delta_t
+                        * (int64_t)s_encoder_pulses_per_rev;
+                    rpm = (int32_t)(num / den);
+                } else if (sum_M == 0 && win_last_dir != 0) {
+                    /* 全窗口无脉冲 → 平滑衰减 */
+                    uint16_t now_cnt = (uint16_t)hal_timer_get_count(
+                        s_encoder_cfg[i].timer);
+                    uint32_t now_abs = (overflow << 16) | now_cnt;
+                    uint32_t time_since = now_abs - win_last_abs;
+                    if (win_last_period == 0) win_last_period = 1;
+                    uint32_t effective =
+                        (time_since > win_last_period) ? time_since : win_last_period;
+                    int64_t num = (int64_t)win_last_dir * PRJ_ENCODER_RPM_CALC_CONST;
+                    int64_t den = (int64_t)effective
+                        * (int64_t)s_encoder_pulses_per_rev;
                     rpm = (int32_t)(num / den);
                 }
+                /* any_edge==false && win_last_dir==0 → rpm保持rpm_single(=0) */
             }
 
             rpms[i] = rpm;

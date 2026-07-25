@@ -31,6 +31,9 @@ void app_ff_init(app_ff_params_t *ff)
     ff->duty_dead = 0.0f;
     ff->rpm_min   = 0.0f;
     ff->enabled   = false;
+    ff->i_k       = 0.0f;
+    ff->i_b       = 0.0f;
+    ff->i_ff_gain = 0.0f;
 }
 
 float app_ff_compute(const app_ff_params_t *ff, float target_rpm)
@@ -138,6 +141,63 @@ bool app_ff_fit_linear(const app_ff_sweep_result_t *result,
     return true;
 }
 
+float app_ff_compute_current_correction(const app_ff_params_t *ff,
+                                         float target_rpm,
+                                         float actual_current_ma)
+{
+    if (ff == NULL || !ff->enabled || ff->i_ff_gain <= 0.0f) {
+        return 0.0f;
+    }
+
+    /* 期望电流: I_expected = i_k × |RPM| + i_b */
+    float abs_rpm = fabsf(target_rpm);
+    float expected_i = ff->i_k * abs_rpm + ff->i_b;
+
+    /* 扰动 = (I_actual - I_expected) × gain */
+    float disturbance = (actual_current_ma - expected_i) * ff->i_ff_gain;
+
+    return disturbance;
+}
+
+bool app_ff_fit_current(const app_ff_sweep_result_t *result,
+                         float *i_k_out, float *i_b_out)
+{
+    if (result == NULL || i_k_out == NULL || i_b_out == NULL) {
+        return false;
+    }
+
+    uint32_t n = result->count;
+    if (n < 2U) {
+        return false;
+    }
+
+    /* 最小二乘拟合 I = i_k × RPM + i_b */
+    float sum_x  = 0.0f;
+    float sum_y  = 0.0f;
+    float sum_xy = 0.0f;
+    float sum_xx = 0.0f;
+
+    for (uint32_t i = 0; i < n; i++) {
+        float x = result->rpm[i];
+        float y = result->current_ma[i];
+        sum_x  += x;
+        sum_y  += y;
+        sum_xy += x * y;
+        sum_xx += x * x;
+    }
+
+    float fn    = (float)n;
+    float denom = fn * sum_xx - sum_x * sum_x;
+    if (fabsf(denom) < 1e-6f) {
+        return false;
+    }
+
+    *i_k_out = (fn * sum_xy - sum_x * sum_y) / denom;
+    *i_b_out = (sum_y - (*i_k_out) * sum_x) / fn;
+
+    return true;
+}
+
 /* ======================== 扫频功能 ======================== */
 
 /** 扫频RPM序列 */
@@ -189,21 +249,25 @@ bool app_ff_sweep(void *ctx, uint32_t motor_id,
         /* 采集稳态数据(取最后1秒平均) */
         float sum_duty = 0.0f;
         float sum_rpm  = 0.0f;
+        float sum_current = 0.0f;
         for (uint32_t j = 0U; j < FF_SWEEP_SAMPLE_COUNT; j++) {
             OSAL_CRITICAL_SECTION {
                 sum_duty += (float)p_ctx->status.output[motor_id];
                 sum_rpm  += (float)p_ctx->status.rpm[motor_id];
+                sum_current += p_ctx->status.current_ma[motor_id];
             }
             osal_task_delay_ms(FF_SWEEP_CTRL_PERIOD_MS);
         }
 
         float fn = (float)FF_SWEEP_SAMPLE_COUNT;
-        result->rpm[i]  = sum_rpm  / fn;
-        result->duty[i] = sum_duty / fn;
+        result->rpm[i]        = sum_rpm  / fn;
+        result->duty[i]       = sum_duty / fn;
+        result->current_ma[i] = sum_current / fn;
         result->count++;
 
-        (void)printf("[SWEEP] RPM=%.0f -> DUTY=%.0f\r\n",
-            (double)result->rpm[i], (double)result->duty[i]);
+        (void)printf("[SWEEP] RPM=%.0f -> DUTY=%.0f I=%.0fmA\r\n",
+            (double)result->rpm[i], (double)result->duty[i],
+            (double)result->current_ma[i]);
     }
 
     /* 停止电机 */

@@ -293,6 +293,14 @@ extern "C" {
 #define ADC_VREF_MV                   (3300U)
 #define ADC_RESOLUTION                (4096U)
 
+/* Current sampling: 0.15 ohm shunt + 10x amplify */
+#define PRJ_ADC_CURRENT_SHUNT_OHM     (0.15f)
+#define PRJ_ADC_CURRENT_AMPLIFY       (10.0f)
+
+/* Overcurrent protection (mA, duration in 5ms ticks) */
+#define PRJ_ADC_CURRENT_OVERLOAD_MA   (1500U)
+#define PRJ_ADC_CURRENT_OVERLOAD_TICKS (10U)
+
 /* ================================================================
  * 8. IMU配置
  * ================================================================ */

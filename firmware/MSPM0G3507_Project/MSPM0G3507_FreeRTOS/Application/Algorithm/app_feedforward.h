@@ -54,12 +54,17 @@ typedef struct {
     float duty_dead;      /**< 死区duty (rpm_dead ≤ |RPM| < rpm_min 时的固定duty) */
     float rpm_min;        /**< 线性区起点 (|RPM| ≥ rpm_min 时使用线性公式) */
     bool  enabled;        /**< 前馈使能标志 */
+    /* --- 电流前馈扩展 (S2.3) --- */
+    float i_k;            /**< 电流-转速斜率 (mA/RPM), 扫频标定 */
+    float i_b;            /**< 电流截距 (mA), 扫频标定 */
+    float i_ff_gain;      /**< 电流前馈增益 (默认0, 逐步调大) */
 } app_ff_params_t;
 
 /** 扫频结果结构体 */
 typedef struct {
     float rpm[FF_SWEEP_POINTS];   /**< 各测试点实际RPM */
     float duty[FF_SWEEP_POINTS];  /**< 各测试点稳态duty */
+    float current_ma[FF_SWEEP_POINTS]; /**< 各测试点稳态电流(mA) */
     uint32_t count;               /**< 有效数据点数 */
 } app_ff_sweep_result_t;
 
@@ -116,6 +121,20 @@ void app_ff_apply_to_pid(const app_ff_params_t *ff,
                           app_pid_t *pid, float target);
 
 /**
+ * @brief  计算电流前馈修正量
+ * @note   基于稳态电流模型: I_expected = i_k × |RPM| + i_b
+ *         扰动 = (I_measured - I_expected) × i_ff_gain
+ *         i_ff_gain=0时返回0, 不影响现有行为
+ * @param  ff         前馈参数指针
+ * @param  target_rpm 目标转速(用于计算期望电流)
+ * @param  actual_current_ma 实际电流(mA)
+ * @retval 电流前馈修正量(叠加到duty输出)
+ */
+float app_ff_compute_current_correction(const app_ff_params_t *ff,
+                                         float target_rpm,
+                                         float actual_current_ma);
+
+/**
  * @brief  最小二乘线性拟合(从扫频结果计算k, b)
  * @param  result 扫频结果指针
  * @param  k_out  斜率输出指针
@@ -125,6 +144,17 @@ void app_ff_apply_to_pid(const app_ff_params_t *ff,
  */
 bool app_ff_fit_linear(const app_ff_sweep_result_t *result,
                         float *k_out, float *b_out);
+
+/**
+ * @brief  从扫频结果拟合电流模型参数(i_k, i_b)
+ * @param  result 扫频结果指针
+ * @param  i_k_out 电流斜率输出指针 (mA/RPM)
+ * @param  i_b_out 电流截距输出指针 (mA)
+ * @retval true   拟合成功
+ * @retval false  数据不足或退化
+ */
+bool app_ff_fit_current(const app_ff_sweep_result_t *result,
+                         float *i_k_out, float *i_b_out);
 
 /**
  * @brief  执行前馈扫频标定(阻塞式, 需在任务中调用)

@@ -1,67 +1,171 @@
 /**
  * @file    bsp_adc.c
  * @brief   ADC采样驱动实现
- * @note    基于hal_adc实现ADC0单次采样和电压转换
- *          支持阻塞轮询模式和中断模式两种采样方式
+ * @note    基于ADC1实现5通道采样(4路电流+1路电压)
+ *          repeat模式下ADC自动循环转换5个MEM通道
+ *          MEM4(最后一个)完成中断触发ISR, 一次性读取5个结果
+ *
+ *          电流换算公式:
+ *            I(mA) = raw × VREF_mV / RESOLUTION / SHUNT_OHM / AMPLIFY
+ *                  = raw × 3300 / 4096 / 0.15 / 10
+ *                  = raw × 0.537 mA
+ *
+ *          采样时序:
+ *            sampleTime = 5 cycles @ 4MHz = 1.25us/通道
+ *            5通道总转换时间 ≈ 6.25us
+ *
+ *          竞态保护:
+ *            s_last_raw[] 由ISR写入, 任务读取. ARM Cortex-M0+上
+ *            32位对齐的uint16_t读写是原子的, 无需额外保护.
+ *            s_adc_done 标志使用volatile, 确保编译器不优化掉读取.
  */
 #include "bsp_adc.h"
 #include "hal_adc.h"
-#include "project_config.h"
-#include "osal_api.h"
 #include "ti_msp_dl_config.h"
+#include "project_config.h"
 
-/* ======================== 私有常量 ======================== */
+/* ======================== 常量定义 ======================== */
 
-/** ADC转换超时循环计数(约1ms @80MHz) */
-#define ADC_POLL_TIMEOUT  (80000U)
+/** ADC参考电压(mV) */
+#define BSP_ADC_VREF_MV          ADC_VREF_MV
 
-/* ======================== 私有类型 ======================== */
+/** ADC分辨率(12位) */
+#define BSP_ADC_RESOLUTION       ADC_RESOLUTION
 
-/**
- * @brief ADC通道配置映射
- * @note  将BSP通道枚举映射到HAL ADC实例
- */
-typedef struct {
-    hal_adc_id_t hal_id;  /**< HAL ADC实例编号 */
-} adc_channel_config_t;
+/** 电流采样电阻值(欧姆) */
+#define BSP_ADC_SHUNT_OHM        PRJ_ADC_CURRENT_SHUNT_OHM
+
+/** 电流放大倍数 */
+#define BSP_ADC_AMPLIFY          PRJ_ADC_CURRENT_AMPLIFY
+
+/** mA/raw换算系数 */
+#define BSP_ADC_MA_PER_RAW       ((float)BSP_ADC_VREF_MV \
+                                  / (float)BSP_ADC_RESOLUTION \
+                                  / BSP_ADC_SHUNT_OHM \
+                                  / BSP_ADC_AMPLIFY)
 
 /* ======================== 私有变量 ======================== */
 
-/** ADC通道映射表 */
-static const adc_channel_config_t s_adc_channels[BSP_ADC_CH_COUNT] = {
-    /* BSP_ADC_CH_VOLTAGE → HAL_ADC_VOLTAGE */
-    { PRJ_ADC_VOLTAGE_ID },
-};
-
-/** 最近一次转换原始值(ISR写入, 任务读取) */
+/**
+ * @brief 最近一次ADC转换原始值(ISR写入, 任务读取)
+ * @note  ARM Cortex-M0+上uint16_t读写原子, 加volatile防止编译器缓存
+ */
 static volatile uint16_t s_last_raw[BSP_ADC_CH_COUNT] = {0};
 
-/** 转换完成标志(ISR置位, 任务清除) */
+/**
+ * @brief ADC转换完成标志(ISR置位, 任务清除)
+ */
 static volatile bool s_adc_done = false;
 
-/** 初始化标志 */
-static bool s_adc_inited = false;
-
-/* ======================== 公共函数实现 ======================== */
+/* ======================== 函数实现 ======================== */
 
 bsp_status_t bsp_adc_init(void)
 {
-    if (s_adc_inited) {
-        return BSP_OK;
-    }
-
-    /* 清零原始值 */
+    /* ADC硬件已由SYSCFG_DL_ADC_VOLTAGE_init()配置
+     * 此处仅清零软件状态 */
     for (uint32_t i = 0; i < BSP_ADC_CH_COUNT; i++) {
-        s_last_raw[i] = 0U;
+        s_last_raw[i] = 0;
     }
-
-    /* 使能ADC中断 */
-    NVIC_ClearPendingIRQ(ADC_VOLTAGE_INST_INT_IRQN);
-    NVIC_EnableIRQ(ADC_VOLTAGE_INST_INT_IRQN);
-
-    s_adc_inited = true;
+    s_adc_done = false;
     return BSP_OK;
 }
+
+bsp_status_t bsp_adc_start_all(void)
+{
+    /* 清除done标志, 启动新一轮转换 */
+    s_adc_done = false;
+    DL_ADC12_clearInterruptStatus(ADC_VOLTAGE_INST,
+        DL_ADC12_INTERRUPT_MEM4_RESULT_LOADED);
+    DL_ADC12_startConversion(ADC_VOLTAGE_INST);
+    return BSP_OK;
+}
+
+bool bsp_adc_is_conversion_done(void)
+{
+    return s_adc_done;
+}
+
+void bsp_adc_clear_done_flag(void)
+{
+    s_adc_done = false;
+}
+
+void bsp_adc_irq_handler(void)
+{
+    DL_ADC12_IIDX iidx = DL_ADC12_getPendingInterrupt(ADC_VOLTAGE_INST);
+
+    if (iidx == DL_ADC12_IIDX_MEM4_RESULT_LOADED) {
+        /* MEM4是最后一个通道, 此刻5个MEM结果都已就绪 */
+        s_last_raw[BSP_ADC_CH_CURRENT_1] =
+            (uint16_t)DL_ADC12_getMemResult(ADC_VOLTAGE_INST,
+                DL_ADC12_MEM_IDX_0);
+        s_last_raw[BSP_ADC_CH_CURRENT_2] =
+            (uint16_t)DL_ADC12_getMemResult(ADC_VOLTAGE_INST,
+                DL_ADC12_MEM_IDX_1);
+        s_last_raw[BSP_ADC_CH_CURRENT_3] =
+            (uint16_t)DL_ADC12_getMemResult(ADC_VOLTAGE_INST,
+                DL_ADC12_MEM_IDX_2);
+        s_last_raw[BSP_ADC_CH_CURRENT_4] =
+            (uint16_t)DL_ADC12_getMemResult(ADC_VOLTAGE_INST,
+                DL_ADC12_MEM_IDX_3);
+        s_last_raw[BSP_ADC_CH_VOLTAGE] =
+            (uint16_t)DL_ADC12_getMemResult(ADC_VOLTAGE_INST,
+                DL_ADC12_MEM_IDX_4);
+
+        s_adc_done = true;
+    }
+    /* 其他中断源忽略, DL_ADC12_getPendingInterrupt会自动清除标志 */
+}
+
+uint16_t bsp_adc_get_last_raw(bsp_adc_channel_t channel)
+{
+    if ((uint32_t)channel >= BSP_ADC_CH_COUNT) {
+        return 0;
+    }
+    return s_last_raw[channel];
+}
+
+uint32_t bsp_adc_get_last_voltage(bsp_adc_channel_t channel)
+{
+    if ((uint32_t)channel >= BSP_ADC_CH_COUNT) {
+        return 0;
+    }
+    uint16_t raw = s_last_raw[channel];
+    return ((uint32_t)raw * BSP_ADC_VREF_MV) / BSP_ADC_RESOLUTION;
+}
+
+uint16_t bsp_adc_get_last_current_raw(uint8_t motor_idx)
+{
+    if (motor_idx >= 4) {
+        return 0;
+    }
+    /* 电机0~3对应通道0~3 */
+    return s_last_raw[motor_idx];
+}
+
+float bsp_adc_get_last_current_ma(uint8_t motor_idx)
+{
+    if (motor_idx >= 4) {
+        return 0.0f;
+    }
+    return (float)s_last_raw[motor_idx] * BSP_ADC_MA_PER_RAW;
+}
+
+void bsp_adc_get_all_currents_ma(float currents_ma[4])
+{
+    if (currents_ma == NULL) return;
+    for (uint32_t i = 0; i < 4; i++) {
+        currents_ma[i] = (float)s_last_raw[i] * BSP_ADC_MA_PER_RAW;
+    }
+}
+
+uint32_t bsp_adc_get_bus_voltage_mv(void)
+{
+    return ((uint32_t)s_last_raw[BSP_ADC_CH_VOLTAGE] * BSP_ADC_VREF_MV)
+           / BSP_ADC_RESOLUTION;
+}
+
+/* ---- 旧接口实现(保留向后兼容) ---- */
 
 bsp_status_t bsp_adc_read_raw(bsp_adc_channel_t channel,
                                 uint16_t *raw_val)
@@ -69,37 +173,27 @@ bsp_status_t bsp_adc_read_raw(bsp_adc_channel_t channel,
     if (raw_val == NULL) {
         return BSP_ERR_NULL_PTR;
     }
-
     if ((uint32_t)channel >= BSP_ADC_CH_COUNT) {
         return BSP_ERR_INVALID_PARAM;
     }
 
-    hal_adc_id_t hal_id = s_adc_channels[channel].hal_id;
+    /* 启动转换 */
+    s_adc_done = false;
+    DL_ADC12_clearInterruptStatus(ADC_VOLTAGE_INST,
+        DL_ADC12_INTERRUPT_MEM4_RESULT_LOADED);
+    DL_ADC12_startConversion(ADC_VOLTAGE_INST);
 
-    /* 启动软件转换 */
-    hal_status_t ret = hal_adc_start_conversion(hal_id);
-    if (ret != HAL_OK) {
-        return BSP_ERR_HW_FAULT;
+    /* 轮询等待完成(最大等待约100us) */
+    uint32_t timeout = 5000U;
+    while (!s_adc_done && timeout-- > 0) {
+        /* 紧凑循环等待 */
     }
 
-    /* 轮询等待转换完成 */
-    uint32_t timeout = ADC_POLL_TIMEOUT;
-
-    while (hal_adc_is_busy(hal_id)) {
-        if (timeout == 0U) {
-            return BSP_ERR_TIMEOUT;
-        }
-        timeout--;
+    if (!s_adc_done) {
+        return BSP_ERR_TIMEOUT;
     }
 
-    /* 转换完成, 读取结果 */
-    uint16_t result = 0U;
-    ret = hal_adc_read_result(hal_id, &result);
-    if (ret != HAL_OK) {
-        return BSP_ERR_HW_FAULT;
-    }
-
-    *raw_val = result;
+    *raw_val = s_last_raw[channel];
     return BSP_OK;
 }
 
@@ -109,91 +203,26 @@ bsp_status_t bsp_adc_read_voltage(bsp_adc_channel_t channel,
     if (voltage == NULL) {
         return BSP_ERR_NULL_PTR;
     }
-
-    uint16_t raw;
-
-    bsp_status_t ret = bsp_adc_read_raw(channel, &raw);
-    if (ret != BSP_OK) {
-        return ret;
+    if ((uint32_t)channel >= BSP_ADC_CH_COUNT) {
+        return BSP_ERR_INVALID_PARAM;
     }
 
-    /* voltage(mV) = raw * VREF(mV) / RESOLUTION */
-    *voltage = (uint32_t)raw * PRJ_ADC_VREF_MV
-               / PRJ_ADC_RESOLUTION;
+    uint16_t raw;
+    bsp_status_t status = bsp_adc_read_raw(channel, &raw);
+    if (status != BSP_OK) {
+        return status;
+    }
 
+    *voltage = ((uint32_t)raw * BSP_ADC_VREF_MV) / BSP_ADC_RESOLUTION;
     return BSP_OK;
 }
 
 bsp_status_t bsp_adc_start_conversion(bsp_adc_channel_t channel)
 {
-    if ((uint32_t)channel >= BSP_ADC_CH_COUNT) {
-        return BSP_ERR_INVALID_PARAM;
-    }
-
-    hal_status_t ret = hal_adc_start_conversion(
-        s_adc_channels[channel].hal_id);
-    if (ret != HAL_OK) {
-        return BSP_ERR_HW_FAULT;
-    }
-
+    (void)channel;  /* repeat模式下所有通道一起转换 */
+    s_adc_done = false;
+    DL_ADC12_clearInterruptStatus(ADC_VOLTAGE_INST,
+        DL_ADC12_INTERRUPT_MEM4_RESULT_LOADED);
+    DL_ADC12_startConversion(ADC_VOLTAGE_INST);
     return BSP_OK;
-}
-
-void bsp_adc_irq_handler(void)
-{
-    /* 读取IIDX应答中断, 不清零则中断不会再触发 */
-    DL_ADC12_IIDX iidx = DL_ADC12_getPendingInterrupt(ADC_VOLTAGE_INST);
-    if (iidx != DL_ADC12_IIDX_MEM0_RESULT_LOADED) {
-        return;
-    }
-
-    /* 读取转换结果(仅通道0) */
-    uint16_t result = 0U;
-    hal_status_t ret = hal_adc_read_result(
-        s_adc_channels[BSP_ADC_CH_VOLTAGE].hal_id, &result);
-
-    if (ret == HAL_OK) {
-        s_last_raw[BSP_ADC_CH_VOLTAGE] = result;
-    }
-    s_adc_done = true;
-}
-
-bool bsp_adc_is_conversion_done(void)
-{
-    bool done;
-    OSAL_CRITICAL_SECTION {
-        done = s_adc_done;
-    }
-    return done;
-}
-
-void bsp_adc_clear_done_flag(void)
-{
-    OSAL_CRITICAL_SECTION {
-        s_adc_done = false;
-    }
-}
-
-void ADC_VOLTAGE_INST_IRQHandler(void)
-{
-    bsp_adc_irq_handler();
-}
-
-uint16_t bsp_adc_get_last_raw(bsp_adc_channel_t channel)
-{
-    if ((uint32_t)channel >= BSP_ADC_CH_COUNT) {
-        return 0U;
-    }
-
-    return s_last_raw[channel];
-}
-
-uint32_t bsp_adc_get_last_voltage(bsp_adc_channel_t channel)
-{
-    if ((uint32_t)channel >= BSP_ADC_CH_COUNT) {
-        return 0U;
-    }
-
-    uint16_t raw = s_last_raw[channel];
-    return (uint32_t)raw * PRJ_ADC_VREF_MV / PRJ_ADC_RESOLUTION;
 }
