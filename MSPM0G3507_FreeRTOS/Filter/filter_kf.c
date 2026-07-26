@@ -47,10 +47,7 @@
 /* 前向声明 (kf_update 内部调用 kf_reset) */
 void kf_reset(filter_t *self);
 
-/* 协方差健康检查阈值：仅用于发现数值退化，不改变正常滤波路径。 */
-#define KF_COVARIANCE_MAX          (1.0e6f)
-#define KF_COVARIANCE_SYMMETRY_EPS (1.0e-5f)
-#define KF_COVARIANCE_DET_EPS      (1.0e-6f)
+/* Covariance health thresholds are centralized in filter_param_defaults.h. */
 
 /**
  * @brief 检查单轴 2x2 协方差矩阵是否仍满足基本数值健康条件
@@ -75,17 +72,17 @@ static bool kf_covariance_axis_is_healthy(const kf_priv_t *p, int axis)
 
     /* 方差不能为负，且任何协方差元素都不能长期无界增长。 */
     if (p00 < 0.0f || p11 < 0.0f ||
-        fabsf(p00) > KF_COVARIANCE_MAX ||
-        fabsf(p01) > KF_COVARIANCE_MAX ||
-        fabsf(p10) > KF_COVARIANCE_MAX ||
-        fabsf(p11) > KF_COVARIANCE_MAX) {
+        fabsf(p00) > FILTER_KF_COVARIANCE_MAX ||
+        fabsf(p01) > FILTER_KF_COVARIANCE_MAX ||
+        fabsf(p10) > FILTER_KF_COVARIANCE_MAX ||
+        fabsf(p11) > FILTER_KF_COVARIANCE_MAX) {
         return false;
     }
 
     /* 允许极小的浮点舍入误差，但拒绝明显的非对称。 */
     {
         const float scale = fmaxf(1.0f, fmaxf(fabsf(p01), fabsf(p10)));
-        if (fabsf(p01 - p10) > KF_COVARIANCE_SYMMETRY_EPS * scale) {
+        if (fabsf(p01 - p10) > FILTER_KF_COVARIANCE_SYMMETRY_EPS * scale) {
             return false;
         }
     }
@@ -94,7 +91,7 @@ static bool kf_covariance_axis_is_healthy(const kf_priv_t *p, int axis)
     {
         const float product = p00 * p11;
         const float determinant = product - p01 * p01;
-        const float tolerance = KF_COVARIANCE_DET_EPS * fmaxf(product, 1.0e-12f);
+        const float tolerance = FILTER_KF_COVARIANCE_DET_EPS * fmaxf(product, 1.0e-12f);
         if (isnan(product) || isinf(product) ||
             isnan(determinant) || isinf(determinant) ||
             determinant < -tolerance) {
