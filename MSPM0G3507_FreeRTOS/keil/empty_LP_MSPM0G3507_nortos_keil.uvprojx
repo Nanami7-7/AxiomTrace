@@ -516,6 +516,16 @@
               <FilePath>..\Application\app_state_snapshot.h</FilePath>
             </File>
             <File>
+              <FileName>app_imu_console.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\Application\app_imu_console.c</FilePath>
+            </File>
+            <File>
+              <FileName>app_imu_console.h</FileName>
+              <FileType>5</FileType>
+              <FilePath>..\Application\app_imu_console.h</FilePath>
+            </File>
+            <File>
               <FileName>task_control.c</FileName>
               <FileType>1</FileType>
               <FilePath>..\Application\Task\task_control.c</FilePath>
@@ -1512,6 +1522,16 @@
               <FileName>app_state_snapshot.h</FileName>
               <FileType>5</FileType>
               <FilePath>..\Application\app_state_snapshot.h</FilePath>
+            </File>
+            <File>
+              <FileName>app_imu_console.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\Application\app_imu_console.c</FilePath>
+            </File>
+            <File>
+              <FileName>app_imu_console.h</FileName>
+              <FileType>5</FileType>
+              <FilePath>..\Application\app_imu_console.h</FilePath>
             </File>
             <File>
               <FileName>task_control.c</FileName>

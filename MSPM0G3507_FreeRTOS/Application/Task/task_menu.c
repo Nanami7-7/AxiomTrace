@@ -9,6 +9,7 @@
 #include "app_pid.h"
 #include "app_feedforward.h"
 #include "app_vofa.h"
+#include "app_imu_console.h"
 #include "app_complementary_filter.h"
 #include "osal_api.h"
 #include "bsp_led.h"
@@ -1042,7 +1043,22 @@ void app_menu_task(void *param)
 #else
         if (menu_read_line(line_buf, MENU_LINE_BUF_SIZE, &line_pos)) {
 #endif
-            menu_drvscope_cmd_t scope_cmd;
+            /*
+             * 终端通常以 CRLF 结束命令。menu_read_line() 已在 CR 上
+             * 返回一次，随后 LF 会形成空行；空行不能被当成普通菜单
+             * 命令，否则会误触发 app_imu_console_stop()。
+             */
+            if (line_buf[0] != '\0') {
+                menu_drvscope_cmd_t scope_cmd;
+                app_imu_console_cmd_result_t imu_result =
+                    app_imu_console_handle_command(line_buf);
+                if (imu_result != APP_IMU_CONSOLE_CMD_NOT_HANDLED) {
+                    /* 开始/查询时不要立刻刷整页电机状态，避免抢占 UART。 */
+                    need_refresh =
+                        (imu_result == APP_IMU_CONSOLE_CMD_STREAM_STOPPED);
+                } else {
+                /* 普通菜单命令与 CSV 遥测共享 UART，执行前关闭连续输出。 */
+                (void)app_imu_console_stop();
 
 #if (PRJ_BLE_MENU_ENABLE != 0U)
             if (menu_handle_ble_command(line_buf, &ble_monitor_enabled)) {
@@ -1155,6 +1171,9 @@ void app_menu_task(void *param)
                 }
             }
         }
+            }
+
+            }
 
 #if (PRJ_BLE_MENU_ENABLE != 0U) && (PRJ_BLE_MENU_CONSOLE_ENABLE == 0U)
         if (ble_monitor_enabled) {

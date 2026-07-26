@@ -397,6 +397,26 @@ extern "C" {
  *        Re-enable only after the UART TX arbitration work package is verified.
  */
 #define PRJ_IMU_UART_TELEMETRY_ENABLE (0U)
+/** 允许通过菜单命令查询 IMU 并开启受控 UART0 CSV 遥测。 */
+#define PRJ_IMU_CONSOLE_ENABLE              (1U)
+/** IMU 连续输出默认周期(ms)；上电默认仍为关闭状态。 */
+#define PRJ_IMU_CONSOLE_DEFAULT_PERIOD_MS   (100U)
+/** IMU 连续输出最小周期(ms)，避免完整诊断帧占满 UART 带宽。 */
+#define PRJ_IMU_CONSOLE_MIN_PERIOD_MS       (20U)
+/** IMU 连续输出最大周期(ms)。 */
+#define PRJ_IMU_CONSOLE_MAX_PERIOD_MS       (1000U)
+
+#if (PRJ_IMU_CONSOLE_ENABLE > 1U)
+#error "PRJ_IMU_CONSOLE_ENABLE must be 0 or 1"
+#endif
+#if (PRJ_IMU_CONSOLE_MIN_PERIOD_MS == 0U) || \
+    (PRJ_IMU_CONSOLE_MIN_PERIOD_MS > PRJ_IMU_CONSOLE_MAX_PERIOD_MS)
+#error "Invalid IMU console period range"
+#endif
+#if (PRJ_IMU_CONSOLE_DEFAULT_PERIOD_MS < PRJ_IMU_CONSOLE_MIN_PERIOD_MS) || \
+    (PRJ_IMU_CONSOLE_DEFAULT_PERIOD_MS > PRJ_IMU_CONSOLE_MAX_PERIOD_MS)
+#error "Invalid IMU console default period"
+#endif
 /* IMU任务优先级与栈大小由 app_main.h 中 APP_TASK_PRIORITY_IMU /
  * APP_TASK_STACK_IMU 统一管理, 此处不重复定义 */
 

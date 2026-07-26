@@ -11,6 +11,7 @@
 
 #include "app_main.h"
 #include "app_vofa.h"
+#include "app_imu_console.h"
 #include "Task/task_control.h"
 #include "Task/task_menu.h"
 #include "Task/task_imu.h"
@@ -188,6 +189,9 @@ int32_t app_main_init(void)
     }
 
     /* 初始化PID控制器 */
+    /* 初始化 IMU 控制台；默认仅接收命令，不启动连续输出。 */
+    app_imu_console_init();
+
     pid_controllers_init();
 
     /* 初始化互补滤波器 */

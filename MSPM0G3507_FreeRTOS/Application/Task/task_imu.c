@@ -7,6 +7,7 @@
  *          优先级: 4(介于control=5和menu=2之间)
  */
 #include "task_imu.h"
+#include "app_imu_console.h"
 #include "app_main.h"
 #include "osal_api.h"
 #include "project_config.h"
@@ -221,6 +222,29 @@ void app_imu_task(void *param)
             
             /* 时间戳 (OSAL tick, 不需要在临界区内) */
             ctx->imu.timestamp_ms = osal_ticks_to_ms(osal_get_tick_count());
+            /* 提交独立副本，控制台内部负责状态保护和非阻塞 DMA 输出。 */
+            {
+                app_imu_console_sample_t console_sample;
+                console_sample.accel_x_g = data.ax / PRJ_GRAVITY_MS2;
+                console_sample.accel_y_g = data.ay / PRJ_GRAVITY_MS2;
+                console_sample.accel_z_g = data.az / PRJ_GRAVITY_MS2;
+                console_sample.gyro_x_dps = data.gx;
+                console_sample.gyro_y_dps = data.gy;
+                console_sample.gyro_z_dps = data.gz;
+                console_sample.pitch = data.pitch;
+                console_sample.roll = data.roll;
+                console_sample.yaw = data.yaw;
+                console_sample.kf_p00_x = g_imu_ctx.kf_p00_x;
+                console_sample.kf_p00_y = g_imu_ctx.kf_p00_y;
+                console_sample.kf_p00_z = g_imu_ctx.kf_p00_z;
+                console_sample.gyro_mag_dps = g_imu_ctx.gyro_mag_dps;
+                console_sample.acc_norm_err = g_imu_ctx.acc_norm_err;
+                console_sample.kf_p11_x = g_imu_ctx.kf_p11_x;
+                console_sample.temperature = data.temperature;
+                console_sample.kf_bias_z = g_imu_ctx.kf_bias_z;
+                console_sample.timestamp_ms = ctx->imu.timestamp_ms;
+                app_imu_console_update(&console_sample);
+            }
             
 #if (PRJ_IMU_UART_TELEMETRY_ENABLE != 0U)
             /* Optional periodic IMU telemetry; disabled by default on shared UART0. */
