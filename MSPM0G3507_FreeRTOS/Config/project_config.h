@@ -20,18 +20,25 @@ extern "C" {
 #include "filter_tuning.h"
 
 /* ================================================================
- * Project identity compatibility aliases
- * project_version.h remains dependency-free and is retained as
- * the rollback boundary for this migration stage.
- * ================================================================
- */
-#define PRJ_VERSION_MAJOR        PROJECT_VERSION_MAJOR
-#define PRJ_VERSION_MINOR        PROJECT_VERSION_MINOR
-#define PRJ_VERSION_PATCH        PROJECT_VERSION_PATCH
-#define PRJ_VERSION_STRING       PROJECT_VERSION_STRING
-#define PRJ_PROTOCOL_VERSION     PROJECT_PROTOCOL_VERSION
-#define PRJ_BOARD_NAME           PROJECT_BOARD_NAME
-#define PRJ_MOTOR_DRIVER_NAME    PROJECT_MOTOR_DRIVER_NAME
+ * Project identity canonical configuration
+ *
+ * project_version.h remains included below as a dependency-free legacy
+ * compatibility header. New firmware code should use the PRJ_* names.
+ * ================================================================ */
+/** 固件版本主版号。 */
+#define PRJ_VERSION_MAJOR        (0U)
+/** 固件版本次版号。 */
+#define PRJ_VERSION_MINOR        (1U)
+/** 固件版本修订号。 */
+#define PRJ_VERSION_PATCH        (0U)
+/** 固件版本字符串。 */
+#define PRJ_VERSION_STRING       "0.1.0"
+/** 固件与上位机文本协议的兼容级别。 */
+#define PRJ_PROTOCOL_VERSION     (1U)
+/** 当前硬件板卡名称。 */
+#define PRJ_BOARD_NAME           "MSPM0G3507"
+/** 当前电机驱动器名称。 */
+#define PRJ_MOTOR_DRIVER_NAME    "DRV8870"
 
 /* ================================================================
  *  LED配置
