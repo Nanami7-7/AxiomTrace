@@ -1025,6 +1025,7 @@ void app_menu_task(void *param)
     (void)printf("  - Outputs: angle error, turn/stable phase stats, bias_z gating, verdict\r\n");
     (void)printf("Type 'turnend' to finish turn (after reaching target angle).\r\n");
     (void)printf("Type 'kftune N' to run KF parameter sweep (N sec/set, 9 sets).\r\n");
+    (void)printf("Type 'rtosdiag' to show FreeRTOS stack/heap diagnostics.\r\n");
     (void)printf("  - Sweeps Q_angle x Q_bias, outputs drift/std/jump, finds best params\r\n");
 
     for (;;) {
@@ -1109,6 +1110,21 @@ void app_menu_task(void *param)
                 need_refresh = true;
             } else if (strcmp(line_buf, "enc") == 0) {
                 app_debug_encoder_stream(50);
+                need_refresh = true;
+            } else if (strcmp(line_buf, "rtosdiag") == 0) {
+                app_runtime_diag_t runtime_diag;
+                if (app_runtime_diag_read(&runtime_diag)) {
+                    (void)printf("RTOS: ctrl_stack=%lu words, menu_stack=%lu words, imu_stack=%lu\r\n",
+                        (unsigned long)runtime_diag.control_stack_high_watermark_words,
+                        (unsigned long)runtime_diag.menu_stack_high_watermark_words,
+                        (unsigned long)runtime_diag.imu_stack_high_watermark_words);
+                    (void)printf("RTOS: heap_free=%lu bytes, heap_min_free=%lu bytes, fault=%lu\r\n",
+                        (unsigned long)runtime_diag.free_heap_bytes,
+                        (unsigned long)runtime_diag.minimum_ever_free_heap_bytes,
+                        (unsigned long)runtime_diag.fault_code);
+                } else {
+                    (void)printf("RTOS diagnostics unavailable: invalid output buffer.\r\n");
+                }
                 need_refresh = true;
             } else if (strcmp(line_buf, "diag") == 0) {
                 app_debug_encoder_diag(ctx, selected_motor);

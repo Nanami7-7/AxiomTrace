@@ -16,6 +16,7 @@
 #include "Task/task_menu.h"
 #include "Task/task_imu.h"
 #include "osal_api.h"
+#include "portable.h"
 #include <stdio.h>
 #include "bsp_led.h"
 #include "bsp_motor.h"
@@ -58,8 +59,62 @@ static osal_task_handle_t s_menu_task_handle;
 
 /** IMU任务句柄 */
 static osal_task_handle_t s_imu_task_handle;
+/** 首个不可恢复运行时故障码；故障路径只做对齐字写入。 */
+static volatile uint32_t s_runtime_fault_code = APP_RUNTIME_FAULT_NONE;
 
 /* ======================== 私有函数: BSP初始化 ======================== */
+
+/**
+ * @brief 读取 FreeRTOS 运行时诊断快照。
+ */
+bool app_runtime_diag_read(app_runtime_diag_t *out)
+{
+    if (out == NULL) {
+        return false;
+    }
+
+    out->control_stack_high_watermark_words = 0U;
+    out->menu_stack_high_watermark_words = 0U;
+    out->imu_stack_high_watermark_words = 0U;
+
+#if (INCLUDE_uxTaskGetStackHighWaterMark == 1)
+    if (s_control_task_handle != NULL) {
+        out->control_stack_high_watermark_words =
+            (uint32_t)uxTaskGetStackHighWaterMark(s_control_task_handle);
+    }
+    if (s_menu_task_handle != NULL) {
+        out->menu_stack_high_watermark_words =
+            (uint32_t)uxTaskGetStackHighWaterMark(s_menu_task_handle);
+    }
+    if (s_imu_task_handle != NULL) {
+        out->imu_stack_high_watermark_words =
+            (uint32_t)uxTaskGetStackHighWaterMark(s_imu_task_handle);
+    }
+#endif
+
+#if (configSUPPORT_DYNAMIC_ALLOCATION == 1)
+    out->free_heap_bytes = (uint32_t)xPortGetFreeHeapSize();
+    out->minimum_ever_free_heap_bytes =
+        (uint32_t)xPortGetMinimumEverFreeHeapSize();
+#else
+    out->free_heap_bytes = 0U;
+    out->minimum_ever_free_heap_bytes = 0U;
+#endif
+
+    out->fault_code = s_runtime_fault_code;
+    return true;
+}
+
+/**
+ * @brief 记录首个不可恢复的 FreeRTOS 运行时故障。
+ */
+void app_runtime_diag_record_fault(uint32_t fault_code)
+{
+    if ((fault_code != APP_RUNTIME_FAULT_NONE) &&
+        (s_runtime_fault_code == APP_RUNTIME_FAULT_NONE)) {
+        s_runtime_fault_code = fault_code;
+    }
+}
 
 /**
  * @brief  初始化所有BSP模块

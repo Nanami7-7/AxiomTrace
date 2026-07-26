@@ -81,6 +81,49 @@ void app_motor_stop(app_shared_ctx_t *ctx, uint32_t motor_idx);
  */
 void app_motor_stop_all(app_shared_ctx_t *ctx);
 
+
+/** FreeRTOS 运行时故障?当前没有记录的故障? */
+#define APP_RUNTIME_FAULT_NONE             (0U)
+/** FreeRTOS 运行时故障?任务栈溢出? */
+#define APP_RUNTIME_FAULT_STACK_OVERFLOW   (1U)
+/** FreeRTOS 运行时故障?动态内存分配失败? */
+#define APP_RUNTIME_FAULT_MALLOC_FAILED    (2U)
+
+/**
+ * @brief FreeRTOS 运行时资源和故障诊断快照?
+ */
+typedef struct {
+    /** 控制任务栈历史最小剩余空间，单位为 StackType_t 个数? */
+    uint32_t control_stack_high_watermark_words;
+    /** 菜单任务栈历史最小剩余空间，单位为 StackType_t 个数? */
+    uint32_t menu_stack_high_watermark_words;
+    /** IMU 任务栈历史最小剩余空间，单位为 StackType_t 个数? */
+    uint32_t imu_stack_high_watermark_words;
+    /** 当前 FreeRTOS heap 剩余字节数? */
+    uint32_t free_heap_bytes;
+    /** FreeRTOS heap 历史最小剩余字节数? */
+    uint32_t minimum_ever_free_heap_bytes;
+    /** 已记录的首个运行时故障码? */
+    uint32_t fault_code;
+} app_runtime_diag_t;
+
+/**
+ * @brief 读取当前 FreeRTOS 运行时诊断快照?
+ * @param[out] out 输出诊断结构体，不能为 NULL?
+ * @retval true  读取成功?
+ * @retval false 参数无效?
+ * @note 该接口只读诊断数据，不会阻塞，也不会修改控制/IMU任务状态?
+ */
+bool app_runtime_diag_read(app_runtime_diag_t *out);
+
+/**
+ * @brief 记录不可恢复的 FreeRTOS 运行时故障?
+ * @param fault_code 故障码，使用 APP_RUNTIME_FAULT_* 定义?
+ * @note 该接口供异常钩子调用；禁止在其中打印、加锁、分配内存或阻塞等待?
+ *       只保留首次记录的故障，避免故障现场被后续路径覆盖?
+ */
+void app_runtime_diag_record_fault(uint32_t fault_code);
+
 #ifdef __cplusplus
 }
 #endif

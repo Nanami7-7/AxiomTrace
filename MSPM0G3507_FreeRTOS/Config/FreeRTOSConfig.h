@@ -116,7 +116,7 @@
 /* 定义应使用哪些钩子（回调）函数的常量 */
 #define configUSE_IDLE_HOOK 0                          // 禁用空闲钩子函数
 #define configUSE_TICK_HOOK 0                          // 禁用滴答钩子函数
-#define configUSE_MALLOC_FAILED_HOOK 0                 // 禁用内存分配失败钩子函数
+#define configUSE_MALLOC_FAILED_HOOK 1                 // 禁用内存分配失败钩子函数
 
 /* 提供用于调试和优化辅助的常量 */
 /*
@@ -203,7 +203,7 @@
 #define INCLUDE_vTaskSuspend 1                         // 包含任务挂起函数
 #define INCLUDE_vTaskDelayUntil 1                      // 包含任务延迟到函数
 #define INCLUDE_vTaskDelay 1                           // 包含任务延迟函数
-#define INCLUDE_uxTaskGetStackHighWaterMark 0          // 不包含获取任务栈最小剩余空间函数
+#define INCLUDE_uxTaskGetStackHighWaterMark 1          // 不包含获取任务栈最小剩余空间函数
 #define INCLUDE_xTaskGetIdleTaskHandle 0               // 不包含获取空闲任务句柄函数
 #define INCLUDE_eTaskGetState 1                        // 包含获取任务状态函数
 #define INCLUDE_xTaskResumeFromISR 0                   // 不包含从中断恢复任务函数

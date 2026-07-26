@@ -106,8 +106,24 @@ OSAL_WEAK void vApplicationStackOverflowHook(
 {
     (void)pxTask;
     (void)pcTaskName;
+    app_runtime_diag_record_fault(APP_RUNTIME_FAULT_STACK_OVERFLOW);
     for (;;) {
     }
 }
 
 #endif /* configCHECK_FOR_STACK_OVERFLOW */
+
+#if (configUSE_MALLOC_FAILED_HOOK == 1)
+
+/**
+ * @brief FreeRTOS 动态内存分配失败钩子。
+ * @note 记录故障后停机，避免继续运行导致控制状态不可预测。
+ */
+void vApplicationMallocFailedHook(void)
+{
+    app_runtime_diag_record_fault(APP_RUNTIME_FAULT_MALLOC_FAILED);
+    for (;;) {
+    }
+}
+
+#endif /* configUSE_MALLOC_FAILED_HOOK */
