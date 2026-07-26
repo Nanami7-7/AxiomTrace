@@ -6,7 +6,7 @@
 
 ### Added
 
-- 统一固件版本头 `Config/project_version.h`；
+- 统一固件版本头 `Config/project_config.h`；
 - 通信协议 v1 的 `Info?`、`Config?`、`Status?`、`Status=0..3`、`Stream=1/0`；
 - 稳定的 11 通道 FireWater 遥测契约；
 - PySide6 中英双语配置、控制、串口终端、实时绘图与 CSV 导出软件；

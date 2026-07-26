@@ -35,6 +35,6 @@
 1. 对外协议变更必须同步更新通信协议、GUI `protocol.py`和协议测试；
 2. 公共函数签名或配置宏变化必须同步更新公共接口参考与外设手册；
 3. SysConfig生成文件不建议手工修改，应修改 `empty.syscfg`后重新生成；
-4. 版本发布必须同步更新根目录 `CHANGELOG.md`、发布说明和 `project_version.h`；
+4. 版本发布必须同步更新根目录 `CHANGELOG.md`、发布说明和 `Config/project_config.h` 中的 `PRJ_*` 版本/协议配置；
 5. FactoryTest不得混入生产运行流程，测试文档必须写明安全前提、退出条件和恢复状态；
 6. 发布HEX只存放在 `keil/Release/`，普通Keil构建目录不纳入版本控制。
