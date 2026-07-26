@@ -41,19 +41,6 @@ extern "C" {
 /** 当前电机驱动器名称。 */
 #define PRJ_MOTOR_DRIVER_NAME    "DRV8870"
 
-/* Legacy PROJECT_* aliases retained for external tools and older modules. */
-#ifndef PROJECT_VERSION_MAJOR
-#define PROJECT_VERSION_MAJOR        PRJ_VERSION_MAJOR
-#endif
-#ifndef PROJECT_VERSION_MINOR
-#define PROJECT_VERSION_MINOR        PRJ_VERSION_MINOR
-#endif
-#ifndef PROJECT_VERSION_PATCH
-#define PROJECT_VERSION_PATCH        PRJ_VERSION_PATCH
-#endif
-#ifndef PROJECT_VERSION_STRING
-#define PROJECT_VERSION_STRING       PRJ_VERSION_STRING
-#endif
 #ifndef PROJECT_PROTOCOL_VERSION
 #define PROJECT_PROTOCOL_VERSION     PRJ_PROTOCOL_VERSION
 #endif
@@ -431,6 +418,8 @@ extern "C" {
 #define PRJ_MATHACL_KF_HW                  (0U)
 /** 是否为 EKF 编译 MATHACL 定点除法加速路径；默认关闭以保持现有运行行为。 */
 #define PRJ_MATHACL_EKF_HW                 (0U)
+/** 是否编译 MATHACL 矩阵实验实现；默认关闭以避免生产固件引入额外代码。 */
+#define PRJ_MATHACL_MATRIX_ENABLE          (0U)
 
 /* ================================================================
  *  IMU任务配置

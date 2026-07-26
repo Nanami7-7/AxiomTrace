@@ -9,7 +9,7 @@
 #include <string.h>
 #include <math.h>
 
-#if TEST_MATHACL_MATRIX_ENABLE
+#if (PRJ_MATHACL_MATRIX_ENABLE != 0U)
 
 /* ============================================================================
  * 模块级状态（最小化全局状态，受互斥锁保护）
@@ -401,4 +401,4 @@ void mathacl_matrix_reset_op_count(void)
     s_op_count = 0U;
 }
 
-#endif /* TEST_MATHACL_MATRIX_ENABLE */
+#endif /* PRJ_MATHACL_MATRIX_ENABLE */

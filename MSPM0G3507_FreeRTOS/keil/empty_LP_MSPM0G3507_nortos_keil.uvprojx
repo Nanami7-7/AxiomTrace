@@ -339,7 +339,7 @@
             <v6Rtti>0</v6Rtti>
             <VariousControls>
               <MiscControls></MiscControls>
-              <Define>__MSPM0G3507__;LOG_LEVEL=LOG_LEVEL_INFO;TEST_MATHACL_ENABLE=1;TEST_MATHACL_INCLUDE_FULL_BENCHMARK=1;TEST_MATHACL_MATRIX_ENABLE=0;EKF_NIS_MONITOR=1;EKF_MANEUVER_DETECT=1</Define>
+              <Define>__MSPM0G3507__;LOG_LEVEL=LOG_LEVEL_INFO;</Define>
               <Undefine></Undefine>
               <IncludePath>..\..\source\third_party\CMSIS\Core\Include;..\..\source;..\;..\Application;..\Application\test;..\Application\Task;..\Application\Algorithm;..\Filter;..\BSP;..\BSP\Peripherals;..\BSP\Devices;..\BSP\IMU;..\BSP\IMU\Ports\mspm0g3507;..\Lib\OSAL;..\Config;..\Lib\AxiomTrace;..\Lib\Math;..\Lib\FreeRTOS\include;..\Lib\FreeRTOS\portable\MemMang;..\Lib\FreeRTOS\portable\GCC\ARM_CM0;..\Lib\FreeRTOS\src</IncludePath>
             </VariousControls>
@@ -1342,7 +1342,7 @@
             <v6Rtti>0</v6Rtti>
             <VariousControls>
               <MiscControls></MiscControls>
-              <Define>__MSPM0G3507__;LOG_LEVEL=LOG_LEVEL_INFO;TEST_MATHACL_ENABLE=1;TEST_MATHACL_INCLUDE_FULL_BENCHMARK=1;TEST_MATHACL_MATRIX_ENABLE=0;EKF_NIS_MONITOR=1;EKF_MANEUVER_DETECT=1;PRJ_DRV8870_FACTORY_TEST_ENABLE=1</Define>
+              <Define>__MSPM0G3507__;LOG_LEVEL=LOG_LEVEL_INFO;PRJ_DRV8870_FACTORY_TEST_ENABLE=1</Define>
               <Undefine></Undefine>
               <IncludePath>..\..\source\third_party\CMSIS\Core\Include;..\..\source;..\;..\Application;..\Application\test;..\Application\Task;..\Application\Algorithm;..\Filter;..\BSP;..\BSP\Peripherals;..\BSP\Devices;..\BSP\IMU;..\BSP\IMU\Ports\mspm0g3507;..\Lib\OSAL;..\Config;..\Lib\AxiomTrace;..\Lib\Math;..\Lib\FreeRTOS\include;..\Lib\FreeRTOS\portable\MemMang;..\Lib\FreeRTOS\portable\GCC\ARM_CM0;..\Lib\FreeRTOS\src</IncludePath>
             </VariousControls>

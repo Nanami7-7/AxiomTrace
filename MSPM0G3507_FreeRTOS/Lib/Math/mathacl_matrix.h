@@ -13,9 +13,9 @@
  *   调用者负责滤波器实例级并发（每个实例的工作缓冲区独立）。
  *   本模块既可在 FreeRTOS 任务中调用，也可在裸机中断中调用（建议 ISR 仅使用软浮点）。
  *
- * @note 当前状态: 矩阵库实现被 TEST_MATHACL_MATRIX_ENABLE=0 条件编译排除。
+ * @note 当前状态: 矩阵库实现被 PRJ_MATHACL_MATRIX_ENABLE=0 条件编译排除。
  *       filter.c 仅包含本头文件引入声明，未调用任何 mathacl_matrix_* 函数。
- *       如需启用硬件矩阵加速，请在工程宏中设置 TEST_MATHACL_MATRIX_ENABLE=1，
+ *       如需启用硬件矩阵加速，请在工程宏中设置 PRJ_MATHACL_MATRIX_ENABLE=1，
  *       并确保 mathacl_matrix_init() 在使用前调用。
  */
 
@@ -36,8 +36,8 @@ extern "C" {
  * 编译开关与配置
  * ============================================================================ */
 
-/** @brief 启用 MATHACL 矩阵加速（依赖 PRJ_MATHACL_ENABLE） */
-#if (PRJ_MATHACL_ENABLE != 0U)
+/** @brief 启用 MATHACL 矩阵加速（依赖 PRJ_MATHACL_MATRIX_ENABLE） */
+#if (PRJ_MATHACL_MATRIX_ENABLE != 0U)
 #define MATHACL_MATRIX_ENABLE
 #endif
 

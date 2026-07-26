@@ -197,7 +197,7 @@
  *   纯监测, 不改变滤波器行为, 零风险
  * ============================================================ */
 #ifndef EKF_NIS_MONITOR
-#define EKF_NIS_MONITOR            1  /* 1=启用NIS监测, 0=关闭 (与Keil工程定义一致) */
+#define EKF_NIS_MONITOR            1  /* 1=启用NIS监测, 0=关闭 */
 #endif
 #define EKF_NIS_WINDOW_SIZE        32  /* NIS 滑动窗口大小 */
 /* chi2 95% 置信区间 (自由度=3):
@@ -240,7 +240,7 @@
  *     EKF_MANEUVER_QR_ADAPT=1 分级Q/R缩放(改变行为, 需验证)
  * ============================================================ */
 #ifndef EKF_MANEUVER_DETECT
-#define EKF_MANEUVER_DETECT         1  /* 1=启动机动等级分类, 0=关闭 (与Keil工程定义一致) */
+#define EKF_MANEUVER_DETECT         1  /* 1=启动机动等级分类, 0=关闭 */
 #endif
 #ifndef EKF_MANEUVER_QR_ADAPT
 #define EKF_MANEUVER_QR_ADAPT       0  /* 1=分级Q/R缩放, 0=不调参 */
