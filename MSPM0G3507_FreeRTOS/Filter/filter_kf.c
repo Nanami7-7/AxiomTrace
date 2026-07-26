@@ -259,7 +259,7 @@ static inline void kf_zupt_update_axis(kf_priv_t *p, int axis, float gyro_rate)
     p->P[axis][1][0] = p->P[axis][0][1];
 }
 
-#if defined(BSP_MATHACL_KF_HW)
+#if (PRJ_MATHACL_KF_HW != 0U)
 /* ============================================================
  * KF 硬件加速辅助函数（Q24 定点 MAC / DIV）
  * ============================================================ */
@@ -350,7 +350,7 @@ static inline void kf_update_axis_hw(kf_priv_t *p, int axis, float acc_angle)
 
     p->P[axis][1][0] = p->P[axis][0][1];
 }
-#endif /* BSP_MATHACL_KF_HW */
+#endif /* PRJ_MATHACL_KF_HW */
 
 /**
  * @brief 根据 use_hw 标志选择预测实现
@@ -358,7 +358,7 @@ static inline void kf_update_axis_hw(kf_priv_t *p, int axis, float acc_angle)
 static inline void kf_predict_select(kf_priv_t *p, int axis,
                                       float gyro_rate, float dt)
 {
-#if defined(BSP_MATHACL_KF_HW)
+#if (PRJ_MATHACL_KF_HW != 0U)
     if (p->use_hw) {
         kf_predict_hw(p, axis, gyro_rate, dt);
         return;
@@ -373,7 +373,7 @@ static inline void kf_predict_select(kf_priv_t *p, int axis,
 static inline void kf_update_axis_select(kf_priv_t *p, int axis,
                                           float acc_angle)
 {
-#if defined(BSP_MATHACL_KF_HW)
+#if (PRJ_MATHACL_KF_HW != 0U)
     if (p->use_hw) {
         kf_update_axis_hw(p, axis, acc_angle);
         return;
@@ -592,7 +592,7 @@ filter_t* filter_create_kf(float q_angle, float q_bias, float r_measure)
     p->R_zupt     = KF_R_ZUPT_DEFAULT;  /* 默认禁用 ZUPT */
     p->angle_min  = -180.0f;
     p->angle_max  =  180.0f;
-#if defined(BSP_MATHACL_KF_HW)
+#if (PRJ_MATHACL_KF_HW != 0U)
     p->use_hw     = 1;
 #else
     p->use_hw     = 0;

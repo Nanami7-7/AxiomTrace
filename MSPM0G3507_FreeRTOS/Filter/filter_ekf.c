@@ -77,7 +77,7 @@ static inline void ekf_state_to_output(const float *state, filter_output_t *out)
     filter_quat_to_euler(state[0], state[1], state[2], state[3], out);
 }
 
-#if defined(BSP_MATHACL_EKF_HW)
+#if (PRJ_MATHACL_EKF_HW != 0U)
 /* ============================================================
  * EKF 硬件加速辅助函数（Q24 定点除法）
  * ============================================================ */
@@ -120,7 +120,7 @@ static inline float ekf_div_hw(float num, float den)
     return 0.0f;
 }
 
-#endif /* BSP_MATHACL_EKF_HW */
+#endif /* PRJ_MATHACL_EKF_HW */
 
 
 /* ============================================================
@@ -1056,7 +1056,7 @@ filter_t* filter_create_ekf(float q_angle, float q_bias, float r_measure)
     p->R_adapt_factor = 1.0f;
     p->r_adapt_enable = EKF_R_ADAPT_ENABLE_DEFAULT;
     p->update_count = 0;
-#if defined(BSP_MATHACL_EKF_HW)
+#if (PRJ_MATHACL_EKF_HW != 0U)
     p->use_hw = 1;
 #else
     p->use_hw = 0;

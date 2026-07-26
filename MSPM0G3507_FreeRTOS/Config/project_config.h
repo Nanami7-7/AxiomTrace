@@ -425,6 +425,12 @@ extern "C" {
 #define PRJ_MATHACL_SINCOS_HW               (1U)
 /** 是否为 MATHACL 寄存器访问启用线程安全临界区。 */
 #define PRJ_MATHACL_THREAD_SAFE             (0U)
+/** 是否使用 MATHACL 硬件 SQRT 路径；默认关闭以保留已验证的软件路径。 */
+#define PRJ_MATHACL_SQRT_HW                (0U)
+/** 是否为 KF 编译 MATHACL 定点加速路径；默认关闭以保持现有运行行为。 */
+#define PRJ_MATHACL_KF_HW                  (0U)
+/** 是否为 EKF 编译 MATHACL 定点除法加速路径；默认关闭以保持现有运行行为。 */
+#define PRJ_MATHACL_EKF_HW                 (0U)
 
 /* ================================================================
  *  IMU任务配置

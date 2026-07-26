@@ -716,7 +716,7 @@ static inline float soft_asinf(float x) { return asinf(x); }
 #if (PRJ_MATHACL_ENABLE != 0U)
 
 /* SQRT: 根据宏选择 */
-#ifdef BSP_MATHACL_SQRT_HW
+#if (PRJ_MATHACL_SQRT_HW != 0U)
   #define mathacl_sqrtf(x)    hw_sqrtf(x)
 #else
   #define mathacl_sqrtf(x)    soft_sqrtf(x)

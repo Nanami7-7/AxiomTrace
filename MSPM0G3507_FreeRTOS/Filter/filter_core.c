@@ -526,7 +526,7 @@ filter_t* filter_create_static(filter_type_t type, void *buf, size_t buf_size) {
             p->R_adapt_factor = 1.0f;
             p->r_adapt_enable = EKF_R_ADAPT_ENABLE_DEFAULT;
             p->update_count = 0;
-#if defined(BSP_MATHACL_EKF_HW)
+#if (PRJ_MATHACL_EKF_HW != 0U)
             p->use_hw = 1;
 #else
             p->use_hw = 0;
@@ -588,7 +588,7 @@ filter_t* filter_create_static(filter_type_t type, void *buf, size_t buf_size) {
             p->R_zupt    = KF_R_ZUPT_DEFAULT;  /* 默认禁用 ZUPT */
             p->angle_min = KF_ANGLE_MIN_DEFAULT;
             p->angle_max = KF_ANGLE_MAX_DEFAULT;
-#if defined(BSP_MATHACL_KF_HW)
+#if (PRJ_MATHACL_KF_HW != 0U)
             p->use_hw    = 1;
 #else
             p->use_hw    = 0;
@@ -702,7 +702,7 @@ void filter_kf_set_hw(filter_t *f, int enable)
     if (!f || f->type != FILTER_TYPE_KF || !f->priv) {
         return;
     }
-#if defined(BSP_MATHACL_KF_HW)
+#if (PRJ_MATHACL_KF_HW != 0U)
     kf_priv_t *p = (kf_priv_t *)f->priv;
     p->use_hw = (enable != 0) ? 1U : 0U;
 #else
@@ -715,7 +715,7 @@ int filter_kf_get_hw(const filter_t *f)
     if (!f || f->type != FILTER_TYPE_KF || !f->priv) {
         return 0;
     }
-#if defined(BSP_MATHACL_KF_HW)
+#if (PRJ_MATHACL_KF_HW != 0U)
     const kf_priv_t *p = (const kf_priv_t *)f->priv;
     return (int)p->use_hw;
 #else
@@ -728,7 +728,7 @@ void filter_ekf_set_hw(filter_t *f, int enable)
     if (!f || f->type != FILTER_TYPE_EKF || !f->priv) {
         return;
     }
-#if defined(BSP_MATHACL_EKF_HW)
+#if (PRJ_MATHACL_EKF_HW != 0U)
     ekf_priv_t *p = (ekf_priv_t *)f->priv;
     p->use_hw = (enable != 0) ? 1U : 0U;
 #else
@@ -741,7 +741,7 @@ int filter_ekf_get_hw(const filter_t *f)
     if (!f || f->type != FILTER_TYPE_EKF || !f->priv) {
         return 0;
     }
-#if defined(BSP_MATHACL_EKF_HW)
+#if (PRJ_MATHACL_EKF_HW != 0U)
     const ekf_priv_t *p = (const ekf_priv_t *)f->priv;
     return (int)p->use_hw;
 #else
