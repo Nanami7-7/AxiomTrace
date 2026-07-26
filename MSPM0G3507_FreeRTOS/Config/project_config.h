@@ -15,15 +15,16 @@ extern "C" {
 /* ======================== 包含 ======================== */
 #include "hal_common.h"
 #include "ti_msp_dl_config.h"
-#include "project_version.h"
 #include "filter_param_defaults.h"
 #include "filter_tuning.h"
 
 /* ================================================================
  * Project identity canonical configuration
  *
- * project_version.h remains included below as a dependency-free legacy
- * compatibility header. New firmware code should use the PRJ_* names.
+ * PRJ_* is the canonical configuration used by this firmware project.
+ * project_version.h remains as an independent legacy compatibility header
+ * for external tools and older projects, but is not required to compile
+ * this firmware. New firmware code should use the PRJ_* names.
  * ================================================================ */
 /** 固件版本主版号。 */
 #define PRJ_VERSION_MAJOR        (0U)
@@ -39,6 +40,29 @@ extern "C" {
 #define PRJ_BOARD_NAME           "MSPM0G3507"
 /** 当前电机驱动器名称。 */
 #define PRJ_MOTOR_DRIVER_NAME    "DRV8870"
+
+/* Legacy PROJECT_* aliases retained for external tools and older modules. */
+#ifndef PROJECT_VERSION_MAJOR
+#define PROJECT_VERSION_MAJOR        PRJ_VERSION_MAJOR
+#endif
+#ifndef PROJECT_VERSION_MINOR
+#define PROJECT_VERSION_MINOR        PRJ_VERSION_MINOR
+#endif
+#ifndef PROJECT_VERSION_PATCH
+#define PROJECT_VERSION_PATCH        PRJ_VERSION_PATCH
+#endif
+#ifndef PROJECT_VERSION_STRING
+#define PROJECT_VERSION_STRING       PRJ_VERSION_STRING
+#endif
+#ifndef PROJECT_PROTOCOL_VERSION
+#define PROJECT_PROTOCOL_VERSION     PRJ_PROTOCOL_VERSION
+#endif
+#ifndef PROJECT_BOARD_NAME
+#define PROJECT_BOARD_NAME           PRJ_BOARD_NAME
+#endif
+#ifndef PROJECT_MOTOR_DRIVER_NAME
+#define PROJECT_MOTOR_DRIVER_NAME    PRJ_MOTOR_DRIVER_NAME
+#endif
 
 /* ================================================================
  *  LED配置
