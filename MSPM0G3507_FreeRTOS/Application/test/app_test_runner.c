@@ -18,7 +18,7 @@
 #include "bsp_timer.h"
 #include "task_imu.h"
 #include "filter.h"
-#include "filter_config.h"   /* KF_Q_ANGLE_DEFAULT 等参数宏 */
+#include "project_config.h"   /* PRJ_KF_Q_ANGLE_DEFAULT 等参数宏 */
 #include <stdio.h>
 #include <string.h>
 #include <math.h>   /* fabsf, sqrtf */
@@ -1311,12 +1311,12 @@ static void kftune_print_summary(void)
     /* 恢复默认参数, 但保持 ZUPT 启用 */
     filter_t *f = app_imu_get_filter();
     if (f != NULL) {
-        f->set_param(f, FILTER_PARAM_KF_Q_ANGLE, KF_Q_ANGLE_DEFAULT);
-        f->set_param(f, FILTER_PARAM_KF_Q_BIAS, KF_Q_BIAS_DEFAULT);
-        f->set_param(f, FILTER_PARAM_KF_R_MEASURE, KF_R_MEASURE_DEFAULT);
+        f->set_param(f, FILTER_PARAM_KF_Q_ANGLE, PRJ_KF_Q_ANGLE_DEFAULT);
+        f->set_param(f, FILTER_PARAM_KF_Q_BIAS, PRJ_KF_Q_BIAS_DEFAULT);
+        f->set_param(f, FILTER_PARAM_KF_R_MEASURE, PRJ_KF_R_MEASURE_DEFAULT);
         f->set_param(f, FILTER_PARAM_KF_R_ZUPT, KFTUNE_R_ZUPT_FIXED);
         app_imu_reset_filter();
-        printf("[KFTUNE] Restored default params (Q_a=" TOSTR(KF_Q_ANGLE_DEFAULT) ", Q_b=" TOSTR(KF_Q_BIAS_DEFAULT) ", R_m=" TOSTR(KF_R_MEASURE_DEFAULT) ", R_z=0.04)\r\n");
+        printf("[KFTUNE] Restored default params (Q_a=" TOSTR(PRJ_KF_Q_ANGLE_DEFAULT) ", Q_b=" TOSTR(PRJ_KF_Q_BIAS_DEFAULT) ", R_m=" TOSTR(PRJ_KF_R_MEASURE_DEFAULT) ", R_z=0.04)\r\n");
         printf("[KFTUNE] NOTE: R_zupt kept at 0.04 (ZUPT enabled)\r\n\r\n");
     }
 }

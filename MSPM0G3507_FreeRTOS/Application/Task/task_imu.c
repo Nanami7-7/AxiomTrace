@@ -11,7 +11,6 @@
 #include "osal_api.h"
 #include "project_config.h"
 #include "bsp_lsm6dsr.h"
-#include "filter_config.h"
 #include "bsp_uart.h"
 #include "platform.h"
 #include "spi_bridge.h"
