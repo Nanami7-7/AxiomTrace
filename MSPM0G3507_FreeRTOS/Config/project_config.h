@@ -390,6 +390,48 @@ extern "C" {
 /** IMU采集任务周期(ms), 100Hz */
 #define PRJ_IMU_TASK_PERIOD_MS       (10U)
 
+/** IMU 校准采样帧数。 */
+#define PRJ_IMU_CALIB_SAMPLES                 (300U)
+/** IMU 配置完成后的稳定等待时间(ms)。 */
+#define PRJ_IMU_CALIB_SETTLE_MS               (50U)
+/** 加速度模平方参考值(g^2)。 */
+#define PRJ_IMU_CALIB_ACC_MAG_REF             (1.0f)
+/** 加速度模平方静止判定容差(g^2)。 */
+#define PRJ_IMU_CALIB_ACC_MAG_TOL             (0.065f)
+/** 校准相邻帧加速度差分阈值(g)。 */
+#define PRJ_IMU_CALIB_ACC_DELTA_MAX           (0.08f)
+/** IMU 校准采样间隔(ms)。 */
+#define PRJ_IMU_CALIB_SAMPLE_DELAY_MS         (9U)
+
+/** 加速度方差滑动窗口长度(帧)。 */
+#define PRJ_IMU_ACC_VAR_WINDOW                (10U)
+/** 预留 IMU 读取耗时补偿(us)。 */
+#define PRJ_IMU_DT_READ_COMPENSATION_US       (200U)
+/** 加速度静止方差阈值(g^2 总和)。 */
+#define PRJ_IMU_ACC_VAR_THRESHOLD             (0.0008f)
+/** 运动状态互补滤波系数。 */
+#define PRJ_IMU_ALPHA_MOVING                  (0.99f)
+/** 静止状态互补滤波系数。 */
+#define PRJ_IMU_ALPHA_STATIONARY              (0.30f)
+/** 互补滤波系数单帧最大变化量。 */
+#define PRJ_IMU_ALPHA_SMOOTH_STEP             (0.15f)
+
+/** X/Y 轴静止陀螺偏置跟踪速率。 */
+#define PRJ_IMU_BIAS_STATIONARY_RATE          (0.1f)
+/** Z 轴静止陀螺偏置跟踪速率。 */
+#define PRJ_IMU_BIAS_STATIONARY_RATE_Z        (0.1f)
+/** 陀螺运动判定阈值(dps)。 */
+#define PRJ_IMU_GYRO_MOTION_THRESHOLD         (5.0f)
+/** 是否启用基于任务周期的 dt 异常收紧门限。 */
+#define PRJ_IMU_ODR_ALIGN                     (0U)
+/** dt 异常下限(s)。 */
+#define PRJ_IMU_DT_ANOMALY_MIN_S              (0.003)
+/** dt 异常上限(s)。 */
+#define PRJ_IMU_DT_ANOMALY_MAX_S              (0.030)
+/** IMU 异常 dt 或时间戳回绕时使用的默认周期(s)。 */
+#define PRJ_IMU_DT_DEFAULT_S                  (0.01)
+
+
 /**
  * @brief Background IMU CSV telemetry on the shared UART0.
  * @note  Disabled by default: IMU sampling and filtering continue, but no

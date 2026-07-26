@@ -24,7 +24,7 @@
 #include "log.h"
 #include "bsp_mathacl.h"  /* MATHACL 硬件加速初始化 */
 #include "bsp_timer.h"    /* bsp_get_us() 用于性能测量 */
-#include "filter_tuning.h" /* COMP_ALPHA_DEFAULT_DB / COMP_ALPHA_INV_DB (互补滤波 fallback) */
+#include "project_config.h" /* project-level IMU and filter parameters */
 #include <string.h>
 #include <math.h>
 #include <stdlib.h>
@@ -33,18 +33,13 @@
 #define M_PI 3.14159265358979323846
 #endif
 
-/* ---- 本地数学常量 (因 bsp_mathacl.h 与 ti_msp_dl_config.h 的 MATHACL 宏冲突,
- *      不能引入 project_config.h, 故本地定义, 值与 project_config.h 保持一致) ---- */
+/* ---- Local math constants fallback; preserve the existing math path. ---- */
 #ifndef PRJ_GRAVITY_MS2
 #define PRJ_GRAVITY_MS2         (9.80665f)
 #endif
 #ifndef PRJ_PI_F
 #define PRJ_PI_F                (3.14159265358979f)
 #endif
-
-/** @brief IMU 默认采样周期(秒), 对应 100Hz (1/PRJ_IMU_TASK_PERIOD_MS)
- *  与 project_config.h 中 PRJ_IMU_TASK_PERIOD_MS=10U 保持一致 */
-#define BSP_IMU_DT_DEFAULT_S    (0.01)
 
 /** @brief LSM6DSR 加速度量转换: mg → g (传感器输出 mg, 滤波器期望 g) */
 #define LSM6DSR_MG_TO_G         (0.001f)
