@@ -15,7 +15,7 @@
 #define FILTER_INTERNAL_H
 
 #include "filter.h"
-#include "filter_config.h"
+#include "filter_tuning.h"
 
 #include <stdint.h>
 #include <stddef.h>

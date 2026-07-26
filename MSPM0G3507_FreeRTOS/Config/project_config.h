@@ -17,6 +17,7 @@ extern "C" {
 #include "ti_msp_dl_config.h"
 #include "project_version.h"
 #include "filter_param_defaults.h"
+#include "filter_tuning.h"
 
 /* ================================================================
  * Project identity compatibility aliases
