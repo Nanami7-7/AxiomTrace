@@ -11,6 +11,7 @@
 #include "bsp_drv8870.h"
 #endif
 #include "app_model_id.h"
+#include "app_state_snapshot.h"
 #include "osal_api.h"
 #include "ti_msp_dl_config.h"
 #include <stdio.h>
@@ -127,13 +128,15 @@ void app_debug_encoder_diag(struct app_shared_ctx_s *ctx,
             break;
         }
 
-        int32_t ctrl_rpm, ctrl_out;
-        float pid_corr;
-        OSAL_CRITICAL_SECTION {
-            ctrl_rpm  = ctx->status.rpm[motor_id];
-            ctrl_out  = ctx->status.output[motor_id];
-            pid_corr  = ctx->status.pid_correction[motor_id];
+        app_state_snapshot_t snapshot;
+        if (!app_state_snapshot_read(ctx, &snapshot)) {
+            printf("state snapshot failed\r\n");
+            break;
         }
+
+        int32_t ctrl_rpm = snapshot.control.rpm[motor_id];
+        int32_t ctrl_out = snapshot.control.output[motor_id];
+        float pid_corr = snapshot.control.pid_correction[motor_id];
 
         int32_t M = d.count;
         int32_t calc_rpm = 0;
