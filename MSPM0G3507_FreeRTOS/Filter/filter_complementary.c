@@ -3,6 +3,10 @@
  * @brief   互补滤波器 (Complementary Filter) 实现
  */
 
+#include "project_config.h"
+
+#if (PRJ_FILTER_ENABLE_COMPLEMENTARY != 0U)
+
 #include "filter_internal.h"
 
 #include <stdbool.h>
@@ -140,3 +144,6 @@ filter_t* filter_create_complementary(float alpha)
 
     return f;
 }
+
+
+#endif /* PRJ_FILTER_ENABLE_COMPLEMENTARY */

@@ -4,6 +4,7 @@
  */
 
 #include "filter.h"
+#include "project_config.h"
 #include "filter_tuning.h"
 #include <stdio.h>
 #include <math.h>
@@ -11,6 +12,7 @@
 /* ============================================================
  * 参数描述表 - 互补滤波器
  * ============================================================ */
+#if (PRJ_FILTER_ENABLE_COMPLEMENTARY != 0U)
 static const filter_param_desc_t comp_params[] = {
     {
         .param = FILTER_PARAM_ALPHA,
@@ -23,10 +25,12 @@ static const filter_param_desc_t comp_params[] = {
         .unit = "无量纲"
     }
 };
+#endif /* PRJ_FILTER_ENABLE_COMPLEMENTARY */
 
 /* ============================================================
  * 参数描述表 - LPF
  * ============================================================ */
+#if (PRJ_FILTER_ENABLE_LPF != 0U)
 static const filter_param_desc_t lpf_params[] = {
     {
         .param = FILTER_PARAM_CUTOFF_FREQ,
@@ -39,10 +43,12 @@ static const filter_param_desc_t lpf_params[] = {
         .unit = "Hz"
     }
 };
+#endif /* PRJ_FILTER_ENABLE_LPF */
 
 /* ============================================================
  * 参数描述表 - EKF
  * ============================================================ */
+#if (PRJ_FILTER_ENABLE_EKF != 0U)
 static const filter_param_desc_t ekf_params[] = {
     {
         .param = FILTER_PARAM_Q_ANGLE,
@@ -115,10 +121,12 @@ static const filter_param_desc_t ekf_params[] = {
         .unit = "无量纲"
     }
 };
+#endif /* PRJ_FILTER_ENABLE_EKF */
 
 /* ============================================================
  * 参数描述表 - Mahony
  * ============================================================ */
+#if (PRJ_FILTER_ENABLE_MAHONY != 0U)
 static const filter_param_desc_t mahony_params[] = {
     {
         .param = FILTER_PARAM_KP,
@@ -141,10 +149,12 @@ static const filter_param_desc_t mahony_params[] = {
         .unit = "无量纲"
     }
 };
+#endif /* PRJ_FILTER_ENABLE_MAHONY */
 
 /* ============================================================
  * 参数描述表 - Madgwick
  * ============================================================ */
+#if (PRJ_FILTER_ENABLE_MADGWICK != 0U)
 static const filter_param_desc_t madgwick_params[] = {
     {
         .param = FILTER_PARAM_KP,  /* Madgwick的β映射到KP */
@@ -158,9 +168,11 @@ static const filter_param_desc_t madgwick_params[] = {
         .unit = "无量纲"
     }
 };
+#endif /* PRJ_FILTER_ENABLE_MADGWICK */
 /* ============================================================
  * 参数描述表 - LKF（线性卡尔曼滤波器）
  * ============================================================ */
+#if (PRJ_FILTER_ENABLE_LKF != 0U)
 static const filter_param_desc_t lkf_params[] = {
     {
         .param = FILTER_PARAM_Q_ANGLE,
@@ -193,10 +205,12 @@ static const filter_param_desc_t lkf_params[] = {
         .unit = "g²"
     }
 };
+#endif /* PRJ_FILTER_ENABLE_LKF */
 
 /* ============================================================
  * 参数描述表 - KF（纯卡尔曼滤波器, 3轴独立 2状态 [angle,bias]）
  * ============================================================ */
+#if (PRJ_FILTER_ENABLE_KF != 0U)
 static const filter_param_desc_t kf_params[] = {
     {
         .param = FILTER_PARAM_KF_Q_ANGLE,
@@ -239,6 +253,7 @@ static const filter_param_desc_t kf_params[] = {
         .unit = "dps²"
     }
 };
+#endif /* PRJ_FILTER_ENABLE_KF */
 
 /* ============================================================
  * 退化策略配置表
@@ -354,27 +369,41 @@ static const preset_config_t preset_configs[] = {
 const filter_param_desc_t* filter_config_get_params(filter_type_t type, int *count)
 {
     switch (type) {
+#if (PRJ_FILTER_ENABLE_COMPLEMENTARY != 0U)
         case FILTER_TYPE_COMPLEMENTARY:
             *count = sizeof(comp_params) / sizeof(comp_params[0]);
             return comp_params;
+#endif /* PRJ_FILTER_ENABLE_COMPLEMENTARY */
+#if (PRJ_FILTER_ENABLE_LPF != 0U)
         case FILTER_TYPE_LPF:
             *count = sizeof(lpf_params) / sizeof(lpf_params[0]);
             return lpf_params;
+#endif /* PRJ_FILTER_ENABLE_LPF */
+#if (PRJ_FILTER_ENABLE_EKF != 0U)
         case FILTER_TYPE_EKF:
             *count = sizeof(ekf_params) / sizeof(ekf_params[0]);
             return ekf_params;
+#endif /* PRJ_FILTER_ENABLE_EKF */
+#if (PRJ_FILTER_ENABLE_LKF != 0U)
         case FILTER_TYPE_LKF:
             *count = sizeof(lkf_params) / sizeof(lkf_params[0]);
             return lkf_params;
+#endif /* PRJ_FILTER_ENABLE_LKF */
+#if (PRJ_FILTER_ENABLE_MAHONY != 0U)
         case FILTER_TYPE_MAHONY:
             *count = sizeof(mahony_params) / sizeof(mahony_params[0]);
             return mahony_params;
+#endif /* PRJ_FILTER_ENABLE_MAHONY */
+#if (PRJ_FILTER_ENABLE_MADGWICK != 0U)
         case FILTER_TYPE_MADGWICK:
             *count = sizeof(madgwick_params) / sizeof(madgwick_params[0]);
             return madgwick_params;
+#endif /* PRJ_FILTER_ENABLE_MADGWICK */
+#if (PRJ_FILTER_ENABLE_KF != 0U)
         case FILTER_TYPE_KF:
             *count = sizeof(kf_params) / sizeof(kf_params[0]);
             return kf_params;
+#endif /* PRJ_FILTER_ENABLE_KF */
         default:
             *count = 0;
             return NULL;

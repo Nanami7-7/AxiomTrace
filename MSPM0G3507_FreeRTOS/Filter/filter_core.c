@@ -332,31 +332,77 @@ int validate_filter_param(filter_param_t param, float value)
  * 工厂函数
  * ============================================================ */
 
+int filter_type_is_enabled(filter_type_t type)
+{
+    switch (type) {
+#if (PRJ_FILTER_ENABLE_COMPLEMENTARY != 0U)
+        case FILTER_TYPE_COMPLEMENTARY: return 1;
+#endif
+#if (PRJ_FILTER_ENABLE_LPF != 0U)
+        case FILTER_TYPE_LPF: return 1;
+#endif
+#if (PRJ_FILTER_ENABLE_EKF != 0U)
+        case FILTER_TYPE_EKF: return 1;
+#endif
+#if (PRJ_FILTER_ENABLE_LKF != 0U)
+        case FILTER_TYPE_LKF: return 1;
+#endif
+#if (PRJ_FILTER_ENABLE_MAHONY != 0U)
+        case FILTER_TYPE_MAHONY: return 1;
+#endif
+#if (PRJ_FILTER_ENABLE_MADGWICK != 0U)
+        case FILTER_TYPE_MADGWICK: return 1;
+#endif
+#if (PRJ_FILTER_ENABLE_KF != 0U)
+        case FILTER_TYPE_KF: return 1;
+#endif
+        default: return 0;
+    }
+}
+
 filter_t* filter_create(filter_type_t type)
 {
     filter_t *f = NULL;
+    if (!filter_type_is_enabled(type)) {
+        FILTER_REPORT_ERROR(FILTER_ERR_INVALID_TYPE, "Filter backend is disabled");
+        return NULL;
+    }
     switch (type) {
+#if (PRJ_FILTER_ENABLE_COMPLEMENTARY != 0U)
         case FILTER_TYPE_COMPLEMENTARY:
             f = filter_create_complementary(COMP_ALPHA_DEFAULT);
             break;
+#endif /* PRJ_FILTER_ENABLE_COMPLEMENTARY */
+#if (PRJ_FILTER_ENABLE_LPF != 0U)
         case FILTER_TYPE_LPF:
             f = filter_create_lpf(LPF_CUTOFF_DEFAULT);
             break;
+#endif /* PRJ_FILTER_ENABLE_LPF */
+#if (PRJ_FILTER_ENABLE_EKF != 0U)
         case FILTER_TYPE_EKF:
             f = filter_create_ekf(EKF_Q_ANGLE_DEFAULT, EKF_Q_BIAS_DEFAULT, EKF_R_MEASURE_DEFAULT);
             break;
+#endif /* PRJ_FILTER_ENABLE_EKF */
+#if (PRJ_FILTER_ENABLE_LKF != 0U)
         case FILTER_TYPE_LKF:
             f = filter_create_lkf(KF_Q_ANGLE_DEFAULT, KF_Q_BIAS_DEFAULT, KF_R_MEASURE_DEFAULT);
             break;
+#endif /* PRJ_FILTER_ENABLE_LKF */
+#if (PRJ_FILTER_ENABLE_MAHONY != 0U)
         case FILTER_TYPE_MAHONY:
             f = filter_create_mahony(MAHONY_KP_DEFAULT, MAHONY_KI_DEFAULT);
             break;
+#endif /* PRJ_FILTER_ENABLE_MAHONY */
+#if (PRJ_FILTER_ENABLE_MADGWICK != 0U)
         case FILTER_TYPE_MADGWICK:
             f = filter_create_madgwick(MADGWICK_BETA_DEFAULT);
             break;
+#endif /* PRJ_FILTER_ENABLE_MADGWICK */
+#if (PRJ_FILTER_ENABLE_KF != 0U)
         case FILTER_TYPE_KF:
             f = filter_create_kf(KF_Q_ANGLE_DEFAULT, KF_Q_BIAS_DEFAULT, KF_R_MEASURE_DEFAULT);
             break;
+#endif /* PRJ_FILTER_ENABLE_KF */
         default:
             FILTER_REPORT_ERROR(FILTER_ERR_INVALID_TYPE, "Invalid filter type");
             return NULL;
@@ -465,22 +511,36 @@ void static_destroy_noop(filter_t *self)
 
 /* 各滤波器私有数据大小 */
 const size_t priv_sizes[] = {
+#if (PRJ_FILTER_ENABLE_COMPLEMENTARY != 0U)
     [FILTER_TYPE_COMPLEMENTARY] = sizeof(complementary_priv_t),
+#endif
+#if (PRJ_FILTER_ENABLE_LPF != 0U)
     [FILTER_TYPE_LPF]           = sizeof(lpf_priv_t),
+#endif
+#if (PRJ_FILTER_ENABLE_EKF != 0U)
     [FILTER_TYPE_EKF]           = sizeof(ekf_priv_t),
+#endif
+#if (PRJ_FILTER_ENABLE_LKF != 0U)
     [FILTER_TYPE_LKF]           = sizeof(lkf_priv_t),
+#endif
+#if (PRJ_FILTER_ENABLE_MAHONY != 0U)
     [FILTER_TYPE_MAHONY]        = sizeof(mahony_priv_t),
+#endif
+#if (PRJ_FILTER_ENABLE_MADGWICK != 0U)
     [FILTER_TYPE_MADGWICK]      = sizeof(madgwick_priv_t),
+#endif
+#if (PRJ_FILTER_ENABLE_KF != 0U)
     [FILTER_TYPE_KF]            = sizeof(kf_priv_t),
+#endif
 };
 
 size_t filter_get_static_size(filter_type_t type) {
-    if (type < 0 || type >= FILTER_TYPE_COUNT) return 0;
+    if (type < 0 || type >= FILTER_TYPE_COUNT || !filter_type_is_enabled(type)) return 0;
     return sizeof(filter_t) + priv_sizes[type];
 }
 
 filter_t* filter_create_static(filter_type_t type, void *buf, size_t buf_size) {
-    if (!buf || type < 0 || type >= FILTER_TYPE_COUNT) return NULL;
+    if (!buf || type < 0 || type >= FILTER_TYPE_COUNT || !filter_type_is_enabled(type)) return NULL;
     
     size_t required = filter_get_static_size(type);
     if (buf_size < required) return NULL;
@@ -496,6 +556,7 @@ filter_t* filter_create_static(filter_type_t type, void *buf, size_t buf_size) {
     
     /* 根据类型初始化 */
     switch (type) {
+#if (PRJ_FILTER_ENABLE_COMPLEMENTARY != 0U)
         case FILTER_TYPE_COMPLEMENTARY: {
             complementary_priv_t *p = (complementary_priv_t *)priv;
             p->alpha = COMP_ALPHA_DEFAULT;
@@ -504,6 +565,8 @@ filter_t* filter_create_static(filter_type_t type, void *buf, size_t buf_size) {
             f->set_param = complementary_set_param;
             break;
         }
+#endif /* PRJ_FILTER_ENABLE_COMPLEMENTARY */
+#if (PRJ_FILTER_ENABLE_LPF != 0U)
         case FILTER_TYPE_LPF: {
             lpf_priv_t *p = (lpf_priv_t *)priv;
             p->cutoff_freq = LPF_CUTOFF_DEFAULT;
@@ -515,6 +578,8 @@ filter_t* filter_create_static(filter_type_t type, void *buf, size_t buf_size) {
             f->set_param = lpf_set_param;
             break;
         }
+#endif /* PRJ_FILTER_ENABLE_LPF */
+#if (PRJ_FILTER_ENABLE_EKF != 0U)
         case FILTER_TYPE_EKF: {
             ekf_priv_t *p = (ekf_priv_t *)priv;
             p->state[0] = 1.0f; /* q0 = 1 */
@@ -550,6 +615,8 @@ filter_t* filter_create_static(filter_type_t type, void *buf, size_t buf_size) {
             f->set_param = ekf_set_param;
             break;
         }
+#endif /* PRJ_FILTER_ENABLE_EKF */
+#if (PRJ_FILTER_ENABLE_LKF != 0U)
         case FILTER_TYPE_LKF: {
             lkf_priv_t *p = (lkf_priv_t *)priv;
             p->Q_angle = EKF_Q_ANGLE_DEFAULT;
@@ -561,6 +628,8 @@ filter_t* filter_create_static(filter_type_t type, void *buf, size_t buf_size) {
             f->set_param = lkf_set_param;
             break;
         }
+#endif /* PRJ_FILTER_ENABLE_LKF */
+#if (PRJ_FILTER_ENABLE_MAHONY != 0U)
         case FILTER_TYPE_MAHONY: {
             mahony_priv_t *p = (mahony_priv_t *)priv;
             p->q0 = 1.0f;
@@ -571,6 +640,8 @@ filter_t* filter_create_static(filter_type_t type, void *buf, size_t buf_size) {
             f->set_param = mahony_set_param;
             break;
         }
+#endif /* PRJ_FILTER_ENABLE_MAHONY */
+#if (PRJ_FILTER_ENABLE_MADGWICK != 0U)
         case FILTER_TYPE_MADGWICK: {
             madgwick_priv_t *p = (madgwick_priv_t *)priv;
             p->q0 = 1.0f;
@@ -580,6 +651,8 @@ filter_t* filter_create_static(filter_type_t type, void *buf, size_t buf_size) {
             f->set_param = madgwick_set_param;
             break;
         }
+#endif /* PRJ_FILTER_ENABLE_MADGWICK */
+#if (PRJ_FILTER_ENABLE_KF != 0U)
         case FILTER_TYPE_KF: {
             kf_priv_t *p = (kf_priv_t *)priv;
             p->Q_angle   = KF_Q_ANGLE_DEFAULT;
@@ -602,6 +675,7 @@ filter_t* filter_create_static(filter_type_t type, void *buf, size_t buf_size) {
             f->set_param = kf_set_param;
             break;
         }
+#endif /* PRJ_FILTER_ENABLE_KF */
         default:
             return NULL;
     }

@@ -1,4 +1,4 @@
-/*
+﻿/*
  * Copyright (c) 2023, Texas Instruments Incorporated
  * All rights reserved.
  *
@@ -773,7 +773,8 @@ SYSCONFIG_WEAK void SYSCFG_DL_ADC_VOLTAGE_init(void)
     DL_ADC12_configConversionMem(ADC_VOLTAGE_INST, ADC_VOLTAGE_ADCMEM_4,
         DL_ADC12_INPUT_CHAN_5, DL_ADC12_REFERENCE_VOLTAGE_VDDA, DL_ADC12_SAMPLE_TIMER_SOURCE_SCOMP0, DL_ADC12_AVERAGING_MODE_DISABLED,
         DL_ADC12_BURN_OUT_SOURCE_DISABLED, DL_ADC12_TRIGGER_MODE_AUTO_NEXT, DL_ADC12_WINDOWS_COMP_MODE_DISABLED);
-    DL_ADC12_setSampleTime0(ADC_VOLTAGE_INST,40000);
+    /* Sample time aligned with empty.syscfg: 1.333 us at the configured ADC clock. */
+    DL_ADC12_setSampleTime0(ADC_VOLTAGE_INST, 5);
     /* Enable ADC12 interrupt */
     DL_ADC12_clearInterruptStatus(ADC_VOLTAGE_INST,(DL_ADC12_INTERRUPT_MEM4_RESULT_LOADED));
     DL_ADC12_enableInterrupt(ADC_VOLTAGE_INST,(DL_ADC12_INTERRUPT_MEM4_RESULT_LOADED));
@@ -818,5 +819,6 @@ SYSCONFIG_WEAK void SYSCFG_DL_DMA_init(void){
     SYSCFG_DL_DMA_CH1_init();
     SYSCFG_DL_DMA_CH0_init();
 }
+
 
 

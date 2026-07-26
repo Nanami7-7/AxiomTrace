@@ -27,7 +27,7 @@ typedef enum {
 } bsp_adc_channel_t;
 
 /* 兼容旧调试命令；新代码应使用明确的通道名。 */
-#define BSP_ADC_CH_VOLTAGE BSP_ADC_CH_M1_CURRENT
+#define BSP_ADC_CH_VOLTAGE BSP_ADC_CH_BATTERY
 
 /* ======================== 函数接口 ======================== */
 
@@ -37,6 +37,39 @@ typedef enum {
  * @retval BSP_OK 初始化成功
  */
 bsp_status_t bsp_adc_init(void);
+
+/**
+ * @brief Start one non-blocking conversion sequence for all ADC channels.
+ * @return BSP_OK when the sequence was started.
+ */
+bsp_status_t bsp_adc_start_all(void);
+
+/**
+ * @brief Get the latest current-sense value for one motor.
+ * @param motor_idx Motor index in the range 0..3.
+ * @return Raw ADC result.
+ */
+uint16_t bsp_adc_get_last_current_raw(uint8_t motor_idx);
+
+/**
+ * @brief Convert the latest motor current result to mA.
+ * @param motor_idx Motor index in the range 0..3.
+ * @return Motor current in mA.
+ */
+float bsp_adc_get_last_current_ma(uint8_t motor_idx);
+
+/**
+ * @brief Read all four latest motor currents.
+ * @param currents_ma Output array with at least four elements.
+ */
+void bsp_adc_get_all_currents_ma(float currents_ma[4]);
+
+/**
+ * @brief Read the latest bus-voltage ADC result.
+ * @return Bus voltage in mV before any external divider compensation.
+ */
+uint32_t bsp_adc_get_bus_voltage_mv(void);
+
 
 /**
  * @brief  启动ADC单次转换并读取结果(阻塞轮询)

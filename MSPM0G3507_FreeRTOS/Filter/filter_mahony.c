@@ -3,6 +3,10 @@
  * @brief   Mahony 滤波器实现
  */
 
+#include "project_config.h"
+
+#if (PRJ_FILTER_ENABLE_MAHONY != 0U)
+
 #include "filter_internal.h"
 
 #include <stdbool.h>
@@ -155,3 +159,6 @@ filter_t* filter_create_mahony(float kp, float ki)
 
     return f;
 }
+
+
+#endif /* PRJ_FILTER_ENABLE_MAHONY */

@@ -339,9 +339,9 @@
             <v6Rtti>0</v6Rtti>
             <VariousControls>
               <MiscControls></MiscControls>
-              <Define>__MSPM0G3507__;LOG_LEVEL=LOG_LEVEL_INFO;</Define>
+              <Define>__MSPM0G3507__;LOG_LEVEL=LOG_LEVEL_INFO;PRJ_FILTER_ENABLE_COMPLEMENTARY=0;PRJ_FILTER_ENABLE_LPF=0;PRJ_FILTER_ENABLE_EKF=0;PRJ_FILTER_ENABLE_LKF=0;PRJ_FILTER_ENABLE_MAHONY=0;PRJ_FILTER_ENABLE_MADGWICK=0;PRJ_FILTER_ENABLE_KF=1;</Define>
               <Undefine></Undefine>
-              <IncludePath>..\..\source\third_party\CMSIS\Core\Include;..\..\source;..\;..\Application;..\Application\test;..\Application\Task;..\Application\Algorithm;..\Filter;..\BSP;..\BSP\Peripherals;..\BSP\Devices;..\BSP\IMU;..\BSP\IMU\Ports\mspm0g3507;..\Lib\OSAL;..\Config;..\Lib\AxiomTrace;..\Lib\Math;..\Lib\FreeRTOS\include;..\Lib\FreeRTOS\portable\MemMang;..\Lib\FreeRTOS\portable\GCC\ARM_CM0;..\Lib\FreeRTOS\src</IncludePath>
+              <IncludePath>..\..\source\third_party\CMSIS\Core\Include;..\..\source;..\;..\Application;..\Application\test;..\Application\Task;..\Application\Algorithm;..\Filter;..\BSP;..\BSP\Peripherals;..\BSP\Devices;..\BSP\IMU;..\BSP\IMU\Ports\mspm0g3507;..\Lib\OSAL;..\Lib\Key;..\Config;..\Lib\AxiomTrace;..\Lib\Math;..\Lib\FreeRTOS\include;..\Lib\FreeRTOS\portable\MemMang;..\Lib\FreeRTOS\portable\GCC\ARM_CM0;..\Lib\FreeRTOS\src</IncludePath>
             </VariousControls>
           </Cads>
           <Aads>
@@ -655,6 +655,26 @@
               <FileType>5</FileType>
               <FilePath>..\Application\test\app_test_timer.h</FilePath>
             </File>
+            <File>
+              <FileName>app_key_events.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\Application\app_key_events.c</FilePath>
+            </File>
+            <File>
+              <FileName>app_key_events.h</FileName>
+              <FileType>5</FileType>
+              <FilePath>..\Application\app_key_events.h</FilePath>
+            </File>
+            <File>
+              <FileName>task_key.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\Application\Task\task_key.c</FilePath>
+            </File>
+            <File>
+              <FileName>task_key.h</FileName>
+              <FileType>5</FileType>
+              <FilePath>..\Application\Task\task_key.h</FilePath>
+            </File>
           </Files>
         </Group>
         <Group>
@@ -759,6 +779,21 @@
               <FileName>project_config.h</FileName>
               <FileType>5</FileType>
               <FilePath>..\Config\project_config.h</FilePath>
+            </File>
+            <File>
+              <FileName>k</FileName>
+              <FileType>0</FileType>
+              <FilePath>e</FilePath>
+            </File>
+            <File>
+              <FileName>.</FileName>
+              <FileType>0</FileType>
+              <FilePath>.</FilePath>
+            </File>
+            <File>
+              <FileName>5</FileName>
+              <FileType>0</FileType>
+              <FilePath></FilePath>
             </File>
           </Files>
         </Group>
@@ -920,6 +955,16 @@
               <FileType>5</FileType>
               <FilePath>..\BSP\Peripherals\bsp_mathacl.h</FilePath>
             </File>
+            <File>
+              <FileName>bsp_key.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\BSP\Peripherals\bsp_key.c</FilePath>
+            </File>
+            <File>
+              <FileName>bsp_key.h</FileName>
+              <FileType>5</FileType>
+              <FilePath>..\BSP\Peripherals\bsp_key.h</FilePath>
+            </File>
           </Files>
         </Group>
         <Group>
@@ -1004,6 +1049,31 @@
               <FileName>axiom_port_mspm0.c</FileName>
               <FileType>1</FileType>
               <FilePath>..\Lib\AxiomTrace\Ports\mspm0\axiom_port_mspm0.c</FilePath>
+            </File>
+          </Files>
+        </Group>
+        <Group>
+          <GroupName>Lib/Key</GroupName>
+          <Files>
+            <File>
+              <FileName>key.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\Lib\Key\key.c</FilePath>
+            </File>
+            <File>
+              <FileName>key.h</FileName>
+              <FileType>5</FileType>
+              <FilePath>..\Lib\Key\key.h</FilePath>
+            </File>
+          </Files>
+        </Group>
+        <Group>
+          <GroupName>Config/Key</GroupName>
+          <Files>
+            <File>
+              <FileName>key_config.h</FileName>
+              <FileType>5</FileType>
+              <FilePath>..\Config\key_config.h</FilePath>
             </File>
           </Files>
         </Group>
@@ -1342,9 +1412,9 @@
             <v6Rtti>0</v6Rtti>
             <VariousControls>
               <MiscControls></MiscControls>
-              <Define>__MSPM0G3507__;LOG_LEVEL=LOG_LEVEL_INFO;PRJ_DRV8870_FACTORY_TEST_ENABLE=1</Define>
+              <Define>__MSPM0G3507__;LOG_LEVEL=LOG_LEVEL_INFO;PRJ_DRV8870_FACTORY_TEST_ENABLE=1;PRJ_KEY_ENABLE=0;PRJ_FILTER_ENABLE_COMPLEMENTARY=1;PRJ_FILTER_ENABLE_LPF=1;PRJ_FILTER_ENABLE_EKF=1;PRJ_FILTER_ENABLE_LKF=1;PRJ_FILTER_ENABLE_MAHONY=1;PRJ_FILTER_ENABLE_MADGWICK=1;PRJ_FILTER_ENABLE_KF=1</Define>
               <Undefine></Undefine>
-              <IncludePath>..\..\source\third_party\CMSIS\Core\Include;..\..\source;..\;..\Application;..\Application\test;..\Application\Task;..\Application\Algorithm;..\Filter;..\BSP;..\BSP\Peripherals;..\BSP\Devices;..\BSP\IMU;..\BSP\IMU\Ports\mspm0g3507;..\Lib\OSAL;..\Config;..\Lib\AxiomTrace;..\Lib\Math;..\Lib\FreeRTOS\include;..\Lib\FreeRTOS\portable\MemMang;..\Lib\FreeRTOS\portable\GCC\ARM_CM0;..\Lib\FreeRTOS\src</IncludePath>
+              <IncludePath>..\..\source\third_party\CMSIS\Core\Include;..\..\source;..\;..\Application;..\Application\test;..\Application\Task;..\Application\Algorithm;..\Filter;..\BSP;..\BSP\Peripherals;..\BSP\Devices;..\BSP\IMU;..\BSP\IMU\Ports\mspm0g3507;..\Lib\OSAL;..\Lib\Key;..\Config;..\Lib\AxiomTrace;..\Lib\Math;..\Lib\FreeRTOS\include;..\Lib\FreeRTOS\portable\MemMang;..\Lib\FreeRTOS\portable\GCC\ARM_CM0;..\Lib\FreeRTOS\src</IncludePath>
             </VariousControls>
           </Cads>
           <Aads>
@@ -1658,6 +1728,26 @@
               <FileType>5</FileType>
               <FilePath>..\Application\test\app_test_timer.h</FilePath>
             </File>
+            <File>
+              <FileName>app_key_events.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\Application\app_key_events.c</FilePath>
+            </File>
+            <File>
+              <FileName>app_key_events.h</FileName>
+              <FileType>5</FileType>
+              <FilePath>..\Application\app_key_events.h</FilePath>
+            </File>
+            <File>
+              <FileName>task_key.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\Application\Task\task_key.c</FilePath>
+            </File>
+            <File>
+              <FileName>task_key.h</FileName>
+              <FileType>5</FileType>
+              <FilePath>..\Application\Task\task_key.h</FilePath>
+            </File>
           </Files>
         </Group>
         <Group>
@@ -1762,6 +1852,21 @@
               <FileName>project_config.h</FileName>
               <FileType>5</FileType>
               <FilePath>..\Config\project_config.h</FilePath>
+            </File>
+            <File>
+              <FileName>k</FileName>
+              <FileType>0</FileType>
+              <FilePath>e</FilePath>
+            </File>
+            <File>
+              <FileName>.</FileName>
+              <FileType>0</FileType>
+              <FilePath>.</FilePath>
+            </File>
+            <File>
+              <FileName>5</FileName>
+              <FileType>0</FileType>
+              <FilePath></FilePath>
             </File>
           </Files>
         </Group>
@@ -1923,6 +2028,16 @@
               <FileType>5</FileType>
               <FilePath>..\BSP\Peripherals\bsp_mathacl.h</FilePath>
             </File>
+            <File>
+              <FileName>bsp_key.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\BSP\Peripherals\bsp_key.c</FilePath>
+            </File>
+            <File>
+              <FileName>bsp_key.h</FileName>
+              <FileType>5</FileType>
+              <FilePath>..\BSP\Peripherals\bsp_key.h</FilePath>
+            </File>
           </Files>
         </Group>
         <Group>
@@ -2007,6 +2122,31 @@
               <FileName>axiom_port_mspm0.c</FileName>
               <FileType>1</FileType>
               <FilePath>..\Lib\AxiomTrace\Ports\mspm0\axiom_port_mspm0.c</FilePath>
+            </File>
+          </Files>
+        </Group>
+        <Group>
+          <GroupName>Lib/Key</GroupName>
+          <Files>
+            <File>
+              <FileName>key.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\Lib\Key\key.c</FilePath>
+            </File>
+            <File>
+              <FileName>key.h</FileName>
+              <FileType>5</FileType>
+              <FilePath>..\Lib\Key\key.h</FilePath>
+            </File>
+          </Files>
+        </Group>
+        <Group>
+          <GroupName>Config/Key</GroupName>
+          <Files>
+            <File>
+              <FileName>key_config.h</FileName>
+              <FileType>5</FileType>
+              <FilePath>..\Config\key_config.h</FilePath>
             </File>
           </Files>
         </Group>

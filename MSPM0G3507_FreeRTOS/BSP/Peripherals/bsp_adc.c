@@ -1,8 +1,8 @@
-/**
+﻿/**
  * @file    bsp_adc.c
- * @brief   ADC采样驱动实现
- * @note    基于hal_adc实现ADC1的MEM0~MEM4序列采样和电压转换
- *          支持阻塞轮询模式和中断模式两种采样方式
+ * @brief   ADC閲囨牱椹卞姩瀹炵幇
+ * @note    鍩轰簬hal_adc瀹炵幇ADC1鐨凪EM0~MEM4搴忓垪閲囨牱鍜岀數鍘嬭浆鎹?
+ *          鏀寔闃诲杞妯″紡鍜屼腑鏂ā寮忎袱绉嶉噰鏍锋柟寮?
  */
 #include "bsp_adc.h"
 #include "hal_adc.h"
@@ -10,25 +10,25 @@
 #include "osal_api.h"
 #include "ti_msp_dl_config.h"
 
-/* ======================== 私有常量 ======================== */
+/* ======================== 绉佹湁甯搁噺 ======================== */
 
-/** ADC转换超时循环计数(约1ms @80MHz) */
+/** ADC杞崲瓒呮椂寰幆璁℃暟(绾?ms @80MHz) */
 #define ADC_POLL_TIMEOUT  (4000000U)
 
-/* ======================== 私有类型 ======================== */
+/* ======================== 绉佹湁绫诲瀷 ======================== */
 
 /**
- * @brief ADC通道配置映射
- * @note  将BSP通道枚举映射到HAL ADC实例
+ * @brief ADC閫氶亾閰嶇疆鏄犲皠
+ * @note  灏咮SP閫氶亾鏋氫妇鏄犲皠鍒癏AL ADC瀹炰緥
  */
 typedef struct {
-    hal_adc_id_t hal_id;  /**< HAL ADC实例编号 */
-    uint32_t mem_idx;     /**< 对应ADC MEM索引 */
+    hal_adc_id_t hal_id;  /**< HAL ADC瀹炰緥缂栧彿 */
+    uint32_t mem_idx;     /**< 瀵瑰簲ADC MEM绱㈠紩 */
 } adc_channel_config_t;
 
-/* ======================== 私有变量 ======================== */
+/* ======================== 绉佹湁鍙橀噺 ======================== */
 
-/** ADC通道映射表 */
+/** ADC閫氶亾鏄犲皠琛?*/
 static const adc_channel_config_t s_adc_channels[BSP_ADC_CH_COUNT] = {
     { PRJ_ADC_VOLTAGE_ID, 0U }, /* M1 current / PA15 */
     { PRJ_ADC_VOLTAGE_ID, 1U }, /* M2 current / PA16 */
@@ -37,16 +37,16 @@ static const adc_channel_config_t s_adc_channels[BSP_ADC_CH_COUNT] = {
     { PRJ_ADC_VOLTAGE_ID, 4U }, /* battery / PB18 */
 };
 
-/** 最近一次转换原始值(ISR写入, 任务读取) */
+/** 鏈€杩戜竴娆¤浆鎹㈠師濮嬪€?ISR鍐欏叆, 浠诲姟璇诲彇) */
 static volatile uint16_t s_last_raw[BSP_ADC_CH_COUNT] = {0};
 
-/** 转换完成标志(ISR置位, 任务清除) */
+/** 杞崲瀹屾垚鏍囧織(ISR缃綅, 浠诲姟娓呴櫎) */
 static volatile bool s_adc_done = false;
 
-/** 初始化标志 */
+/** 鍒濆鍖栨爣蹇?*/
 static bool s_adc_inited = false;
 
-/* ======================== 公共函数实现 ======================== */
+/* ======================== 鍏叡鍑芥暟瀹炵幇 ======================== */
 
 bsp_status_t bsp_adc_init(void)
 {
@@ -54,17 +54,64 @@ bsp_status_t bsp_adc_init(void)
         return BSP_OK;
     }
 
-    /* 清零原始值 */
+    /* 娓呴浂鍘熷鍊?*/
     for (uint32_t i = 0; i < BSP_ADC_CH_COUNT; i++) {
         s_last_raw[i] = 0U;
     }
 
-    /* 使能ADC中断 */
+    /* 浣胯兘ADC涓柇 */
     NVIC_ClearPendingIRQ(ADC_VOLTAGE_INST_INT_IRQN);
     NVIC_EnableIRQ(ADC_VOLTAGE_INST_INT_IRQN);
 
     s_adc_inited = true;
     return BSP_OK;
+}
+
+bsp_status_t bsp_adc_start_all(void)
+{
+    /* Repeat/sequence configuration converts MEM0..MEM4 as one transaction. */
+    return bsp_adc_start_conversion(BSP_ADC_CH_M1_CURRENT);
+}
+
+uint16_t bsp_adc_get_last_current_raw(uint8_t motor_idx)
+{
+    if (motor_idx >= 4U) {
+        return 0U;
+    }
+    return s_last_raw[motor_idx];
+}
+
+float bsp_adc_get_last_current_ma(uint8_t motor_idx)
+{
+    return (float)bsp_adc_get_last_current_raw(motor_idx) *
+           PRJ_ADC_CURRENT_MA_PER_RAW;
+}
+
+void bsp_adc_get_all_currents_ma(float currents_ma[4])
+{
+    uint16_t raw[4];
+    if (currents_ma == NULL) {
+        return;
+    }
+
+    OSAL_CRITICAL_SECTION {
+        for (uint32_t i = 0U; i < 4U; i++) {
+            raw[i] = s_last_raw[i];
+        }
+    }
+
+    for (uint32_t i = 0U; i < 4U; i++) {
+        currents_ma[i] = (float)raw[i] * PRJ_ADC_CURRENT_MA_PER_RAW;
+    }
+}
+
+uint32_t bsp_adc_get_bus_voltage_mv(void)
+{
+    uint16_t raw;
+    OSAL_CRITICAL_SECTION {
+        raw = s_last_raw[BSP_ADC_CH_BATTERY];
+    }
+    return (uint32_t)raw * PRJ_ADC_VREF_MV / PRJ_ADC_RESOLUTION;
 }
 
 bsp_status_t bsp_adc_read_raw(bsp_adc_channel_t channel,
@@ -77,7 +124,7 @@ bsp_status_t bsp_adc_read_raw(bsp_adc_channel_t channel,
         return BSP_ERR_INVALID_PARAM;
     }
 
-    /* repeat-mode下按完整序列同步读取，避免拿到未完成的MEM结果。 */
+    /* repeat-mode涓嬫寜瀹屾暣搴忓垪鍚屾璇诲彇锛岄伩鍏嶆嬁鍒版湭瀹屾垚鐨凪EM缁撴灉銆?*/
     bsp_adc_clear_done_flag();
     if (bsp_adc_start_conversion(channel) != BSP_OK) {
         return BSP_ERR_HW_FAULT;
@@ -238,3 +285,4 @@ uint32_t bsp_adc_get_last_voltage(bsp_adc_channel_t channel)
 {
     return bsp_adc_get_last_voltage_mv(channel);
 }
+

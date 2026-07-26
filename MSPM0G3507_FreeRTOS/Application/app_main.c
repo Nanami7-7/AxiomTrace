@@ -15,12 +15,17 @@
 #include "Task/task_control.h"
 #include "Task/task_menu.h"
 #include "Task/task_imu.h"
+#include "Task/task_key.h"
+#include "bsp_key.h"
+#include "app_key_events.h"
+#include "key_config.h"
 #include "osal_api.h"
 #include "portable.h"
 #include <stdio.h>
 #include "bsp_led.h"
 #include "bsp_motor.h"
 #include "bsp_encoder.h"
+#include "bsp_adc.h"
 #include "bsp_uart.h"
 #include "project_config.h"
 #if (PRJ_BLE_MENU_ENABLE != 0U)
@@ -30,6 +35,7 @@
 #include "app_model_id.h"
 #include "app_position_control.h"
 #include "hal_gpio.h"
+#include "ti_msp_dl_config.h"
 #include "axiomtrace.h"
 #include "app_pid.h"
 
@@ -59,6 +65,16 @@ static osal_task_handle_t s_menu_task_handle;
 
 /** IMU任务句柄 */
 static osal_task_handle_t s_imu_task_handle;
+
+#if (PRJ_KEY_ENABLE != 0U)
+static osal_task_handle_t s_key_task_handle;
+static bsp_key_manager_t s_key_manager;
+static bsp_key_instance_t s_key_instances[PRJ_KEY_COUNT];
+static const bsp_key_config_t s_key_configs[PRJ_KEY_COUNT] = {
+    PRJ_KEY_CONFIGS
+};
+static bool s_key_motion_ready;
+#endif
 /** 首个不可恢复运行时故障码；故障路径只做对齐字写入。 */
 static volatile uint32_t s_runtime_fault_code = APP_RUNTIME_FAULT_NONE;
 
@@ -144,6 +160,14 @@ static int32_t bsp_modules_init(void)
     ret = bsp_encoder_init(s_encoder_cfg, BSP_ENCODER_COUNT,
         PRJ_ENCODER_PULSES_PER_REV);
     if (ret != BSP_OK) { return -4; }
+
+    ret = bsp_adc_init();
+    if (ret != BSP_OK) { return -5; }
+
+    /* Enable the end-of-sequence interrupt for the fifth ADC MEM. */
+    DL_ADC12_enableInterrupt(ADC_VOLTAGE_INST,
+        DL_ADC12_INTERRUPT_MEM4_RESULT_LOADED);
+    NVIC_EnableIRQ(ADC_VOLTAGE_INST_INT_IRQN);
 
     /* LSM6DSR 初始化在 task_imu.c 中完成 (需要 TimerG8 先启动) */
     /* 此处不再需要初始化 IMU */
@@ -261,7 +285,29 @@ int32_t app_main_init(void)
     /* 清零共享上下文 */
     for (uint32_t i = 0; i < BSP_MOTOR_COUNT; i++) {
         s_shared_ctx.motor_enabled[i] = false;
+        s_shared_ctx.overload_cnt[i] = 0U;
     }
+
+#if (PRJ_KEY_ENABLE != 0U)
+    s_key_motion_ready = app_key_motion_init(&s_shared_ctx);
+    if (!s_key_motion_ready) {
+        (void)printf("[KEY] motion init failed; key actions disabled\r\n");
+    }
+
+    if (bsp_key_manager_init(
+            &s_key_manager,
+            s_key_instances,
+            s_key_configs,
+            PRJ_KEY_COUNT,
+            osal_ticks_to_ms(osal_get_tick_count())) != KEY_STATUS_OK) {
+        s_key_manager.initialized = false;
+        (void)printf("[KEY] manager init failed; key task disabled\r\n");
+    } else {
+        (void)printf("[KEY] initialized: KEY_key=PA7 active-low\r\n");
+        (void)printf("[KEY] initialized: KEY_switch=PB3 active-low\r\n");
+        (void)printf("[MOTION] state=IDLE\r\n");
+    }
+#endif
 
     /* 串口输出启动信息 */
     AX_LOG_INFO("=== MSPM0G3507 FreeRTOS ===");
@@ -345,6 +391,21 @@ int32_t app_main_init(void)
     if (s_imu_task_handle == NULL) {
         return -12;
     }
+
+#if (PRJ_KEY_ENABLE != 0U)
+    if (s_key_motion_ready && s_key_manager.initialized) {
+        s_key_task_handle = osal_task_create(
+            app_key_task,
+            "key",
+            TASK_STACK_KEY,
+            &s_key_manager,
+            TASK_PRIO_KEY);
+
+        if (s_key_task_handle == NULL) {
+            (void)printf("[KEY] task create failed; key actions disabled\r\n");
+        }
+    }
+#endif
 
     /* 创建 SPI + 陀螺仪测试任务 (临时注释) */
     /*

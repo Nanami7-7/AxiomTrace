@@ -18,6 +18,10 @@
  *   - 低算力场景的快速滤波
  */
 
+#include "project_config.h"
+
+#if (PRJ_FILTER_ENABLE_LKF != 0U)
+
 #include "filter_internal.h"
 
 #include <stdbool.h>
@@ -263,3 +267,6 @@ filter_t* filter_create_lkf(float q_angle, float q_bias, float r_measure)
 
     return f;
 }
+
+
+#endif /* PRJ_FILTER_ENABLE_LKF */

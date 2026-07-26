@@ -130,3 +130,12 @@ MSPM0G3507_FreeRTOS/BSP/_bsp_template.c
 MSPM0G3507_FreeRTOS/BSP/_bsp_template.h
 MSPM0G3507_FreeRTOS/HAL/_hal_template.c
 MSPM0G3507_FreeRTOS/keil/EventRecorderStub.scvd
+
+# PyInstaller specs and local screenshots
+*.spec
+*.png
+*.jpg
+*.jpeg
+!**/icons/*.png
+!**/resources/*.png
+

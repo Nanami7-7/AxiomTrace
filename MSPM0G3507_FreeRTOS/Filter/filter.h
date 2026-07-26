@@ -401,6 +401,9 @@ void filter_regularize_covariance(float P[][7], int size, float factor);
  */
 const char* filter_type_name(filter_type_t type);
 
+/** @brief Return whether a filter backend is enabled by the build configuration. */
+int filter_type_is_enabled(filter_type_t type);
+
 /**
  * @brief 设置滤波器退化模式
  * @param f       滤波器实例

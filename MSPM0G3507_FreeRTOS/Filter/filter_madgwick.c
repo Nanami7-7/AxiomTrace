@@ -3,6 +3,10 @@
  * @brief   Madgwick 滤波器实现
  */
 
+#include "project_config.h"
+
+#if (PRJ_FILTER_ENABLE_MADGWICK != 0U)
+
 #include "filter_internal.h"
 
 #include <stdbool.h>
@@ -152,3 +156,6 @@ filter_t* filter_create_madgwick(float beta)
 
     return f;
 }
+
+
+#endif /* PRJ_FILTER_ENABLE_MADGWICK */

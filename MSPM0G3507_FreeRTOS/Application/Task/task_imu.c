@@ -74,12 +74,13 @@ static int imu_init(void)
     if (g_imu_ctx.active_filter == NULL) {
         printf("[ERROR] KF filter create failed! buf_size=%u\r\n", (unsigned)PRJ_IMU_KF_FILTER_BUF_SIZE);
         /* 回退到互补滤波器 */
-        g_imu_ctx.active_filter = filter_create(FILTER_TYPE_COMPLEMENTARY);
+        g_imu_ctx.active_filter = filter_create(FILTER_TYPE_KF);
         if (g_imu_ctx.active_filter == NULL) {
-            printf("[ERROR] Complementary filter also failed!\r\n");
+            printf("[ERROR] KF dynamic fallback also failed!\r\n");
             return -1;
         }
-        printf("[INFO] Fallback to complementary filter\r\n");
+        g_imu_ctx.current_filter_type = FILTER_TYPE_KF;
+        printf("[INFO] Fallback to KF filter\r\n");
     } else {
         g_imu_ctx.current_filter_type = FILTER_TYPE_KF;
         printf("[INFO] KF filter created OK (static)\r\n");

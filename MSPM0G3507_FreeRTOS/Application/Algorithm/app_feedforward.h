@@ -54,12 +54,16 @@ typedef struct {
     float duty_dead;      /**< 死区duty (rpm_dead ≤ |RPM| < rpm_min 时的固定duty) */
     float rpm_min;        /**< 线性区起点 (|RPM| ≥ rpm_min 时使用线性公式) */
     bool  enabled;        /**< 前馈使能标志 */
+    float i_k;             /**< Current-vs-RPM slope (mA/RPM). */
+    float i_b;             /**< Current intercept (mA). */
+    float i_ff_gain;       /**< Current feed-forward gain; 0 keeps legacy behavior. */
 } app_ff_params_t;
 
 /** 扫频结果结构体 */
 typedef struct {
     float rpm[FF_SWEEP_POINTS];   /**< 各测试点实际RPM */
     float duty[FF_SWEEP_POINTS];  /**< 各测试点稳态duty */
+    float current_ma[FF_SWEEP_POINTS]; /**< Steady-state current (mA). */
     uint32_t count;               /**< 有效数据点数 */
 } app_ff_sweep_result_t;
 
@@ -116,6 +120,17 @@ void app_ff_apply_to_pid(const app_ff_params_t *ff,
                           app_pid_t *pid, float target);
 
 /**
+ * @brief Compute the current feed-forward duty correction.
+ * @param ff Feed-forward parameters.
+ * @param target_rpm Target speed.
+ * @param actual_current_ma Measured current.
+ * @return Duty correction; zero when disabled or gain is zero.
+ */
+float app_ff_compute_current_correction(const app_ff_params_t *ff,
+                                         float target_rpm,
+                                         float actual_current_ma);
+
+/**
  * @brief  最小二乘线性拟合(从扫频结果计算k, b)
  * @param  result 扫频结果指针
  * @param  k_out  斜率输出指针
@@ -125,6 +140,16 @@ void app_ff_apply_to_pid(const app_ff_params_t *ff,
  */
 bool app_ff_fit_linear(const app_ff_sweep_result_t *result,
                         float *k_out, float *b_out);
+
+/**
+ * @brief Fit the current-vs-RPM model from a sweep result.
+ * @param result Sweep result.
+ * @param i_k_out Output slope in mA/RPM.
+ * @param i_b_out Output intercept in mA.
+ * @return true on success, false for insufficient or degenerate data.
+ */
+bool app_ff_fit_current(const app_ff_sweep_result_t *result,
+                         float *i_k_out, float *i_b_out);
 
 /**
  * @brief  执行前馈扫频标定(阻塞式, 需在任务中调用)

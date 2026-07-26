@@ -176,8 +176,24 @@ int bsp_lsm6dsr_init_ctx(bsp_lsm6dsr_ctx_t *ctx)
         init_filter_state(ctx, ax0, ay0, az0);
     }
 
-    /* Create filter instance */
+    /* Create the first enabled filter backend. */
+#if (PRJ_FILTER_ENABLE_COMPLEMENTARY != 0U)
     ctx->current_filter_type = FILTER_TYPE_COMPLEMENTARY;
+#elif (PRJ_FILTER_ENABLE_KF != 0U)
+    ctx->current_filter_type = FILTER_TYPE_KF;
+#elif (PRJ_FILTER_ENABLE_LPF != 0U)
+    ctx->current_filter_type = FILTER_TYPE_LPF;
+#elif (PRJ_FILTER_ENABLE_EKF != 0U)
+    ctx->current_filter_type = FILTER_TYPE_EKF;
+#elif (PRJ_FILTER_ENABLE_LKF != 0U)
+    ctx->current_filter_type = FILTER_TYPE_LKF;
+#elif (PRJ_FILTER_ENABLE_MAHONY != 0U)
+    ctx->current_filter_type = FILTER_TYPE_MAHONY;
+#elif (PRJ_FILTER_ENABLE_MADGWICK != 0U)
+    ctx->current_filter_type = FILTER_TYPE_MADGWICK;
+#else
+#error "No IMU filter backend is enabled"
+#endif
     ctx->active_filter = filter_create(ctx->current_filter_type);
     if (!ctx->active_filter) {
         LOG_ERR("Failed to create filter");
@@ -601,8 +617,8 @@ int bsp_lsm6dsr_set_filter_ctx(bsp_lsm6dsr_ctx_t *ctx, filter_type_t type)
         return -1;
     }
 
-    if (type < 0 || type >= FILTER_TYPE_COUNT) {
-        LOG_ERR("Invalid filter type %d", type);
+    if (type < 0 || type >= FILTER_TYPE_COUNT || !filter_type_is_enabled(type)) {
+        LOG_ERR("Filter type %d is disabled or invalid", type);
         return -1;
     }
 

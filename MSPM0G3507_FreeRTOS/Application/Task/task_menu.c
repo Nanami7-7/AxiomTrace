@@ -1,9 +1,9 @@
-/**
+﻿/**
  * @file    task_menu.c
- * @brief   鑿滃崟浠诲姟瀹炵幇(CLI妯″紡)
- * @note    CLI妯″紡: 鏄剧ず鐘舵€?鈫?绛夊緟鍛戒护 鈫?鎵ц 鈫?鍒锋柊
- *          Run鍛戒护杩涘叆鏁版嵁杈撳嚭妯″紡(30ms VOFA+鏁版嵁)
- *          Stop鍛戒护閫€鍑烘暟鎹緭鍑烘ā寮? */
+ * @brief   閼挎粌宕熸禒璇插鐎圭偟骞?CLI濡€崇础)
+ * @note    CLI濡€崇础: 閺勫墽銇氶悩鑸碘偓?閳?缁涘绶熼崨鎴掓姢 閳?閹笛嗩攽 閳?閸掗攱鏌?
+ *          Run閸涙垝鎶ゆ潻娑樺弳閺佺増宓佹潏鎾冲毉濡€崇础(30ms VOFA+閺佺増宓?
+ *          Stop閸涙垝鎶ら柅鈧崙鐑樻殶閹诡喛绶崙鐑樐佸? */
 #include "task_menu.h"
 #include "app_main.h"
 #include "app_pid.h"
@@ -27,26 +27,26 @@
 #include <stdlib.h>
 #include <string.h>
 
-/* ======================== 绉佹湁甯搁噺 ======================== */
+/* ======================== 缁変焦婀佺敮鎼佸櫤 ======================== */
 
-/** 鐢垫満鍚嶇О鏌ユ壘琛?*/
+/** 閻㈠灚婧€閸氬秶袨閺屻儲澹樼悰?*/
 static const char *s_motor_names[BSP_MOTOR_COUNT] = {
     "A", "B", "C", "D"
 };
 
-/** LED蹇冭烦鍛ㄦ湡(ms) */
+/** LED韫囧啳鐑﹂崨銊︽埂(ms) */
 #define MENU_LED_PERIOD_MS  (100U)
 
-/** LED缈昏浆闃堝€?ms) */
+/** LED缂堟槒娴嗛梼鍫濃偓?ms) */
 #define LED_TOGGLE_THRESH   (500U)
 
-/* ======================== 绉佹湁鍑芥暟: 琛岃緭鍏?======================== */
+/* ======================== 缁変焦婀侀崙鑺ユ殶: 鐞涘矁绶崗?======================== */
 
 /**
- * @brief  闈為樆濉炶杈撳叆
- * @param  line_buf  琛岀紦鍐插尯
- * @param  buf_size  缂撳啿鍖哄ぇ灏? * @param  line_pos  褰撳墠鍐欏叆浣嶇疆鎸囬拡(璇诲啓)
- * @retval true  涓€琛岃緭鍏ュ畬鎴? * @retval false 灏氭湭瀹屾垚
+ * @brief  闂堢偤妯嗘繅鐐额攽鏉堟挸鍙?
+ * @param  line_buf  鐞涘瞼绱﹂崘鎻掑隘
+ * @param  buf_size  缂傛挸鍟块崠鍝勩亣鐏? * @param  line_pos  瑜版挸澧犻崘娆忓弳娴ｅ秶鐤嗛幐鍥嫛(鐠囪鍟?
+ * @retval true  娑撯偓鐞涘矁绶崗銉ョ暚閹? * @retval false 鐏忔碍婀€瑰本鍨?
  */
 typedef enum {
     MENU_DRVSCOPE_START = 0,
@@ -299,17 +299,17 @@ static bool menu_read_line(char *line_buf, uint32_t buf_size,
     return false;
 }
 
-/* ======================== 绉佹湁鍑芥暟: 鐘舵€佹樉绀?======================== */
+/* ======================== 缁変焦婀侀崙鑺ユ殶: 閻樿埖鈧焦妯夌粈?======================== */
 
 /**
- * @brief  鎵撳嵃褰撳墠鐘舵€?鐢垫満鍙傛暟+FF鐘舵€?IMU鏁版嵁)
+ * @brief  閹垫挸宓冭ぐ鎾冲閻樿埖鈧?閻㈠灚婧€閸欏倹鏆?FF閻樿埖鈧?IMU閺佺増宓?
  */
 static void menu_print_status(const app_shared_ctx_t *ctx,
                                uint32_t motor)
 {
     (void)printf("\r\n=== Motor: %s ===\r\n", s_motor_names[motor]);
 
-    /* 褰撳墠鐩爣RPM */
+    /* 瑜版挸澧犻惄顔界垼RPM */
     {
         float sp;
         OSAL_CRITICAL_SECTION {
@@ -318,7 +318,7 @@ static void menu_print_status(const app_shared_ctx_t *ctx,
         (void)printf("Target: %.0f RPM\r\n", (double)sp);
     }
 
-    /* 鍚勭數鏈篜ID鍙傛暟 */
+    /* 閸氬嫮鏁搁張绡淚D閸欏倹鏆?*/
     for (uint32_t i = 0U; i < BSP_MOTOR_COUNT; i++) {
         float kp, ki, kd;
         OSAL_CRITICAL_SECTION {
@@ -331,7 +331,7 @@ static void menu_print_status(const app_shared_ctx_t *ctx,
             (double)kp, (double)ki, (double)kd);
     }
 
-    /* FF鐘舵€?*/
+    /* FF閻樿埖鈧?*/
     {
         float ff_k, ff_b, ff_kp, ff_ki, ff_kd;
         bool ff_en;
@@ -353,22 +353,26 @@ static void menu_print_status(const app_shared_ctx_t *ctx,
         }
     }
 
-    /* 鐢垫満杩愯鐘舵€?*/
+    /* 閻㈠灚婧€鏉╂劘顢戦悩鑸碘偓?*/
     {
         bool en;
         int32_t rpm;
+        float current_ma;
         OSAL_CRITICAL_SECTION {
             en = ctx->motor_enabled[motor];
             rpm = ctx->status.rpm[motor];
+            current_ma = ctx->status.current_ma[motor];
         }
         if (en) {
-            (void)printf("Motor: running (%ld RPM)\r\n", (long)rpm);
+            (void)printf("Motor: running (%ld RPM) | I=%.0fmA\r\n",
+                (long)rpm, (double)current_ma);
         } else {
-            (void)printf("Motor: stopped\r\n");
+            (void)printf("Motor: stopped | I=%.0fmA\r\n",
+                (double)current_ma);
         }
     }
 
-    /* IMU鏁版嵁 */
+    /* IMU閺佺増宓?*/
     {
         float roll, pitch, yaw, heading, vx;
         OSAL_CRITICAL_SECTION {
@@ -382,14 +386,31 @@ static void menu_print_status(const app_shared_ctx_t *ctx,
             (double)roll, (double)pitch, (double)yaw,
             (double)heading, (double)vx);
     }
+    /* Print the latest power snapshot after copying it under the critical section. */
+    {
+        uint32_t bus_mv;
+        float currents[BSP_MOTOR_COUNT];
+        OSAL_CRITICAL_SECTION {
+            bus_mv = ctx->status.bus_voltage_mv;
+            for (uint32_t i = 0U; i < BSP_MOTOR_COUNT; i++) {
+                currents[i] = ctx->status.current_ma[i];
+            }
+        }
+        (void)printf("PWR: VBUS=%lumV I=[", (unsigned long)bus_mv);
+        for (uint32_t i = 0U; i < BSP_MOTOR_COUNT; i++) {
+            (void)printf("%.0f%s", (double)currents[i],
+                (i + 1U < BSP_MOTOR_COUNT) ? " " : "");
+        }
+        (void)printf("]mA\r\n");
+    }
 }
 
-/* ======================== 绉佹湁鍑芥暟: 鏁版嵁杈撳嚭寰幆 ======================== */
+/* ======================== 缁変焦婀侀崙鑺ユ殶: 閺佺増宓佹潏鎾冲毉瀵邦亞骞?======================== */
 
 /**
- * @brief  VOFA+鏁版嵁杈撳嚭妯″紡(Run鍚庤繘鍏? Stop閫€鍑?
- * @param  ctx          鍏变韩涓婁笅鏂? * @param  motor        褰撳墠鐢垫満绱㈠紩鎸囬拡
- * @param  need_refresh 鍒锋柊鏍囧織鎸囬拡
+ * @brief  VOFA+閺佺増宓佹潏鎾冲毉濡€崇础(Run閸氬氦绻橀崗? Stop闁偓閸?
+ * @param  ctx          閸忓彉闊╂稉濠佺瑓閺? * @param  motor        瑜版挸澧犻悽鍨簚缁便垹绱╅幐鍥嫛
+ * @param  need_refresh 閸掗攱鏌婇弽鍥х箶閹稿洭鎷?
  */
 static void menu_data_output_loop(app_shared_ctx_t *ctx,
                                    uint32_t *motor,
@@ -406,7 +427,7 @@ static void menu_data_output_loop(app_shared_ctx_t *ctx,
     (void)printf("[DATA] VOFA+ output started. Send Stop to exit.\r\n");
 
     for (;;) {
-        /* 闈為樆濉炴鏌ュ懡浠?*/
+        /* 闂堢偤妯嗘繅鐐搭梾閺屻儱鎳℃禒?*/
 #if (PRJ_BLE_MENU_CONSOLE_ENABLE != 0U)
         if (menu_read_line(line_buf, PRJ_MENU_LINE_BUF_SIZE, &line_pos) ||
             menu_read_ble_line(line_buf, PRJ_MENU_LINE_BUF_SIZE,
@@ -419,18 +440,18 @@ static void menu_data_output_loop(app_shared_ctx_t *ctx,
             if (app_vofa_parse_cmd(line_buf, &cmd)) {
                 app_vofa_apply_cmd(&cmd, ctx, motor, need_refresh);
 
-                /* Stop閫€鍑烘暟鎹緭鍑烘ā寮?*/
+                /* Stop闁偓閸戠儤鏆熼幑顔跨翻閸戠儤膩瀵?*/
                 if (cmd.type == VOFA_CMD_STOP ||
                     cmd.type == VOFA_CMD_STOP_ALL ||
                     cmd.type == VOFA_CMD_STREAM_OFF) {
                     (void)printf("[DATA] VOFA+ output stopped.\r\n");
                     return;
                 }
-                /* 闈濻top鍛戒护: 鍙墦鍗板弽棣? 涓嶅埛鏂拌彍鍗?*/
+                /* 闂堟炕top閸涙垝鎶? 閸欘亝澧﹂崡鏉垮冀妫? 娑撳秴鍩涢弬鎷屽綅閸?*/
             }
         }
 
-        /* 杈撳嚭VOFA+鏁版嵁(11閫氶亾, DMA闈為樆濉? */
+        /* 鏉堟挸鍤璙OFA+閺佺増宓?11闁岸浜? DMA闂堢偤妯嗘繅? */
         {
             float channels[VOFA_TELEMETRY_CHANNEL_COUNT];
             OSAL_CRITICAL_SECTION {
@@ -438,20 +459,20 @@ static void menu_data_output_loop(app_shared_ctx_t *ctx,
                     channels[i] = (float)ctx->status.rpm[i];
                     channels[4 + i] = ctx->pid[i].setpoint;
                 }
-                /* CH8: FF duty(閫変腑鐢垫満) */
+                /* CH8: FF duty(闁鑵戦悽鍨簚) */
                 if (ctx->ff[*motor].enabled) {
                     channels[8] = app_ff_compute(
                         &ctx->ff[*motor], ctx->pid[*motor].setpoint);
                 } else {
                     channels[8] = 0.0f;
                 }
-                /* CH9: PID淇閲?閫変腑鐢垫満) */
+                /* CH9: PID娣囶喗顒滈柌?闁鑵戦悽鍨簚) */
                 channels[9] = ctx->status.pid_correction[*motor];
-                /* CH10: 瀹為檯DUTY杈撳嚭(閫変腑鐢垫満) */
+                /* CH10: 鐎圭偤妾疍UTY鏉堟挸鍤?闁鑵戦悽鍨簚) */
                 channels[10] = (float)ctx->status.output[*motor];
             }
 
-            /* 鏍煎紡鍖栧埌涓存椂缂撳啿鍖?*/
+            /* 閺嶇厧绱￠崠鏍у煂娑撳瓨妞傜紓鎾冲暱閸?*/
             char tx_buf[180];
             int len = 0;
             for (uint32_t i = 0U; i < VOFA_TELEMETRY_CHANNEL_COUNT; i++) {
@@ -463,7 +484,7 @@ static void menu_data_output_loop(app_shared_ctx_t *ctx,
                     sizeof(tx_buf) - (uint32_t)len,
                     "%.6f", (double)channels[i]);
                 if (ret < 0 || (uint32_t)ret >= sizeof(tx_buf) - (uint32_t)len) {
-                    len = 0;  /* 缂撳啿鍖轰笉瓒?鏀惧純鏈抚 */
+                    len = 0;  /* 缂傛挸鍟块崠杞扮瑝鐡?閺€鎯х磾閺堫剙鎶?*/
                     break;
                 }
                 len += ret;
@@ -471,14 +492,14 @@ static void menu_data_output_loop(app_shared_ctx_t *ctx,
             if (len > 0 && len < (int)sizeof(tx_buf)) {
                 tx_buf[len] = '\n';
                 len++;
-                /* 闈為樆濉濪MA鍙戦€侊細妫€鏌ユ爣蹇椾綅锛屽繖鍒欒烦杩囨湰甯?*/
+                /* 闂堢偤妯嗘繅婵狹A閸欐垿鈧緤绱板Λ鈧弻銉︾垼韫囨ぞ缍呴敍灞界箹閸掓瑨鐑︽潻鍥ㄦ拱鐢?*/
                 if (bsp_uart_tx_idle()) {
                     (void)bsp_uart_send_dma((uint8_t *)tx_buf, (uint16_t)len);
                 }
             }
         }
 
-        /* LED蹇冭烦 */
+        /* LED韫囧啳鐑?*/
         led_cnt += PRJ_RPM_OUTPUT_PERIOD_MS;
         if (led_cnt >= LED_TOGGLE_THRESH) {
             led_cnt = 0U;
@@ -489,7 +510,7 @@ static void menu_data_output_loop(app_shared_ctx_t *ctx,
     }
 }
 
-/* ======================== 鍏叡鍑芥暟瀹炵幇 ======================== */
+/* ======================== 閸忣剙鍙￠崙鑺ユ殶鐎圭偟骞?======================== */
 
 #if (PRJ_BLE_MENU_ENABLE != 0U)
 
@@ -497,10 +518,10 @@ static void menu_data_output_loop(app_shared_ctx_t *ctx,
 
 #if (PRJ_BLE_MENU_CONSOLE_ENABLE != 0U)
 /**
- * @brief 从 JDY-23 透明通道组装一条菜单命令。
- * @details 手机端必须发送 ASCII 文本并以 CR/LF 或 LF 结束。该函数不回显
- * 到 BLE，也不把 BLE 数据直接交给电机层；完整行仍复用现有菜单分发逻辑。
- * 超长行会被丢弃到行尾，避免执行截断命令。
+ * @brief 浠?JDY-23 閫忔槑閫氶亾缁勮涓€鏉¤彍鍗曞懡浠ゃ€?
+ * @details 鎵嬫満绔繀椤诲彂閫?ASCII 鏂囨湰骞朵互 CR/LF 鎴?LF 缁撴潫銆傝鍑芥暟涓嶅洖鏄?
+ * 鍒?BLE锛屼篃涓嶆妸 BLE 鏁版嵁鐩存帴浜ょ粰鐢垫満灞傦紱瀹屾暣琛屼粛澶嶇敤鐜版湁鑿滃崟鍒嗗彂閫昏緫銆?
+ * 瓒呴暱琛屼細琚涪寮冨埌琛屽熬锛岄伩鍏嶆墽琛屾埅鏂懡浠ゃ€?
  */
 static bool menu_read_ble_line(char *line_buf, uint32_t buf_size,
                                uint32_t *line_pos, bool *discard_line)
@@ -514,7 +535,7 @@ static bool menu_read_ble_line(char *line_buf, uint32_t buf_size,
         return false;
     }
 
-    /* 每次最多取 64 字节；遇到完整行立即返回，剩余数据留给下次循环。 */
+    /* 姣忔鏈€澶氬彇 64 瀛楄妭锛涢亣鍒板畬鏁磋绔嬪嵆杩斿洖锛屽墿浣欐暟鎹暀缁欎笅娆″惊鐜€?*/
     for (uint32_t i = 0U; i < 64U; i++) {
         received = 0U;
         status = app_ble_receive(&ch, 1U, &received);
@@ -563,9 +584,9 @@ static bool menu_read_ble_line(char *line_buf, uint32_t buf_size,
 
 
 /**
- * @brief 将 JDY-23 状态码转换为串口可读名称。
- * @param status JDY-23 驱动状态码。
- * @return 静态字符串，不需要调用者释放。
+ * @brief 灏?JDY-23 鐘舵€佺爜杞崲涓轰覆鍙ｅ彲璇诲悕绉般€?
+ * @param status JDY-23 椹卞姩鐘舵€佺爜銆?
+ * @return 闈欐€佸瓧绗︿覆锛屼笉闇€瑕佽皟鐢ㄨ€呴噴鏀俱€?
  */
 static const char *menu_ble_status_name(jdy23_status_t status)
 {
@@ -582,8 +603,8 @@ static const char *menu_ble_status_name(jdy23_status_t status)
 }
 
 /**
- * @brief 打印 UART0 控制台支持的 JDY-23 BLE 命令帮助。
- * @details 命令只用于调试和模块配置；BLE 接收数据不会进入电机控制解析器。
+ * @brief 鎵撳嵃 UART0 鎺у埗鍙版敮鎸佺殑 JDY-23 BLE 鍛戒护甯姪銆?
+ * @details 鍛戒护鍙敤浜庤皟璇曞拰妯″潡閰嶇疆锛汢LE 鎺ユ敹鏁版嵁涓嶄細杩涘叆鐢垫満鎺у埗瑙ｆ瀽鍣ㄣ€?
  */
 static void menu_print_ble_usage(void)
 {
@@ -606,9 +627,9 @@ static void menu_print_ble_usage(void)
 }
 
 /**
- * @brief 以可见转义格式打印 BLE 原始字节。
- * @param data 待打印数据。
- * @param len 数据长度，单位为字节。
+ * @brief 浠ュ彲瑙佽浆涔夋牸寮忔墦鍗?BLE 鍘熷瀛楄妭銆?
+ * @param data 寰呮墦鍗版暟鎹€?
+ * @param len 鏁版嵁闀垮害锛屽崟浣嶄负瀛楄妭銆?
  */
 static void menu_print_ble_bytes(const uint8_t *data, uint16_t len)
 {
@@ -629,8 +650,8 @@ static void menu_print_ble_bytes(const uint8_t *data, uint16_t len)
 }
 
 /**
- * @brief 从应用服务读取并打印一批已缓存 BLE 接收数据。
- * @return 实际读取到数据返回 true；无数据或读取失败返回 false。
+ * @brief 浠庡簲鐢ㄦ湇鍔¤鍙栧苟鎵撳嵃涓€鎵瑰凡缂撳瓨 BLE 鎺ユ敹鏁版嵁銆?
+ * @return 瀹為檯璇诲彇鍒版暟鎹繑鍥?true锛涙棤鏁版嵁鎴栬鍙栧け璐ヨ繑鍥?false銆?
  */
 static bool menu_ble_drain_rx(void)
 {
@@ -655,10 +676,10 @@ static bool menu_ble_drain_rx(void)
 }
 
 /**
- * @brief 获取 BLE 控制台命令前缀后的参数部分。
- * @param line 完整命令行。
- * @param prefix_len 前缀长度，单位为字符。
- * @return 跳过空格后的参数指针，指向原始命令行内部。
+ * @brief 鑾峰彇 BLE 鎺у埗鍙板懡浠ゅ墠缂€鍚庣殑鍙傛暟閮ㄥ垎銆?
+ * @param line 瀹屾暣鍛戒护琛屻€?
+ * @param prefix_len 鍓嶇紑闀垮害锛屽崟浣嶄负瀛楃銆?
+ * @return 璺宠繃绌烘牸鍚庣殑鍙傛暟鎸囬拡锛屾寚鍚戝師濮嬪懡浠よ鍐呴儴銆?
  */
 static const char *menu_ble_argument(const char *line, uint32_t prefix_len)
 {
@@ -670,10 +691,10 @@ static const char *menu_ble_argument(const char *line, uint32_t prefix_len)
 }
 
 /**
- * @brief 判断命令行是否匹配一个完整 BLE 命令前缀。
- * @param line 待匹配命令行。
- * @param prefix 命令前缀。
- * @return 完全匹配或后接空格时返回 true。
+ * @brief 鍒ゆ柇鍛戒护琛屾槸鍚﹀尮閰嶄竴涓畬鏁?BLE 鍛戒护鍓嶇紑銆?
+ * @param line 寰呭尮閰嶅懡浠よ銆?
+ * @param prefix 鍛戒护鍓嶇紑銆?
+ * @return 瀹屽叏鍖归厤鎴栧悗鎺ョ┖鏍兼椂杩斿洖 true銆?
  */
 static bool menu_ble_prefix_matches(const char *line, const char *prefix)
 {
@@ -684,10 +705,10 @@ static bool menu_ble_prefix_matches(const char *line, const char *prefix)
 }
 
 /**
- * @brief 将应用层响应格式转换为诊断输出名称。
- * @param info 命令元数据，可为 NULL。
- * @param result 应用层命令结果，可为 NULL。
- * @return 静态格式名称字符串。
+ * @brief 灏嗗簲鐢ㄥ眰鍝嶅簲鏍煎紡杞崲涓鸿瘖鏂緭鍑哄悕绉般€?
+ * @param info 鍛戒护鍏冩暟鎹紝鍙负 NULL銆?
+ * @param result 搴旂敤灞傚懡浠ょ粨鏋滐紝鍙负 NULL銆?
+ * @return 闈欐€佹牸寮忓悕绉板瓧绗︿覆銆?
  */
 static const char *menu_ble_response_format_name(
     const jdy23_command_info_t *info, const app_ble_command_result_t *result)
@@ -707,10 +728,10 @@ static const char *menu_ble_response_format_name(
 }
 
 /**
- * @brief 打印一条 JDY-23 内置命令的完整诊断结果。
- * @param operation 当前操作名称，例如 query、inspect 或 action。
- * @param command 已执行的命令索引。
- * @param result 传输和解析结果。
+ * @brief 鎵撳嵃涓€鏉?JDY-23 鍐呯疆鍛戒护鐨勫畬鏁磋瘖鏂粨鏋溿€?
+ * @param operation 褰撳墠鎿嶄綔鍚嶇О锛屼緥濡?query銆乮nspect 鎴?action銆?
+ * @param command 宸叉墽琛岀殑鍛戒护绱㈠紩銆?
+ * @param result 浼犺緭鍜岃В鏋愮粨鏋溿€?
  */
 static void menu_print_ble_command_result(
     const char *operation, jdy23_command_t command,
@@ -758,11 +779,11 @@ static void menu_print_ble_command_result(
 }
 
 /**
- * @brief 执行内置命令并立即打印结果。
- * @param operation 输出中的操作名称。
- * @param command 命令索引。
- * @param timeout_ms 命令超时时间，单位为毫秒。
- * @return 应用服务返回的传输状态。
+ * @brief 鎵ц鍐呯疆鍛戒护骞剁珛鍗虫墦鍗扮粨鏋溿€?
+ * @param operation 杈撳嚭涓殑鎿嶄綔鍚嶇О銆?
+ * @param command 鍛戒护绱㈠紩銆?
+ * @param timeout_ms 鍛戒护瓒呮椂鏃堕棿锛屽崟浣嶄负姣銆?
+ * @return 搴旂敤鏈嶅姟杩斿洖鐨勪紶杈撶姸鎬併€?
  */
 static jdy23_status_t menu_ble_execute_and_print(
     const char *operation, jdy23_command_t command, uint32_t timeout_ms)
@@ -775,8 +796,8 @@ static jdy23_status_t menu_ble_execute_and_print(
 }
 
 /**
- * @brief 依次执行所有内置只读 AT 查询并打印结果。
- * @details 不执行 RST、DISC、SLEEP 等动作命令，适合工厂和现场只读诊断。
+ * @brief 渚濇鎵ц鎵€鏈夊唴缃彧璇?AT 鏌ヨ骞舵墦鍗扮粨鏋溿€?
+ * @details 涓嶆墽琛?RST銆丏ISC銆丼LEEP 绛夊姩浣滃懡浠わ紝閫傚悎宸ュ巶鍜岀幇鍦哄彧璇昏瘖鏂€?
  */
 static void menu_ble_inspect_all(void)
 {
@@ -798,10 +819,10 @@ static void menu_ble_inspect_all(void)
 }
 
 /**
- * @brief 解析并处理一条 UART0 控制台 BLE 命令。
- * @param line 已去除行尾的命令字符串。
- * @param[in,out] monitor_enabled BLE 接收监视开关。
- * @return 该命令属于 BLE 命令并已处理返回 true，否则返回 false。
+ * @brief 瑙ｆ瀽骞跺鐞嗕竴鏉?UART0 鎺у埗鍙?BLE 鍛戒护銆?
+ * @param line 宸插幓闄よ灏剧殑鍛戒护瀛楃涓层€?
+ * @param[in,out] monitor_enabled BLE 鎺ユ敹鐩戣寮€鍏炽€?
+ * @return 璇ュ懡浠ゅ睘浜?BLE 鍛戒护骞跺凡澶勭悊杩斿洖 true锛屽惁鍒欒繑鍥?false銆?
  */
 static bool menu_handle_ble_command(const char *line,
                                     bool *monitor_enabled)
@@ -1029,13 +1050,13 @@ void app_menu_task(void *param)
     (void)printf("  - Sweeps Q_angle x Q_bias, outputs drift/std/jump, finds best params\r\n");
 
     for (;;) {
-        /* 鍒锋柊鑿滃崟 */
+        /* 閸掗攱鏌婇懣婊冨礋 */
         if (need_refresh) {
             menu_print_status(ctx, selected_motor);
             need_refresh = false;
         }
 
-        /* 妫€鏌ュ懡浠?*/
+        /* 濡偓閺屻儱鎳℃禒?*/
 #if (PRJ_BLE_MENU_CONSOLE_ENABLE != 0U)
         if (menu_read_line(line_buf, PRJ_MENU_LINE_BUF_SIZE, &line_pos) ||
             menu_read_ble_line(line_buf, PRJ_MENU_LINE_BUF_SIZE,
@@ -1045,20 +1066,20 @@ void app_menu_task(void *param)
         if (menu_read_line(line_buf, PRJ_MENU_LINE_BUF_SIZE, &line_pos)) {
 #endif
             /*
-             * 终端通常以 CRLF 结束命令。menu_read_line() 已在 CR 上
-             * 返回一次，随后 LF 会形成空行；空行不能被当成普通菜单
-             * 命令，否则会误触发 app_imu_console_stop()。
+             * 缁堢閫氬父浠?CRLF 缁撴潫鍛戒护銆俶enu_read_line() 宸插湪 CR 涓?
+             * 杩斿洖涓€娆★紝闅忓悗 LF 浼氬舰鎴愮┖琛岋紱绌鸿涓嶈兘琚綋鎴愭櫘閫氳彍鍗?
+             * 鍛戒护锛屽惁鍒欎細璇Е鍙?app_imu_console_stop()銆?
              */
             if (line_buf[0] != '\0') {
                 menu_drvscope_cmd_t scope_cmd;
                 app_imu_console_cmd_result_t imu_result =
                     app_imu_console_handle_command(line_buf);
                 if (imu_result != APP_IMU_CONSOLE_CMD_NOT_HANDLED) {
-                    /* 开始/查询时不要立刻刷整页电机状态，避免抢占 UART。 */
+                    /* 寮€濮?鏌ヨ鏃朵笉瑕佺珛鍒诲埛鏁撮〉鐢垫満鐘舵€侊紝閬垮厤鎶㈠崰 UART銆?*/
                     need_refresh =
                         (imu_result == APP_IMU_CONSOLE_CMD_STREAM_STOPPED);
                 } else {
-                /* 普通菜单命令与 CSV 遥测共享 UART，执行前关闭连续输出。 */
+                /* 鏅€氳彍鍗曞懡浠や笌 CSV 閬ユ祴鍏变韩 UART锛屾墽琛屽墠鍏抽棴杩炵画杈撳嚭銆?*/
                 (void)app_imu_console_stop();
 
 #if (PRJ_BLE_MENU_ENABLE != 0U)
@@ -1133,7 +1154,7 @@ void app_menu_task(void *param)
                 app_debug_adc_test();
                 need_refresh = true;
             } else if (strncmp(line_buf, "zutptest", 8) == 0) {
-                /* zutptest N: 鍚姩 N 绉?ZUPT 娴嬭瘯 */
+                /* zutptest N: 閸氼垰濮?N 缁?ZUPT 濞村鐦?*/
                 uint32_t dur = 60;
                 if (strlen(line_buf) > 9) {
                     dur = (uint32_t)atoi(&line_buf[9]);
@@ -1141,15 +1162,15 @@ void app_menu_task(void *param)
                 }
                 app_test_runner_start(dur);
             } else if (strncmp(line_buf, "turndtest", 9) == 0) {
-                /* turndtest ANGLE [TIMEOUT]: 鍔ㄦ€佽浆鍔ㄧ簿搴︽祴璇?*/
+                /* turndtest ANGLE [TIMEOUT]: 閸斻劍鈧浇娴嗛崝銊х翱鎼达附绁寸拠?*/
                 float target = 90.0f;
                 uint32_t timeout = 60;
-                /* 瑙ｆ瀽: "turndtest 90" 鎴?"turndtest 90 30" */
+                /* 鐟欙絾鐎? "turndtest 90" 閹?"turndtest 90 30" */
                 char *p = &line_buf[9];
                 while (*p == ' ') p++;
                 if (*p != '\0') {
                     target = (float)atof(p);
-                    /* 鏌ユ壘绗簩涓弬鏁?*/
+                    /* 閺屻儲澹樼粭顑跨癌娑擃亜寮弫?*/
                     while (*p != '\0' && *p != ' ') p++;
                     while (*p == ' ') p++;
                     if (*p != '\0') {
@@ -1160,10 +1181,10 @@ void app_menu_task(void *param)
                 if (target == 0.0f) target = 90.0f;
                 app_test_runner_start_turn(target, timeout);
             } else if (strcmp(line_buf, "turnend") == 0) {
-                /* turnend: 鎵嬪姩纭杞姩缁撴潫 */
+                /* turnend: 閹靛濮╃涵顔款吇鏉烆剙濮╃紒鎾存将 */
                 app_test_runner_end_turn();
             } else if (strncmp(line_buf, "kftune", 6) == 0) {
-                /* kftune N: KF 鍙傛暟鎵弿, 姣忕粍 N 绉?(榛樿 10) */
+                /* kftune N: KF 閸欏倹鏆熼幍顐ｅ伎, 濮ｅ繒绮?N 缁?(姒涙顓?10) */
                 uint32_t dur = 10;
                 if (strlen(line_buf) > 7) {
                     dur = (uint32_t)atoi(&line_buf[7]);
@@ -1176,12 +1197,12 @@ void app_menu_task(void *param)
                     app_vofa_apply_cmd(&cmd, ctx, &selected_motor,
                                        &need_refresh);
 
-                    /* Run鍛戒护杩涘叆鏁版嵁杈撳嚭妯″紡 */
+                    /* Run閸涙垝鎶ゆ潻娑樺弳閺佺増宓佹潏鎾冲毉濡€崇础 */
                     if (cmd.type == VOFA_CMD_RUN ||
                         cmd.type == VOFA_CMD_STREAM_ON) {
                         menu_data_output_loop(ctx, &selected_motor,
                                               &need_refresh);
-                        /* 閫€鍑哄悗鍒锋柊鑿滃崟 */
+                        /* 闁偓閸戝搫鎮楅崚閿嬫煀閼挎粌宕?*/
                         need_refresh = true;
                     }
                 }
@@ -1197,7 +1218,7 @@ void app_menu_task(void *param)
         }
 #endif
 
-        /* LED蹇冭烦 */
+        /* LED韫囧啳鐑?*/
         led_cnt += MENU_LED_PERIOD_MS;
         if (led_cnt >= LED_TOGGLE_THRESH) {
             led_cnt = 0U;
@@ -1207,3 +1228,4 @@ void app_menu_task(void *param)
         osal_task_delay_ms(MENU_LED_PERIOD_MS);
     }
 }
+

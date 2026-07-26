@@ -1,9 +1,9 @@
-/**
+﻿/**
  * @file    project_config.h
- * @brief   项目硬件配置集中定义
- * @note    所有引脚映射、外设实例分配、硬件参数在此集中定义。
- *          更换硬件/引脚仅需修改此文件，无需改动驱动代码。
- *          引脚编号来源于ti_msp_dl_config.h(SysConfig生成)
+ * @brief   椤圭洰纭欢閰嶇疆闆嗕腑瀹氫箟
+ * @note    鎵€鏈夊紩鑴氭槧灏勩€佸璁惧疄渚嬪垎閰嶃€佺‖浠跺弬鏁板湪姝ら泦涓畾涔夈€?
+ *          鏇存崲纭欢/寮曡剼浠呴渶淇敼姝ゆ枃浠讹紝鏃犻渶鏀瑰姩椹卞姩浠ｇ爜銆?
+ *          寮曡剼缂栧彿鏉ユ簮浜巘i_msp_dl_config.h(SysConfig鐢熸垚)
  */
 #ifndef PROJECT_CONFIG_H
 #define PROJECT_CONFIG_H
@@ -12,11 +12,67 @@
 extern "C" {
 #endif
 
-/* ======================== 包含 ======================== */
+/* ======================== 鍖呭惈 ======================== */
 #include "hal_common.h"
 #include "ti_msp_dl_config.h"
 #include "filter_param_defaults.h"
 #include "filter_tuning.h"
+
+
+/* ================================================================
+ * IMU filter backend feature switches
+ *
+ * The Keil target may override these macros in its preprocessor
+ * definitions.  The normal target keeps only KF; the factory target
+ * enables all backends for diagnostic comparison.  Enum values remain
+ * stable even when a backend is compiled out.
+ * ================================================================ */
+#ifndef PRJ_FILTER_ENABLE_COMPLEMENTARY
+#define PRJ_FILTER_ENABLE_COMPLEMENTARY (0U)
+#endif
+#ifndef PRJ_FILTER_ENABLE_LPF
+#define PRJ_FILTER_ENABLE_LPF           (0U)
+#endif
+#ifndef PRJ_FILTER_ENABLE_EKF
+#define PRJ_FILTER_ENABLE_EKF           (0U)
+#endif
+#ifndef PRJ_FILTER_ENABLE_LKF
+#define PRJ_FILTER_ENABLE_LKF           (0U)
+#endif
+#ifndef PRJ_FILTER_ENABLE_MAHONY
+#define PRJ_FILTER_ENABLE_MAHONY        (0U)
+#endif
+#ifndef PRJ_FILTER_ENABLE_MADGWICK
+#define PRJ_FILTER_ENABLE_MADGWICK      (0U)
+#endif
+#ifndef PRJ_FILTER_ENABLE_KF
+#define PRJ_FILTER_ENABLE_KF            (1U)
+#endif
+
+#if ((PRJ_FILTER_ENABLE_COMPLEMENTARY != 0U) && (PRJ_FILTER_ENABLE_COMPLEMENTARY != 1U)) || \
+    ((PRJ_FILTER_ENABLE_LPF           != 0U) && (PRJ_FILTER_ENABLE_LPF           != 1U)) || \
+    ((PRJ_FILTER_ENABLE_EKF           != 0U) && (PRJ_FILTER_ENABLE_EKF           != 1U)) || \
+    ((PRJ_FILTER_ENABLE_LKF           != 0U) && (PRJ_FILTER_ENABLE_LKF           != 1U)) || \
+    ((PRJ_FILTER_ENABLE_MAHONY        != 0U) && (PRJ_FILTER_ENABLE_MAHONY        != 1U)) || \
+    ((PRJ_FILTER_ENABLE_MADGWICK      != 0U) && (PRJ_FILTER_ENABLE_MADGWICK      != 1U)) || \
+    ((PRJ_FILTER_ENABLE_KF            != 0U) && (PRJ_FILTER_ENABLE_KF            != 1U))
+#error "PRJ_FILTER_ENABLE_* macros must be 0 or 1"
+#endif
+
+#if (PRJ_FILTER_ENABLE_COMPLEMENTARY == 0U) && \
+    (PRJ_FILTER_ENABLE_LPF == 0U) && \
+    (PRJ_FILTER_ENABLE_EKF == 0U) && \
+    (PRJ_FILTER_ENABLE_LKF == 0U) && \
+    (PRJ_FILTER_ENABLE_MAHONY == 0U) && \
+    (PRJ_FILTER_ENABLE_MADGWICK == 0U) && \
+    (PRJ_FILTER_ENABLE_KF == 0U)
+#error "At least one IMU filter backend must be enabled"
+#endif
+
+/* The current IMU application uses KF for its static instance. */
+#if (PRJ_FILTER_ENABLE_KF == 0U)
+#error "This application target requires PRJ_FILTER_ENABLE_KF=1"
+#endif
 
 /* ================================================================
  * Project identity canonical configuration
@@ -26,19 +82,19 @@ extern "C" {
  * Only the protocol/board/motor PROJECT_* aliases remain below for legacy
  * modules and external tooling; new firmware code must use the PRJ_* names.
  * ================================================================ */
-/** 固件版本主版号。 */
+/** 鍥轰欢鐗堟湰涓荤増鍙枫€?*/
 #define PRJ_VERSION_MAJOR        (0U)
-/** 固件版本次版号。 */
+/** 鍥轰欢鐗堟湰娆＄増鍙枫€?*/
 #define PRJ_VERSION_MINOR        (1U)
-/** 固件版本修订号。 */
+/** 鍥轰欢鐗堟湰淇鍙枫€?*/
 #define PRJ_VERSION_PATCH        (0U)
-/** 固件版本字符串。 */
+/** 鍥轰欢鐗堟湰瀛楃涓层€?*/
 #define PRJ_VERSION_STRING       "0.1.0"
-/** 固件与上位机文本协议的兼容级别。 */
+/** 鍥轰欢涓庝笂浣嶆満鏂囨湰鍗忚鐨勫吋瀹圭骇鍒€?*/
 #define PRJ_PROTOCOL_VERSION     (1U)
-/** 当前硬件板卡名称。 */
+/** 褰撳墠纭欢鏉垮崱鍚嶇О銆?*/
 #define PRJ_BOARD_NAME           "MSPM0G3507"
-/** 当前电机驱动器名称。 */
+/** 褰撳墠鐢垫満椹卞姩鍣ㄥ悕绉般€?*/
 #define PRJ_MOTOR_DRIVER_NAME    "DRV8870"
 
 #ifndef PROJECT_PROTOCOL_VERSION
@@ -52,22 +108,22 @@ extern "C" {
 #endif
 
 /* ================================================================
- *  LED配置
- *  SysConfig已配置: GPIOA.14, PINCM36
+ *  LED閰嶇疆
+ *  SysConfig宸查厤缃? GPIOA.14, PINCM36
  * ================================================================ */
 
-/** LED端口(GPIOA) */
+/** LED绔彛(GPIOA) */
 #define PRJ_LED_PORT            HAL_GPIO_PORT_A
-/** LED引脚编号 */
+/** LED寮曡剼缂栧彿 */
 #define PRJ_LED_PIN             LED_A27_PIN
 
 /* ================================================================
- *  调试UART配置
- *  SysConfig已配置: UART0, TX=PA10/PINCM21, RX=PA11/PINCM22
- *  波特率: 115200, 时钟: 40MHz
+ *  璋冭瘯UART閰嶇疆
+ *  SysConfig宸查厤缃? UART0, TX=PA10/PINCM21, RX=PA11/PINCM22
+ *  娉㈢壒鐜? 115200, 鏃堕挓: 40MHz
  * ================================================================ */
 
-/** 调试串口HAL实例 */
+/** 璋冭瘯涓插彛HAL瀹炰緥 */
 #define PRJ_UART_DEBUG_ID       HAL_UART_DEBUG
 
 /* ================================================================
@@ -81,7 +137,7 @@ extern "C" {
 #define PRJ_VOFA_TARGET_RPM_MAX   (800.0f)
 
 /* ================================================================
- *  JDY-23 BLE UART配置
+ *  JDY-23 BLE UART閰嶇疆
  *  SysConfig: UART1, TX=PB6, RX=PB7, 9600-8-N-1, no flow control.
  *  JDY-23 protocol code is isolated from this hardware mapping.
  * ================================================================ */
@@ -89,14 +145,14 @@ extern "C" {
 #define PRJ_JDY23_UART_BAUD     (9600U)
 
 /**
- * @brief 是否启用 UART1/JDY-23 BLE 菜单调试功能。
+ * @brief 鏄惁鍚敤 UART1/JDY-23 BLE 鑿滃崟璋冭瘯鍔熻兘銆?
  * @details
- * 设为 1 时初始化 BLE 服务并启用 UART0 菜单中的 ble 命令；
- * 设为 0 时不初始化 BLE 服务、不编译 BLE 菜单处理逻辑，
- * 且不影响 UART0、电机、编码器、ADC、IMU 及其他菜单命令。
+ * 璁句负 1 鏃跺垵濮嬪寲 BLE 鏈嶅姟骞跺惎鐢?UART0 鑿滃崟涓殑 ble 鍛戒护锛?
+ * 璁句负 0 鏃朵笉鍒濆鍖?BLE 鏈嶅姟銆佷笉缂栬瘧 BLE 鑿滃崟澶勭悊閫昏緫锛?
+ * 涓斾笉褰卞搷 UART0銆佺數鏈恒€佺紪鐮佸櫒銆丄DC銆両MU 鍙婂叾浠栬彍鍗曞懡浠ゃ€?
  *
- * 该开关只控制“菜单调试/诊断入口”，不会改变 JDY-23 驱动源文件
- * 是否被 Keil 工程收录，从而避免不同 target 的文件组发生漂移。
+ * 璇ュ紑鍏冲彧鎺у埗鈥滆彍鍗曡皟璇?璇婃柇鍏ュ彛鈥濓紝涓嶄細鏀瑰彉 JDY-23 椹卞姩婧愭枃浠?
+ * 鏄惁琚?Keil 宸ョ▼鏀跺綍锛屼粠鑰岄伩鍏嶄笉鍚?target 鐨勬枃浠剁粍鍙戠敓婕傜Щ銆?
  */
 #ifndef PRJ_BLE_MENU_ENABLE
 #define PRJ_BLE_MENU_ENABLE     (1U)
@@ -107,13 +163,13 @@ extern "C" {
 #endif
 
 /**
- * @brief 是否允许手机通过 BLE 透明通道进入 UART0 菜单命令解析器。
+ * @brief 鏄惁鍏佽鎵嬫満閫氳繃 BLE 閫忔槑閫氶亾杩涘叆 UART0 鑿滃崟鍛戒护瑙ｆ瀽鍣ㄣ€?
  * @details
- * 设为 1 后，JDY-23 已建立透明连接时，手机发送的 ASCII 命令并以
- * CR/LF 结束后，会复用现有菜单解析路径，例如 `A 100`、`stop`、
- * `drvscope status` 等。该功能可能驱动电机，默认关闭以避免误动作。
+ * 璁句负 1 鍚庯紝JDY-23 宸插缓绔嬮€忔槑杩炴帴鏃讹紝鎵嬫満鍙戦€佺殑 ASCII 鍛戒护骞朵互
+ * CR/LF 缁撴潫鍚庯紝浼氬鐢ㄧ幇鏈夎彍鍗曡В鏋愯矾寰勶紝渚嬪 `A 100`銆乣stop`銆?
+ * `drvscope status` 绛夈€傝鍔熻兘鍙兘椹卞姩鐢垫満锛岄粯璁ゅ叧闂互閬垮厤璇姩浣溿€?
  *
- * 该开关依赖 PRJ_BLE_MENU_ENABLE；开启本宏时必须同时开启 BLE 菜单服务。
+ * 璇ュ紑鍏充緷璧?PRJ_BLE_MENU_ENABLE锛涘紑鍚湰瀹忔椂蹇呴』鍚屾椂寮€鍚?BLE 鑿滃崟鏈嶅姟銆?
  */
 #ifndef PRJ_BLE_MENU_CONSOLE_ENABLE
 #define PRJ_BLE_MENU_CONSOLE_ENABLE (0U)
@@ -130,14 +186,14 @@ extern "C" {
 #endif
 
 /* ================================================================
- *  电机驱动选择与统一业务命令
+ *  鐢垫満椹卞姩閫夋嫨涓庣粺涓€涓氬姟鍛戒护
  *
- *  分层关系:
- *    Application -> bsp_motor(统一门面) -> 芯片后端 -> HAL
+ *  鍒嗗眰鍏崇郴:
+ *    Application -> bsp_motor(缁熶竴闂ㄩ潰) -> 鑺墖鍚庣 -> HAL
  *
- *  默认使用 DRV8870；TB6612 是备用硬件后端。上层统一使用
- *  -PRJ_MOTOR_COMMAND_MAX ~ +PRJ_MOTOR_COMMAND_MAX，切换后端不改变
- *  PID、模型辨识和通信协议中的命令量纲。
+ *  榛樿浣跨敤 DRV8870锛汿B6612 鏄鐢ㄧ‖浠跺悗绔€備笂灞傜粺涓€浣跨敤
+ *  -PRJ_MOTOR_COMMAND_MAX ~ +PRJ_MOTOR_COMMAND_MAX锛屽垏鎹㈠悗绔笉鏀瑰彉
+ *  PID銆佹ā鍨嬭鲸璇嗗拰閫氫俊鍗忚涓殑鍛戒护閲忕翰銆?
  * ================================================================ */
 #define PRJ_MOTOR_DRIVER_DRV8870    (1U)
 #define PRJ_MOTOR_DRIVER_TB6612     (2U)
@@ -151,33 +207,33 @@ extern "C" {
 #error "PRJ_MOTOR_DRIVER must select DRV8870 or TB6612"
 #endif
 
-/** 后端无关的有符号业务命令最大绝对值。 */
+/** 鍚庣鏃犲叧鐨勬湁绗﹀彿涓氬姟鍛戒护鏈€澶х粷瀵瑰€笺€?*/
 #define PRJ_MOTOR_COMMAND_MAX       (500U)
 
-/** 电机安装方向；正命令必须统一对应车体前进方向。 */
+/** 鐢垫満瀹夎鏂瑰悜锛涙鍛戒护蹇呴』缁熶竴瀵瑰簲杞︿綋鍓嶈繘鏂瑰悜銆?*/
 #define PRJ_MOTOR_A_INSTALL_DIR_SIGN  (-1)
 #define PRJ_MOTOR_B_INSTALL_DIR_SIGN  (-1)
 #define PRJ_MOTOR_C_INSTALL_DIR_SIGN  (+1)
 #define PRJ_MOTOR_D_INSTALL_DIR_SIGN  (+1)
 
 /* ================================================================
- *  TB6612 备用后端配置
+ *  TB6612 澶囩敤鍚庣閰嶇疆
  *
- *  当前 Config/empty.syscfg 是 DRV8870 默认板级配置，不包含以下8个
- *  方向GPIO。选择 TB6612 前必须在独立 SysConfig 板级配置中恢复
- *  MOTOR_AIN1~MOTOR_DIN2，并重新生成 ti_msp_dl_config.c/h。
+ *  褰撳墠 Config/empty.syscfg 鏄?DRV8870 榛樿鏉跨骇閰嶇疆锛屼笉鍖呭惈浠ヤ笅8涓?
+ *  鏂瑰悜GPIO銆傞€夋嫨 TB6612 鍓嶅繀椤诲湪鐙珛 SysConfig 鏉跨骇閰嶇疆涓仮澶?
+ *  MOTOR_AIN1~MOTOR_DIN2锛屽苟閲嶆柊鐢熸垚 ti_msp_dl_config.c/h銆?
  * ================================================================ */
 #define PRJ_TB6612_PWM_TIMER        HAL_TIMER_PWM_MOTOR
 #define PRJ_TB6612_PWM_CLK_HZ       ((unsigned long)(PWM_MOTOR_INST_CLK_FREQ))
 #define PRJ_TB6612_PWM_PERIOD       (1000U)
 #define PRJ_TB6612_POWER_STARTUP_MS (1U)
 
-/** 设为1时由软件控制TB6612 STBY；0表示STBY已由硬件固定为有效。 */
+/** 璁句负1鏃剁敱杞欢鎺у埗TB6612 STBY锛?琛ㄧずSTBY宸茬敱纭欢鍥哄畾涓烘湁鏁堛€?*/
 #ifndef PRJ_TB6612_STANDBY_CONTROL_ENABLE
 #define PRJ_TB6612_STANDBY_CONTROL_ENABLE (0U)
 #endif
 
-/** 仅供编译门面判断板级引脚与STBY配置是否完整；禁止手工强制置1。 */
+/** 浠呬緵缂栬瘧闂ㄩ潰鍒ゆ柇鏉跨骇寮曡剼涓嶴TBY閰嶇疆鏄惁瀹屾暣锛涚姝㈡墜宸ュ己鍒剁疆1銆?*/
 #define PRJ_TB6612_BOARD_CONFIG_AVAILABLE (0U)
 
 #if (PRJ_MOTOR_DRIVER == PRJ_MOTOR_DRIVER_TB6612)
@@ -188,26 +244,26 @@ extern "C" {
 #error "TB6612 selected: restore MOTOR_AIN1..MOTOR_DIN2 in SysConfig and regenerate ti_msp_dl_config"
 #else
 
-/* 历史TB6612板级方向GPIO；若备用板改版，只修改本节。 */
-#define PRJ_TB6612_A_PWM_CH      (0U) /* M1 / 右后 */
+/* 鍘嗗彶TB6612鏉跨骇鏂瑰悜GPIO锛涜嫢澶囩敤鏉挎敼鐗堬紝鍙慨鏀规湰鑺傘€?*/
+#define PRJ_TB6612_A_PWM_CH      (0U) /* M1 / 鍙冲悗 */
 #define PRJ_TB6612_A_IN1_PORT    HAL_GPIO_PORT_B
 #define PRJ_TB6612_A_IN1_PIN     MOTOR_AIN1_PIN  /* PB24 */
 #define PRJ_TB6612_A_IN2_PORT    HAL_GPIO_PORT_B
 #define PRJ_TB6612_A_IN2_PIN     MOTOR_AIN2_PIN  /* PB20 */
 
-#define PRJ_TB6612_B_PWM_CH      (1U) /* M2 / 右前 */
+#define PRJ_TB6612_B_PWM_CH      (1U) /* M2 / 鍙冲墠 */
 #define PRJ_TB6612_B_IN1_PORT    HAL_GPIO_PORT_A
 #define PRJ_TB6612_B_IN1_PIN     MOTOR_BIN1_PIN  /* PA24 */
 #define PRJ_TB6612_B_IN2_PORT    HAL_GPIO_PORT_A
 #define PRJ_TB6612_B_IN2_PIN     MOTOR_BIN2_PIN  /* PA31 */
 
-#define PRJ_TB6612_C_PWM_CH      (2U) /* M3 / 左前 */
+#define PRJ_TB6612_C_PWM_CH      (2U) /* M3 / 宸﹀墠 */
 #define PRJ_TB6612_C_IN1_PORT    HAL_GPIO_PORT_A
 #define PRJ_TB6612_C_IN1_PIN     MOTOR_CIN1_PIN  /* PA3 */
 #define PRJ_TB6612_C_IN2_PORT    HAL_GPIO_PORT_A
 #define PRJ_TB6612_C_IN2_PIN     MOTOR_CIN2_PIN  /* PA7 */
 
-#define PRJ_TB6612_D_PWM_CH      (3U) /* M4 / 左后 */
+#define PRJ_TB6612_D_PWM_CH      (3U) /* M4 / 宸﹀悗 */
 #define PRJ_TB6612_D_IN1_PORT    HAL_GPIO_PORT_B
 #define PRJ_TB6612_D_IN1_PIN     MOTOR_DIN1_PIN  /* PB6 */
 #define PRJ_TB6612_D_IN2_PORT    HAL_GPIO_PORT_B
@@ -250,16 +306,16 @@ extern "C" {
 #endif /* selected TB6612 */
 
 /* ================================================================
- *  编码器捕获配置
- *  SysConfig已配置: TIMG7/TIMA1/TIMG6/TIMG0, 组合捕获模式(脉宽+周期)
+ *  缂栫爜鍣ㄦ崟鑾烽厤缃?
+ *  SysConfig宸查厤缃? TIMG7/TIMA1/TIMG6/TIMG0, 缁勫悎鎹曡幏妯″紡(鑴夊+鍛ㄦ湡)
  * ================================================================ */
 
 /**
- * 电机与编码器机械参数。
+ * 鐢垫満涓庣紪鐮佸櫒鏈烘鍙傛暟銆?
  *
- * PPR定义为编码器A相在电机轴旋转一圈时的完整脉冲周期数；当前捕获逻辑
- * 同时统计A相上升沿和下降沿，因此解码倍频固定为2。减速比用分数表示，
- * 可准确配置20:1、30:1或298:11等非整数标称减速比。
+ * PPR瀹氫箟涓虹紪鐮佸櫒A鐩稿湪鐢垫満杞存棆杞竴鍦堟椂鐨勫畬鏁磋剦鍐插懆鏈熸暟锛涘綋鍓嶆崟鑾烽€昏緫
+ * 鍚屾椂缁熻A鐩镐笂鍗囨部鍜屼笅闄嶆部锛屽洜姝よВ鐮佸€嶉鍥哄畾涓?銆傚噺閫熸瘮鐢ㄥ垎鏁拌〃绀猴紝
+ * 鍙噯纭厤缃?0:1銆?0:1鎴?98:11绛夐潪鏁存暟鏍囩О鍑忛€熸瘮銆?
  */
 #define PRJ_MOTOR_ENCODER_PPR              (13U)
 #define PRJ_MOTOR_GEAR_RATIO_NUMERATOR     (20U)
@@ -282,22 +338,22 @@ extern "C" {
 #error "Configured PPR and gear ratio do not produce an integer output-shaft count"
 #endif
 
-/** 输出轴每转计数，用于位置和RPM换算。 */
+/** 杈撳嚭杞存瘡杞鏁帮紝鐢ㄤ簬浣嶇疆鍜孯PM鎹㈢畻銆?*/
 #define PRJ_MOTOR_OUTPUT_PULSES_PER_REV \
     ((PRJ_MOTOR_ENCODER_PPR * PRJ_MOTOR_GEAR_RATIO_NUMERATOR * \
       PRJ_ENCODER_DECODE_MULTIPLIER) / \
      PRJ_MOTOR_GEAR_RATIO_DENOMINATOR)
 
-/** 兼容现有编码器BSP调用。 */
+/** 鍏煎鐜版湁缂栫爜鍣˙SP璋冪敤銆?*/
 #define PRJ_ENCODER_PULSES_PER_REV  PRJ_MOTOR_OUTPUT_PULSES_PER_REV
 
-/** 左前编码器HAL实例 */
+/** 宸﹀墠缂栫爜鍣℉AL瀹炰緥 */
 #define PRJ_ENCODER_LF_TIMER    HAL_TIMER_CAPTURE_LF
-/** 左后编码器HAL实例 */
+/** 宸﹀悗缂栫爜鍣℉AL瀹炰緥 */
 #define PRJ_ENCODER_LB_TIMER    HAL_TIMER_CAPTURE_LB
-/** 右前编码器HAL实例 */
+/** 鍙冲墠缂栫爜鍣℉AL瀹炰緥 */
 #define PRJ_ENCODER_RF_TIMER    HAL_TIMER_CAPTURE_RF
-/** 右后编码器HAL实例 */
+/** 鍙冲悗缂栫爜鍣℉AL瀹炰緥 */
 #define PRJ_ENCODER_RB_TIMER    HAL_TIMER_CAPTURE_RB
 
 /**
@@ -309,7 +365,7 @@ extern "C" {
 #define PRJ_ENCODER_LB_IRQ_HANDLER  M4_INST_IRQHandler
 #define PRJ_ENCODER_RF_IRQ_HANDLER  M2_INST_IRQHandler
 #define PRJ_ENCODER_RB_IRQ_HANDLER  M1_INST_IRQHandler
-/** 编码器A相端口/引脚(SysConfig捕获复用输入) */
+/** 缂栫爜鍣ˋ鐩哥鍙?寮曡剼(SysConfig鎹曡幏澶嶇敤杈撳叆) */
 #define PRJ_ENCODER_LF_A_PORT        HAL_GPIO_PORT_A
 #define PRJ_ENCODER_LB_A_PORT        HAL_GPIO_PORT_A
 #define PRJ_ENCODER_RF_A_PORT        HAL_GPIO_PORT_A
@@ -318,7 +374,7 @@ extern "C" {
 #define PRJ_ENCODER_LB_A_PIN         GPIO_M4_C0_PIN
 #define PRJ_ENCODER_RF_A_PIN         GPIO_M2_C0_PIN
 #define PRJ_ENCODER_RB_A_PIN         GPIO_M1_C0_PIN
-/** 编码器B相端口(SysConfig已配置) */
+/** 缂栫爜鍣˙鐩哥鍙?SysConfig宸查厤缃? */
 #define PRJ_ENCODER_LF_B_PORT        HAL_GPIO_PORT_A
 #define PRJ_ENCODER_LB_B_PORT        HAL_GPIO_PORT_A
 #define PRJ_ENCODER_RF_B_PORT        HAL_GPIO_PORT_A
@@ -333,8 +389,8 @@ extern "C" {
 #define PRJ_ENCODER_RB_B_PIN    ENCODER_M1_B_PIN
 
 /**
- * 编码器安装方向修正：车体前进时四路编码器RPM应统一为正。
- * 若只更换某一路电机/编码器安装方向，只修改对应宏，不改ISR判向逻辑。
+ * 缂栫爜鍣ㄥ畨瑁呮柟鍚戜慨姝ｏ細杞︿綋鍓嶈繘鏃跺洓璺紪鐮佸櫒RPM搴旂粺涓€涓烘銆?
+ * 鑻ュ彧鏇存崲鏌愪竴璺數鏈?缂栫爜鍣ㄥ畨瑁呮柟鍚戯紝鍙慨鏀瑰搴斿畯锛屼笉鏀笽SR鍒ゅ悜閫昏緫銆?
  */
 #define PRJ_ENCODER_LF_DIR_SIGN (-1)
 #define PRJ_ENCODER_LB_DIR_SIGN (-1)
@@ -342,10 +398,10 @@ extern "C" {
 #define PRJ_ENCODER_RB_DIR_SIGN (+1)
 
 /**
- * 电机输出通道与编码器反馈的物理对应关系。
- * A/M1=右后(RB)，B/M2=右前(RF)，C/M3=左前(LF)，D/M4=左后(LB)。
- * task_control.c据此将编码器反馈和位置控制目标的车轮顺序
- * (LF/LB/RF/RB)统一重排为电机顺序(A/B/C/D)。
+ * 鐢垫満杈撳嚭閫氶亾涓庣紪鐮佸櫒鍙嶉鐨勭墿鐞嗗搴斿叧绯汇€?
+ * A/M1=鍙冲悗(RB)锛孊/M2=鍙冲墠(RF)锛孋/M3=宸﹀墠(LF)锛孌/M4=宸﹀悗(LB)銆?
+ * task_control.c鎹灏嗙紪鐮佸櫒鍙嶉鍜屼綅缃帶鍒剁洰鏍囩殑杞﹁疆椤哄簭
+ * (LF/LB/RF/RB)缁熶竴閲嶆帓涓虹數鏈洪『搴?A/B/C/D)銆?
  */
 #define PRJ_MOTOR_A_ENCODER_ID  BSP_ENCODER_RB
 #define PRJ_MOTOR_B_ENCODER_ID  BSP_ENCODER_RF
@@ -356,7 +412,7 @@ extern "C" {
     PRJ_MOTOR_C_ENCODER_ID, PRJ_MOTOR_D_ENCODER_ID \
 }
 
-/** 编码器配置表(顺序需与BSP_ENCODER_x一致) */
+/** 缂栫爜鍣ㄩ厤缃〃(椤哄簭闇€涓嶣SP_ENCODER_x涓€鑷? */
 #define PRJ_ENCODER_CONFIGS { \
 		{ PRJ_ENCODER_LF_TIMER, PRJ_ENCODER_LF_A_PORT, PRJ_ENCODER_LF_A_PIN, \
 			PRJ_ENCODER_LF_B_PORT, PRJ_ENCODER_LF_B_PIN, PRJ_ENCODER_LF_DIR_SIGN }, \
@@ -369,104 +425,115 @@ extern "C" {
 }
 
 /* ================================================================
- *  ADC配置
- *  SysConfig已配置: ADC0, 12位单次采样, 通道0(PA27), VDDA参考3.3V
+ *  ADC閰嶇疆
+ *  SysConfig宸查厤缃? ADC0, 12浣嶅崟娆￠噰鏍? 閫氶亾0(PA27), VDDA鍙傝€?.3V
  * ================================================================ */
 
-/** 电压ADC HAL实例 */
+/** 鐢靛帇ADC HAL瀹炰緥 */
 #define PRJ_ADC_VOLTAGE_ID      HAL_ADC_VOLTAGE
-/** ADC参考电压(mV) */
+/** ADC鍙傝€冪數鍘?mV) */
 #define PRJ_ADC_VREF_MV         (3300U)
-/** ADC分辨率(12位) */
+/** ADC鍒嗚鲸鐜?12浣? */
 #define PRJ_ADC_RESOLUTION      (4096U)
 
+/** Current sense shunt resistance and amplifier gain. */
+#define PRJ_ADC_CURRENT_SHUNT_OHM     (0.15f)
+#define PRJ_ADC_CURRENT_AMPLIFY       (10.0f)
+#define PRJ_ADC_CURRENT_MA_PER_RAW \
+    ((float)(PRJ_ADC_VREF_MV) / (float)(PRJ_ADC_RESOLUTION) / \
+     PRJ_ADC_CURRENT_SHUNT_OHM / PRJ_ADC_CURRENT_AMPLIFY)
+
+/** Overcurrent threshold and consecutive 5 ms control ticks. */
+#define PRJ_ADC_CURRENT_OVERLOAD_MA   (1500U)
+#define PRJ_ADC_CURRENT_OVERLOAD_TICKS (10U)
+
 /* ================================================================
- *  硬件SPI配置 (LSM6DSR)
- *  SPI1: SCK=PB9, MOSI=PA18, MISO=PA16, CS=PA25(独立GPIO)
- *  注意: SPI 引脚由 SysConfig 配置，spi_bridge.c 使用 ti_msp_dl_config.h 定义
+ *  纭欢SPI閰嶇疆 (LSM6DSR)
+ *  SPI1: SCK=PB9, MOSI=PA18, MISO=PA16, CS=PA25(鐙珛GPIO)
+ *  娉ㄦ剰: SPI 寮曡剼鐢?SysConfig 閰嶇疆锛宻pi_bridge.c 浣跨敤 ti_msp_dl_config.h 瀹氫箟
  * ================================================================ */
 
 /* ================================================================
- *  软件I2C配置 (已弃用，替换为硬件SPI)
- *  配置已移除，保留注释供历史参考
+ *  杞欢I2C閰嶇疆 (宸插純鐢紝鏇挎崲涓虹‖浠禨PI)
+ *  閰嶇疆宸茬Щ闄わ紝淇濈暀娉ㄩ噴渚涘巻鍙插弬鑰?
  * ================================================================ */
 
-/* MPU6050 配置已移除，替换为 LSM6DSR */
-
-/* ================================================================
- *  LSM6DSR六轴传感器配置
- *  通过硬件SPI接口通信(SPI1: SCK=PB9, MOSI=PA18, MISO=PA16, CS=PA25)
- *  注意: 需要在SysConfig中配置SPI1外设
- *  说明: 量程/采样率/滤波器类型由 bsp_lsm6dsr.c 直接使用
- *        lsm6dsr.h 中的枚举常量, 此处不重复定义
- * ================================================================ */
+/* MPU6050 閰嶇疆宸茬Щ闄わ紝鏇挎崲涓?LSM6DSR */
 
 /* ================================================================
- *  MATHACL 硬件数学加速配置
+ *  LSM6DSR鍏酱浼犳劅鍣ㄩ厤缃?
+ *  閫氳繃纭欢SPI鎺ュ彛閫氫俊(SPI1: SCK=PB9, MOSI=PA18, MISO=PA16, CS=PA25)
+ *  娉ㄦ剰: 闇€瑕佸湪SysConfig涓厤缃甋PI1澶栬
+ *  璇存槑: 閲忕▼/閲囨牱鐜?婊ゆ尝鍣ㄧ被鍨嬬敱 bsp_lsm6dsr.c 鐩存帴浣跨敤
+ *        lsm6dsr.h 涓殑鏋氫妇甯搁噺, 姝ゅ涓嶉噸澶嶅畾涔?
  * ================================================================ */
-/** 是否启用 MATHACL 硬件加速(1=启用，0=软件回退)。 */
+
+/* ================================================================
+ *  MATHACL 纭欢鏁板鍔犻€熼厤缃?
+ * ================================================================ */
+/** 鏄惁鍚敤 MATHACL 纭欢鍔犻€?1=鍚敤锛?=杞欢鍥為€€)銆?*/
 #define PRJ_MATHACL_ENABLE                  (1U)
-/** 是否使用 MATHACL 硬件 ATAN2 路径。 */
+/** 鏄惁浣跨敤 MATHACL 纭欢 ATAN2 璺緞銆?*/
 #define PRJ_MATHACL_ATAN2_HW                (1U)
-/** 是否使用 MATHACL 硬件 SINCOS 路径。 */
+/** 鏄惁浣跨敤 MATHACL 纭欢 SINCOS 璺緞銆?*/
 #define PRJ_MATHACL_SINCOS_HW               (1U)
-/** 是否为 MATHACL 寄存器访问启用线程安全临界区。 */
+/** 鏄惁涓?MATHACL 瀵勫瓨鍣ㄨ闂惎鐢ㄧ嚎绋嬪畨鍏ㄤ复鐣屽尯銆?*/
 #define PRJ_MATHACL_THREAD_SAFE             (0U)
-/** 是否使用 MATHACL 硬件 SQRT 路径；默认关闭以保留已验证的软件路径。 */
+/** 鏄惁浣跨敤 MATHACL 纭欢 SQRT 璺緞锛涢粯璁ゅ叧闂互淇濈暀宸查獙璇佺殑杞欢璺緞銆?*/
 #define PRJ_MATHACL_SQRT_HW                (0U)
-/** 是否为 KF 编译 MATHACL 定点加速路径；默认关闭以保持现有运行行为。 */
+/** 鏄惁涓?KF 缂栬瘧 MATHACL 瀹氱偣鍔犻€熻矾寰勶紱榛樿鍏抽棴浠ヤ繚鎸佺幇鏈夎繍琛岃涓恒€?*/
 #define PRJ_MATHACL_KF_HW                  (0U)
-/** 是否为 EKF 编译 MATHACL 定点除法加速路径；默认关闭以保持现有运行行为。 */
+/** 鏄惁涓?EKF 缂栬瘧 MATHACL 瀹氱偣闄ゆ硶鍔犻€熻矾寰勶紱榛樿鍏抽棴浠ヤ繚鎸佺幇鏈夎繍琛岃涓恒€?*/
 #define PRJ_MATHACL_EKF_HW                 (0U)
-/** 是否编译 MATHACL 矩阵实验实现；默认关闭以避免生产固件引入额外代码。 */
+/** 鏄惁缂栬瘧 MATHACL 鐭╅樀瀹為獙瀹炵幇锛涢粯璁ゅ叧闂互閬垮厤鐢熶骇鍥轰欢寮曞叆棰濆浠ｇ爜銆?*/
 #define PRJ_MATHACL_MATRIX_ENABLE          (0U)
 
 /* ================================================================
- *  IMU任务配置
+ *  IMU浠诲姟閰嶇疆
  * ================================================================ */
 
-/** IMU采集任务周期(ms), 100Hz */
+/** IMU閲囬泦浠诲姟鍛ㄦ湡(ms), 100Hz */
 #define PRJ_IMU_TASK_PERIOD_MS       (10U)
 
-/** IMU 校准采样帧数。 */
+/** IMU 鏍″噯閲囨牱甯ф暟銆?*/
 #define PRJ_IMU_CALIB_SAMPLES                 (300U)
-/** IMU 配置完成后的稳定等待时间(ms)。 */
+/** IMU 閰嶇疆瀹屾垚鍚庣殑绋冲畾绛夊緟鏃堕棿(ms)銆?*/
 #define PRJ_IMU_CALIB_SETTLE_MS               (50U)
-/** 加速度模平方参考值(g^2)。 */
+/** 鍔犻€熷害妯″钩鏂瑰弬鑰冨€?g^2)銆?*/
 #define PRJ_IMU_CALIB_ACC_MAG_REF             (1.0f)
-/** 加速度模平方静止判定容差(g^2)。 */
+/** 鍔犻€熷害妯″钩鏂归潤姝㈠垽瀹氬宸?g^2)銆?*/
 #define PRJ_IMU_CALIB_ACC_MAG_TOL             (0.065f)
-/** 校准相邻帧加速度差分阈值(g)。 */
+/** 鏍″噯鐩搁偦甯у姞閫熷害宸垎闃堝€?g)銆?*/
 #define PRJ_IMU_CALIB_ACC_DELTA_MAX           (0.08f)
-/** IMU 校准采样间隔(ms)。 */
+/** IMU 鏍″噯閲囨牱闂撮殧(ms)銆?*/
 #define PRJ_IMU_CALIB_SAMPLE_DELAY_MS         (9U)
 
-/** 加速度方差滑动窗口长度(帧)。 */
+/** 鍔犻€熷害鏂瑰樊婊戝姩绐楀彛闀垮害(甯?銆?*/
 #define PRJ_IMU_ACC_VAR_WINDOW                (10U)
-/** 预留 IMU 读取耗时补偿(us)。 */
+/** 棰勭暀 IMU 璇诲彇鑰楁椂琛ュ伩(us)銆?*/
 #define PRJ_IMU_DT_READ_COMPENSATION_US       (200U)
-/** 加速度静止方差阈值(g^2 总和)。 */
+/** 鍔犻€熷害闈欐鏂瑰樊闃堝€?g^2 鎬诲拰)銆?*/
 #define PRJ_IMU_ACC_VAR_THRESHOLD             (0.0008f)
-/** 运动状态互补滤波系数。 */
+/** 杩愬姩鐘舵€佷簰琛ユ护娉㈢郴鏁般€?*/
 #define PRJ_IMU_ALPHA_MOVING                  (0.99f)
-/** 静止状态互补滤波系数。 */
+/** 闈欐鐘舵€佷簰琛ユ护娉㈢郴鏁般€?*/
 #define PRJ_IMU_ALPHA_STATIONARY              (0.30f)
-/** 互补滤波系数单帧最大变化量。 */
+/** 浜掕ˉ婊ゆ尝绯绘暟鍗曞抚鏈€澶у彉鍖栭噺銆?*/
 #define PRJ_IMU_ALPHA_SMOOTH_STEP             (0.15f)
 
-/** X/Y 轴静止陀螺偏置跟踪速率。 */
+/** X/Y 杞撮潤姝㈤檧铻哄亸缃窡韪€熺巼銆?*/
 #define PRJ_IMU_BIAS_STATIONARY_RATE          (0.1f)
-/** Z 轴静止陀螺偏置跟踪速率。 */
+/** Z 杞撮潤姝㈤檧铻哄亸缃窡韪€熺巼銆?*/
 #define PRJ_IMU_BIAS_STATIONARY_RATE_Z        (0.1f)
-/** 陀螺运动判定阈值(dps)。 */
+/** 闄€铻鸿繍鍔ㄥ垽瀹氶槇鍊?dps)銆?*/
 #define PRJ_IMU_GYRO_MOTION_THRESHOLD         (5.0f)
-/** 是否启用基于任务周期的 dt 异常收紧门限。 */
+/** 鏄惁鍚敤鍩轰簬浠诲姟鍛ㄦ湡鐨?dt 寮傚父鏀剁揣闂ㄩ檺銆?*/
 #define PRJ_IMU_ODR_ALIGN                     (0U)
-/** dt 异常下限(s)。 */
+/** dt 寮傚父涓嬮檺(s)銆?*/
 #define PRJ_IMU_DT_ANOMALY_MIN_S              (0.003)
-/** dt 异常上限(s)。 */
+/** dt 寮傚父涓婇檺(s)銆?*/
 #define PRJ_IMU_DT_ANOMALY_MAX_S              (0.030)
-/** IMU 异常 dt 或时间戳回绕时使用的默认周期(s)。 */
+/** IMU 寮傚父 dt 鎴栨椂闂存埑鍥炵粫鏃朵娇鐢ㄧ殑榛樿鍛ㄦ湡(s)銆?*/
 #define PRJ_IMU_DT_DEFAULT_S                  (0.01)
 
 
@@ -480,7 +547,7 @@ extern "C" {
 #define PRJ_IMU_UART_TELEMETRY_PERIOD_MS  (200U)
 #define PRJ_IMU_UART_TELEMETRY_BUF_SIZE   (512U)
 #define PRJ_IMU_KF_FILTER_BUF_SIZE        (2048U)
-/** 允许通过菜单命令查询 IMU 并开启受控 UART0 CSV 遥测。 */
+/** 鍏佽閫氳繃鑿滃崟鍛戒护鏌ヨ IMU 骞跺紑鍚彈鎺?UART0 CSV 閬ユ祴銆?*/
 #if (PRJ_IMU_UART_TELEMETRY_PERIOD_MS < PRJ_IMU_TASK_PERIOD_MS)
 #error "PRJ_IMU_UART_TELEMETRY_PERIOD_MS must be >= PRJ_IMU_TASK_PERIOD_MS"
 #endif
@@ -492,11 +559,11 @@ extern "C" {
 #endif
 
 #define PRJ_IMU_CONSOLE_ENABLE              (1U)
-/** IMU 连续输出默认周期(ms)；上电默认仍为关闭状态。 */
+/** IMU 杩炵画杈撳嚭榛樿鍛ㄦ湡(ms)锛涗笂鐢甸粯璁や粛涓哄叧闂姸鎬併€?*/
 #define PRJ_IMU_CONSOLE_DEFAULT_PERIOD_MS   (100U)
-/** IMU 连续输出最小周期(ms)，避免完整诊断帧占满 UART 带宽。 */
+/** IMU 杩炵画杈撳嚭鏈€灏忓懆鏈?ms)锛岄伩鍏嶅畬鏁磋瘖鏂抚鍗犳弧 UART 甯﹀銆?*/
 #define PRJ_IMU_CONSOLE_MIN_PERIOD_MS       (20U)
-/** IMU 连续输出最大周期(ms)。 */
+/** IMU 杩炵画杈撳嚭鏈€澶у懆鏈?ms)銆?*/
 #define PRJ_IMU_CONSOLE_MAX_PERIOD_MS       (1000U)
 
 #if (PRJ_IMU_CONSOLE_ENABLE > 1U)
@@ -511,52 +578,52 @@ extern "C" {
 #error "Invalid IMU console default period"
 #endif
 /* ================================================================
- *  应用任务与控制默认参数
- *  统一由项目配置入口管理，app_main.h 仅提供 APP_* 兼容别名。
+ *  搴旂敤浠诲姟涓庢帶鍒堕粯璁ゅ弬鏁?
+ *  缁熶竴鐢遍」鐩厤缃叆鍙ｇ鐞嗭紝app_main.h 浠呮彁渚?APP_* 鍏煎鍒悕銆?
  * ================================================================ */
 
-/** 控制任务优先级，数值越大优先级越高。 */
+/** 鎺у埗浠诲姟浼樺厛绾э紝鏁板€艰秺澶т紭鍏堢骇瓒婇珮銆?*/
 #define PRJ_TASK_PRIORITY_CONTROL       (5U)
-/** IMU任务优先级。 */
+/** IMU浠诲姟浼樺厛绾с€?*/
 #define PRJ_TASK_PRIORITY_IMU           (4U)
-/** 菜单任务优先级。 */
+/** 鑿滃崟浠诲姟浼樺厛绾с€?*/
 #define PRJ_TASK_PRIORITY_MENU          (2U)
 
-/** 控制任务栈大小，单位为 FreeRTOS 栈字。 */
+/** 鎺у埗浠诲姟鏍堝ぇ灏忥紝鍗曚綅涓?FreeRTOS 鏍堝瓧銆?*/
 #define PRJ_TASK_STACK_CONTROL          (256U)
-/** IMU任务栈大小，单位为 FreeRTOS 栈字。 */
+/** IMU浠诲姟鏍堝ぇ灏忥紝鍗曚綅涓?FreeRTOS 鏍堝瓧銆?*/
 #define PRJ_TASK_STACK_IMU              (1280U)
-/** 菜单任务栈大小，单位为 FreeRTOS 栈字。 */
+/** 鑿滃崟浠诲姟鏍堝ぇ灏忥紝鍗曚綅涓?FreeRTOS 鏍堝瓧銆?*/
 #define PRJ_TASK_STACK_MENU             (384U)
 
-/** 控制任务周期(ms)。 */
+/** 鎺у埗浠诲姟鍛ㄦ湡(ms)銆?*/
 #define PRJ_CONTROL_PERIOD_MS           (5U)
-/** 菜单任务轮询周期(ms)。 */
+/** 鑿滃崟浠诲姟杞鍛ㄦ湡(ms)銆?*/
 #define PRJ_MENU_POLL_PERIOD_MS         (100U)
-/** 运行模式下的 RPM 输出周期(ms)。 */
+/** 杩愯妯″紡涓嬬殑 RPM 杈撳嚭鍛ㄦ湡(ms)銆?*/
 #define PRJ_RPM_OUTPUT_PERIOD_MS        (30U)
 
-/** 菜单命令行输入缓冲区大小(字节)。 */
+/** 鑿滃崟鍛戒护琛岃緭鍏ョ紦鍐插尯澶у皬(瀛楄妭)銆?*/
 #define PRJ_MENU_LINE_BUF_SIZE          (64U)
 
-/** 速度环默认比例增益。 */
+/** 閫熷害鐜粯璁ゆ瘮渚嬪鐩娿€?*/
 #define PRJ_PID_DEFAULT_KP              (0.8f)
-/** 速度环默认积分增益。 */
+/** 閫熷害鐜粯璁ょН鍒嗗鐩娿€?*/
 #define PRJ_PID_DEFAULT_KI              (0.3f)
-/** 速度环默认微分增益。 */
+/** 閫熷害鐜粯璁ゅ井鍒嗗鐩娿€?*/
 #define PRJ_PID_DEFAULT_KD              (0.0f)
-/** 前馈模式 PID 默认比例增益。 */
+/** 鍓嶉妯″紡 PID 榛樿姣斾緥澧炵泭銆?*/
 #define PRJ_FF_PID_DEFAULT_KP           (0.5f)
-/** 前馈模式 PID 默认积分增益。 */
+/** 鍓嶉妯″紡 PID 榛樿绉垎澧炵泭銆?*/
 #define PRJ_FF_PID_DEFAULT_KI           (0.1f)
-/** 前馈模式 PID 默认微分增益。 */
+/** 鍓嶉妯″紡 PID 榛樿寰垎澧炵泭銆?*/
 #define PRJ_FF_PID_DEFAULT_KD           (0.0f)
 
 /* ================================================================
- *  互补滤波器配置
+ *  浜掕ˉ婊ゆ尝鍣ㄩ厤缃?
  * ================================================================ */
 
-/** 互补滤波系数(0~1, 0=全信任IMU, 1=全信任编码器) */
+/** 浜掕ˉ婊ゆ尝绯绘暟(0~1, 0=鍏ㄤ俊浠籌MU, 1=鍏ㄤ俊浠荤紪鐮佸櫒) */
 #define PRJ_CF_ALPHA                 FILTER_COMP_ALPHA_DEFAULT
 /** KF ?????????? */
 #define PRJ_KF_Q_ANGLE_DEFAULT        FILTER_KF_Q_ANGLE_DEFAULT
@@ -566,174 +633,174 @@ extern "C" {
 #define PRJ_KF_R_MEASURE_DEFAULT      FILTER_KF_R_MEASURE_DEFAULT
 /** KF ZUPT ????????1e6 ????? */
 #define PRJ_KF_R_ZUPT_DEFAULT         FILTER_KF_R_ZUPT_DEFAULT
-/** 轮胎外径(mm)，应以负载状态下的有效滚动直径标定。 */
+/** 杞儙澶栧緞(mm)锛屽簲浠ヨ礋杞界姸鎬佷笅鐨勬湁鏁堟粴鍔ㄧ洿寰勬爣瀹氥€?*/
 #define PRJ_MOTOR_WHEEL_DIAMETER_MM  (60.0f)
-/** 轮子有效滚动半径(m)，由轮径统一派生，避免重复配置。 */
+/** 杞瓙鏈夋晥婊氬姩鍗婂緞(m)锛岀敱杞緞缁熶竴娲剧敓锛岄伩鍏嶉噸澶嶉厤缃€?*/
 #define PRJ_CF_WHEEL_RADIUS_M \
     (PRJ_MOTOR_WHEEL_DIAMETER_MM * 0.001f * 0.5f)
-/** 轮距(m, 左右轮接地点中心距离)，应按实车标定。 */
+/** 杞窛(m, 宸﹀彸杞帴鍦扮偣涓績璺濈)锛屽簲鎸夊疄杞︽爣瀹氥€?*/
 #define PRJ_CF_WHEEL_BASE_M          (0.15f)
 
 /* ================================================================
- *  位置-速度串级控制配置
- *  用于 app_position_control.c, 在速度环(5ms)之上增加
- *  位置环/角度环(20ms), 实现精准定位和转向控制
+ *  浣嶇疆-閫熷害涓茬骇鎺у埗閰嶇疆
+ *  鐢ㄤ簬 app_position_control.c, 鍦ㄩ€熷害鐜?5ms)涔嬩笂澧炲姞
+ *  浣嶇疆鐜?瑙掑害鐜?20ms), 瀹炵幇绮惧噯瀹氫綅鍜岃浆鍚戞帶鍒?
  * ================================================================ */
 
-/** 位置环PID参数(位置式PID, 输出RPM修正) */
+/** 浣嶇疆鐜疨ID鍙傛暟(浣嶇疆寮廝ID, 杈撳嚭RPM淇) */
 #define PRJ_POS_PID_KP              (0.5f)
 #define PRJ_POS_PID_KI              (0.0f)
 #define PRJ_POS_PID_KD              (0.0f)
 
-/** 角度环PID参数(位置式PID, 输出差速RPM) */
+/** 瑙掑害鐜疨ID鍙傛暟(浣嶇疆寮廝ID, 杈撳嚭宸€烺PM) */
 #define PRJ_YAW_PID_KP              (2.0f)
 #define PRJ_YAW_PID_KI              (0.0f)
 #define PRJ_YAW_PID_KD              (0.0f)
 
-/** 规划器加速度(RPM/s, 控制加减速平滑度) */
+/** 瑙勫垝鍣ㄥ姞閫熷害(RPM/s, 鎺у埗鍔犲噺閫熷钩婊戝害) */
 #define PRJ_PLANNER_ACCEL           (500.0f)
 
-/** 最大目标RPM(速度限幅, 防止过速) */
+/** 鏈€澶х洰鏍嘡PM(閫熷害闄愬箙, 闃叉杩囬€? */
 #define PRJ_PLANNER_MAX_RPM         (300.0f)
 
-/** 到位判定阈值(位置:脉冲, 角度:度) */
+/** 鍒颁綅鍒ゅ畾闃堝€?浣嶇疆:鑴夊啿, 瑙掑害:搴? */
 #define PRJ_REACHED_THRESHOLD_POS   (5.0f)
 #define PRJ_REACHED_THRESHOLD_YAW   (0.5f)
 
-/** 到位持续周期数(20ms×10=200ms) */
+/** 鍒颁綅鎸佺画鍛ㄦ湡鏁?20ms脳10=200ms) */
 #define PRJ_REACHED_COUNT           (10U)
 
-/** 模式切换过渡时长(ms, 1秒渐变) */
+/** 妯″紡鍒囨崲杩囨浮鏃堕暱(ms, 1绉掓笎鍙? */
 #define PRJ_MODE_TRANSITION_MS      (1000U)
 
 /* ================================================================
- *  系统参数
+ *  绯荤粺鍙傛暟
  * ================================================================ */
 
-/** 系统定时器HAL实例 */
+/** 绯荤粺瀹氭椂鍣℉AL瀹炰緥 */
 #define PRJ_SYS_TICK_TIMER      HAL_TIMER_SYS_TICK
 
 /* ================================================================
- *  数学常量
+ *  鏁板甯搁噺
  * ================================================================ */
 
-/** 圆周率(float精度, 供应用层避免魔数 3.14159265f) */
+/** 鍦嗗懆鐜?float绮惧害, 渚涘簲鐢ㄥ眰閬垮厤榄旀暟 3.14159265f) */
 #define PRJ_PI_F                (3.14159265358979f)
-/** 圆周率(double精度, 供滤波器等需要double精度的模块使用) */
+/** 鍦嗗懆鐜?double绮惧害, 渚涙护娉㈠櫒绛夐渶瑕乨ouble绮惧害鐨勬ā鍧椾娇鐢? */
 #define PRJ_PI_D                (3.14159265358979323846)
-/** 2π(float精度) */
+/** 2蟺(float绮惧害) */
 #define PRJ_TWO_PI_F            (6.28318530717958647692f)
-/** π/2(float精度) */
+/** 蟺/2(float绮惧害) */
 #define PRJ_PI_2_F              (1.57079632679489661923f)
-/** 弧度→角度转换系数(float): 180/π */
+/** 寮у害鈫掕搴﹁浆鎹㈢郴鏁?float): 180/蟺 */
 #define PRJ_RAD2DEG_F           (57.29577951308232087685f)
-/** 角度→弧度转换系数(float): π/180 */
+/** 瑙掑害鈫掑姬搴﹁浆鎹㈢郴鏁?float): 蟺/180 */
 #define PRJ_DEG2RAD_F           (0.01745329251994329577f)
 
 /* ================================================================
- *  时间转换常量(无符号整型, 用于避免魔数 1000/60000 等)
- *  使用浮点上下文时需显式 (float) cast
+ *  鏃堕棿杞崲甯搁噺(鏃犵鍙锋暣鍨? 鐢ㄤ簬閬垮厤榄旀暟 1000/60000 绛?
+ *  浣跨敤娴偣涓婁笅鏂囨椂闇€鏄惧紡 (float) cast
  * ================================================================ */
 
-/** 每秒毫秒数 */
+/** 姣忕姣鏁?*/
 #define PRJ_MS_PER_S            (1000U)
-/** 每分钟毫秒数(60s × 1000ms) */
+/** 姣忓垎閽熸绉掓暟(60s 脳 1000ms) */
 #define PRJ_MS_PER_MIN          (60000U)
-/** 每毫秒微秒数 */
+/** 姣忔绉掑井绉掓暟 */
 #define PRJ_US_PER_MS           (1000U)
 
-/** 标准重力加速度 m/s² (float精度) */
+/** 鏍囧噯閲嶅姏鍔犻€熷害 m/s虏 (float绮惧害) */
 #define PRJ_GRAVITY_MS2         (9.80665f)
 
-/** 16位无符号整数模数 (2^16), 用于定时器计数器回绕修正 */
+/** 16浣嶆棤绗﹀彿鏁存暟妯℃暟 (2^16), 鐢ㄤ簬瀹氭椂鍣ㄨ鏁板櫒鍥炵粫淇 */
 #define PRJ_UINT16_MOD          (65536U)
 
 /* ================================================================
- *  派生频率宏（sysconfig 未暴露，需开发者手动维护与 sysconfig 一致性）
+ *  娲剧敓棰戠巼瀹忥紙sysconfig 鏈毚闇诧紝闇€寮€鍙戣€呮墜鍔ㄧ淮鎶や笌 sysconfig 涓€鑷存€э級
  *
- *  以下频率值在 ti_msp_dl_config.c 中以注释形式存在，但 sysconfig
- *  未将其作为 #define 暴露在 ti_msp_dl_config.h 中。此处集中定义，
- *  供应用层引用，避免硬编码魔数。
+ *  浠ヤ笅棰戠巼鍊煎湪 ti_msp_dl_config.c 涓互娉ㄩ噴褰㈠紡瀛樺湪锛屼絾 sysconfig
+ *  鏈皢鍏朵綔涓?#define 鏆撮湶鍦?ti_msp_dl_config.h 涓€傛澶勯泦涓畾涔夛紝
+ *  渚涘簲鐢ㄥ眰寮曠敤锛岄伩鍏嶇‖缂栫爜榄旀暟銆?
  *
- *  ⚠️ 维护规则：修改 sysconfig 中对应定时器的分频/预分频后，
- *     必须同步更新以下宏的值，并重新验证依赖此宏的所有代码。
+ *  鈿狅笍 缁存姢瑙勫垯锛氫慨鏀?sysconfig 涓搴斿畾鏃跺櫒鐨勫垎棰?棰勫垎棰戝悗锛?
+ *     蹇呴』鍚屾鏇存柊浠ヤ笅瀹忕殑鍊硷紝骞堕噸鏂伴獙璇佷緷璧栨瀹忕殑鎵€鏈変唬鐮併€?
  *
- *  计算依据（来自 ti_msp_dl_config.c 注释）：
+ *  璁＄畻渚濇嵁锛堟潵鑷?ti_msp_dl_config.c 娉ㄩ噴锛夛細
  *    BUSCLK = ULPCLK = CPUCLK/2 = 40MHz
  *    CAPTURE timer: BUSCLK/4/(199+1) = 100kHz
  *    TIMER_0 (TIMG8): BUSCLK/8/(9+1) = 500kHz
  * ================================================================ */
 
 /**
- * 编码器捕获定时器实际频率(Hz)
- * 来源: ti_msp_dl_config.c 中 CAPTURE_* 的 divideRatio=DIVIDE_4, prescale=199
- * 计算: BUSCLK(40MHz) / 4 / (199+1) = 100000 Hz
- * 用途: bsp_encoder.c / app_debug.c 的 M/T 法 RPM 计算
- * 依赖: 6000000LL = 60 × PRJ_CAPTURE_TIMER_FREQ_HZ
+ * 缂栫爜鍣ㄦ崟鑾峰畾鏃跺櫒瀹為檯棰戠巼(Hz)
+ * 鏉ユ簮: ti_msp_dl_config.c 涓?CAPTURE_* 鐨?divideRatio=DIVIDE_4, prescale=199
+ * 璁＄畻: BUSCLK(40MHz) / 4 / (199+1) = 100000 Hz
+ * 鐢ㄩ€? bsp_encoder.c / app_debug.c 鐨?M/T 娉?RPM 璁＄畻
+ * 渚濊禆: 6000000LL = 60 脳 PRJ_CAPTURE_TIMER_FREQ_HZ
  *
- * ⚠️ sysconfig 修改 CAPTURE_* 的分频/prescale 后必须更新此值
+ * 鈿狅笍 sysconfig 淇敼 CAPTURE_* 鐨勫垎棰?prescale 鍚庡繀椤绘洿鏂版鍊?
  */
 #define PRJ_CAPTURE_TIMER_FREQ_HZ   (100000UL)
 
 /**
- * 系统微秒计时器实际频率(Hz)
- * 来源: ti_msp_dl_config.c 中 TIMER_0 (TIMG8) 的 divideRatio=DIVIDE_8, prescale=9
- * 计算: BUSCLK(40MHz) / 8 / (9+1) = 500000 Hz (2us/tick)
- * 用途: platform_mspm0.c get_tick_us() 的微秒换算
- * 依赖: tick_to_us = count / (PRJ_SYS_TICK_TIMER_FREQ_HZ / 1000000UL)
- *        即 count * 2U (当前硬编码)
+ * 绯荤粺寰璁℃椂鍣ㄥ疄闄呴鐜?Hz)
+ * 鏉ユ簮: ti_msp_dl_config.c 涓?TIMER_0 (TIMG8) 鐨?divideRatio=DIVIDE_8, prescale=9
+ * 璁＄畻: BUSCLK(40MHz) / 8 / (9+1) = 500000 Hz (2us/tick)
+ * 鐢ㄩ€? platform_mspm0.c get_tick_us() 鐨勫井绉掓崲绠?
+ * 渚濊禆: tick_to_us = count / (PRJ_SYS_TICK_TIMER_FREQ_HZ / 1000000UL)
+ *        鍗?count * 2U (褰撳墠纭紪鐮?
  *
- * ⚠️ sysconfig 修改 TIMER_0 的分频/prescale 后必须更新此值
+ * 鈿狅笍 sysconfig 淇敼 TIMER_0 鐨勫垎棰?prescale 鍚庡繀椤绘洿鏂版鍊?
  */
 #define PRJ_SYS_TICK_TIMER_FREQ_HZ  (500000UL)
 
 /**
- * 微秒计时器: 1 个 tick 对应的微秒数(×1000 扩大精度避免浮点)
- * 计算: 1000000 / PRJ_SYS_TICK_TIMER_FREQ_HZ = 2 (即 2us/tick)
- * 用途: platform_mspm0.c:85 替换硬编码 * 2U
+ * 寰璁℃椂鍣? 1 涓?tick 瀵瑰簲鐨勫井绉掓暟(脳1000 鎵╁ぇ绮惧害閬垮厤娴偣)
+ * 璁＄畻: 1000000 / PRJ_SYS_TICK_TIMER_FREQ_HZ = 2 (鍗?2us/tick)
+ * 鐢ㄩ€? platform_mspm0.c:85 鏇挎崲纭紪鐮?* 2U
  *
- * ⚠️ 与 PRJ_SYS_TICK_TIMER_FREQ_HZ 联动，修改一处需同步检查
+ * 鈿狅笍 涓?PRJ_SYS_TICK_TIMER_FREQ_HZ 鑱斿姩锛屼慨鏀逛竴澶勯渶鍚屾妫€鏌?
  */
 #define PRJ_SYS_TICK_US_PER_TICK_X1000  \
     (1000000UL * 1000UL / PRJ_SYS_TICK_TIMER_FREQ_HZ)
 
 /**
- * 编码器 M/T 法 RPM 计算常数
- * 计算: 60 × PRJ_CAPTURE_TIMER_FREQ_HZ = 60 × 100000 = 6000000
- * 用途: bsp_encoder.c / app_debug.c 中 RPM = (delta × 60 × timer_freq) / (pulses × period)
+ * 缂栫爜鍣?M/T 娉?RPM 璁＄畻甯告暟
+ * 璁＄畻: 60 脳 PRJ_CAPTURE_TIMER_FREQ_HZ = 60 脳 100000 = 6000000
+ * 鐢ㄩ€? bsp_encoder.c / app_debug.c 涓?RPM = (delta 脳 60 脳 timer_freq) / (pulses 脳 period)
  *
- * ⚠️ 与 PRJ_CAPTURE_TIMER_FREQ_HZ 联动
+ * 鈿狅笍 涓?PRJ_CAPTURE_TIMER_FREQ_HZ 鑱斿姩
  */
 #define PRJ_ENCODER_RPM_CALC_CONST  \
     (60LL * (int64_t)PRJ_CAPTURE_TIMER_FREQ_HZ)
 
 /* ================================================================
- *  DRV8870 电机驱动配置 (锁相驱动 Locked Anti-Phase)
- *  与 TB6612 驱动并存, 可通过编译宏切换使用
- *  SysConfig已配置: TIMA0, 4通道PWM, 20MHz时钟, 20kHz周期
- *  通道: C0=PA8, C1=PA9, C2=PB17, C3=PB2
- *  驱动芯片: DRV8870DDAR (锁相驱动)
- *  硬件拓扑: MCU PWM → DRV8870 IN1(直连) + S8050反相器 → IN2
- *  正转有效区: PWM占空比 > PRJ_DRV8870_DEADBAND_HIGH_PERCENT
- *  反转有效区: PWM占空比 < PRJ_DRV8870_DEADBAND_LOW_PERCENT
- *  停止死区: 40%~55%，零命令输出50%中性占空比
- *  无需方向引脚(IN1/IN2由硬件反相器自动生成互补信号)
+ *  DRV8870 鐢垫満椹卞姩閰嶇疆 (閿佺浉椹卞姩 Locked Anti-Phase)
+ *  涓?TB6612 椹卞姩骞跺瓨, 鍙€氳繃缂栬瘧瀹忓垏鎹娇鐢?
+ *  SysConfig宸查厤缃? TIMA0, 4閫氶亾PWM, 20MHz鏃堕挓, 20kHz鍛ㄦ湡
+ *  閫氶亾: C0=PA8, C1=PA9, C2=PB17, C3=PB2
+ *  椹卞姩鑺墖: DRV8870DDAR (閿佺浉椹卞姩)
+ *  纭欢鎷撴墤: MCU PWM 鈫?DRV8870 IN1(鐩磋繛) + S8050鍙嶇浉鍣?鈫?IN2
+ *  姝ｈ浆鏈夋晥鍖? PWM鍗犵┖姣?> PRJ_DRV8870_DEADBAND_HIGH_PERCENT
+ *  鍙嶈浆鏈夋晥鍖? PWM鍗犵┖姣?< PRJ_DRV8870_DEADBAND_LOW_PERCENT
+ *  鍋滄姝诲尯: 40%~55%锛岄浂鍛戒护杈撳嚭50%涓€у崰绌烘瘮
+ *  鏃犻渶鏂瑰悜寮曡剼(IN1/IN2鐢辩‖浠跺弽鐩稿櫒鑷姩鐢熸垚浜掕ˉ淇″彿)
  * ================================================================ */
 
-/** DRV8870 PWM定时器HAL实例(复用TIMA0) */
+/** DRV8870 PWM瀹氭椂鍣℉AL瀹炰緥(澶嶇敤TIMA0) */
 #define PRJ_DRV8870_PWM_TIMER     HAL_TIMER_PWM_MOTOR
-/** PWM时钟频率(Hz) - 引用 sysconfig 暴露的宏 */
+/** PWM鏃堕挓棰戠巼(Hz) - 寮曠敤 sysconfig 鏆撮湶鐨勫畯 */
 #define PRJ_DRV8870_PWM_CLK_HZ    ((unsigned long)(PWM_MOTOR_INST_CLK_FREQ))
-/** PWM周期值(20kHz = 1000个20MHz时钟周期) */
+/** PWM鍛ㄦ湡鍊?20kHz = 1000涓?0MHz鏃堕挓鍛ㄦ湡) */
 #define PRJ_DRV8870_PWM_PERIOD    (1000U)
-/** 有符号速度命令最大绝对值；业务层、PID和模型辨识均应保持一致。 */
+/** 鏈夌鍙烽€熷害鍛戒护鏈€澶х粷瀵瑰€硷紱涓氬姟灞傘€丳ID鍜屾ā鍨嬭鲸璇嗗潎搴斾繚鎸佷竴鑷淬€?*/
 #define PRJ_DRV8870_SPEED_COMMAND_MAX PRJ_MOTOR_COMMAND_MAX
 
 /**
- * 实测机械死区边界（绝对PWM占空比百分数）。
- * 0%~39.9%为反转有效区，40%~55%为停止死区，55.1%~100%为正转有效区。
- * bsp_drv8870_set_speed()会把非零有符号命令分段映射到死区之外；
- * 工厂示波器接口仍是原始绝对compare，可直接进入死区用于测量。
+ * 瀹炴祴鏈烘姝诲尯杈圭晫锛堢粷瀵筆WM鍗犵┖姣旂櫨鍒嗘暟锛夈€?
+ * 0%~39.9%涓哄弽杞湁鏁堝尯锛?0%~55%涓哄仠姝㈡鍖猴紝55.1%~100%涓烘杞湁鏁堝尯銆?
+ * bsp_drv8870_set_speed()浼氭妸闈為浂鏈夌鍙峰懡浠ゅ垎娈垫槧灏勫埌姝诲尯涔嬪锛?
+ * 宸ュ巶绀烘尝鍣ㄦ帴鍙ｄ粛鏄師濮嬬粷瀵筩ompare锛屽彲鐩存帴杩涘叆姝诲尯鐢ㄤ簬娴嬮噺銆?
  */
 #define PRJ_DRV8870_DEADBAND_LOW_PERCENT     (40U)
 #define PRJ_DRV8870_NEUTRAL_PERCENT          (50U)
@@ -760,42 +827,42 @@ extern "C" {
 #define PRJ_DRV8870_POWER_SETTLE_MS   (5U)
 
 /*
- * 零点偏移补偿 (S8050 反相器开关不对称 + DRV8870 传播延迟)
- * 文档参考: DRV8870技术文档 §3.2.2, 典型偏移 2~5 步
- * 需实测标定: 找到使电机恰好静止的 duty 值, 减去 PWM_PERIOD/2
+ * 闆剁偣鍋忕Щ琛ュ伩 (S8050 鍙嶇浉鍣ㄥ紑鍏充笉瀵圭О + DRV8870 浼犳挱寤惰繜)
+ * 鏂囨。鍙傝€? DRV8870鎶€鏈枃妗?搂3.2.2, 鍏稿瀷鍋忕Щ 2~5 姝?
+ * 闇€瀹炴祴鏍囧畾: 鎵惧埌浣跨數鏈烘伆濂介潤姝㈢殑 duty 鍊? 鍑忓幓 PWM_PERIOD/2
  */
 #define PRJ_DRV8870_ZERO_DUTY_OFFSET  (0)
 
 /*
- * DRV8870 工厂硬件脉冲测试闸门。默认关闭，防止菜单/调试命令在
- * 非受控环境下驱动电机。仅在电机悬空或车体可靠支撑、实验室电源
- * 已限流、示波器/电流观测准备完成时，才可临时改为 1 并单独编译。
- * 正式运行固件必须保持 0。
+ * DRV8870 宸ュ巶纭欢鑴夊啿娴嬭瘯闂搁棬銆傞粯璁ゅ叧闂紝闃叉鑿滃崟/璋冭瘯鍛戒护鍦?
+ * 闈炲彈鎺х幆澧冧笅椹卞姩鐢垫満銆備粎鍦ㄧ數鏈烘偓绌烘垨杞︿綋鍙潬鏀拺銆佸疄楠屽鐢垫簮
+ * 宸查檺娴併€佺ず娉㈠櫒/鐢垫祦瑙傛祴鍑嗗瀹屾垚鏃讹紝鎵嶅彲涓存椂鏀逛负 1 骞跺崟鐙紪璇戙€?
+ * 姝ｅ紡杩愯鍥轰欢蹇呴』淇濇寔 0銆?
  */
 #ifndef PRJ_DRV8870_FACTORY_TEST_ENABLE
 #define PRJ_DRV8870_FACTORY_TEST_ENABLE       (0U)
 #endif
 
-/* ---- 电机A/M1(右后): CC0=PA8 ---- */
+/* ---- 鐢垫満A/M1(鍙冲悗): CC0=PA8 ---- */
 #define PRJ_DRV8870_A_PWM_CH      (0U)
 
-/* ---- 电机B/M2(右前): CC1=PA9 ---- */
+/* ---- 鐢垫満B/M2(鍙冲墠): CC1=PA9 ---- */
 #define PRJ_DRV8870_B_PWM_CH      (1U)
 
-/* ---- 电机C/M3(左前): CC2=PB17 ---- */
+/* ---- 鐢垫満C/M3(宸﹀墠): CC2=PB17 ---- */
 #define PRJ_DRV8870_C_PWM_CH      (2U)
 
-/* ---- 电机D/M4(左后): CC3=PB2 ---- */
+/* ---- 鐢垫満D/M4(宸﹀悗): CC3=PB2 ---- */
 #define PRJ_DRV8870_D_PWM_CH      (3U)
 
 
-/** 兼容原DRV8870配置宏名称。 */
+/** 鍏煎鍘烡RV8870閰嶇疆瀹忓悕绉般€?*/
 #define PRJ_DRV8870_A_DIR_SIGN  PRJ_MOTOR_A_INSTALL_DIR_SIGN
 #define PRJ_DRV8870_B_DIR_SIGN  PRJ_MOTOR_B_INSTALL_DIR_SIGN
 #define PRJ_DRV8870_C_DIR_SIGN  PRJ_MOTOR_C_INSTALL_DIR_SIGN
 #define PRJ_DRV8870_D_DIR_SIGN  PRJ_MOTOR_D_INSTALL_DIR_SIGN
 
-/** DRV8870 电机配置表(顺序需与BSP_DRV8870_x一致) */
+/** DRV8870 鐢垫満閰嶇疆琛?椤哄簭闇€涓嶣SP_DRV8870_x涓€鑷? */
 #define PRJ_DRV8870_CONFIGS { \
     { PRJ_DRV8870_A_PWM_CH, PRJ_DRV8870_A_DIR_SIGN, \
       PRJ_DRV8870_ZERO_DUTY_OFFSET, \
@@ -818,7 +885,7 @@ extern "C" {
 #error "DRV8870 backend requires command max equal to half of PWM period"
 #endif
 
-/* 上层只使用这些所选后端别名，不直接引用芯片专用参数。 */
+/* 涓婂眰鍙娇鐢ㄨ繖浜涙墍閫夊悗绔埆鍚嶏紝涓嶇洿鎺ュ紩鐢ㄨ姱鐗囦笓鐢ㄥ弬鏁般€?*/
 #if (PRJ_MOTOR_DRIVER == PRJ_MOTOR_DRIVER_DRV8870)
 #define PRJ_MOTOR_PWM_TIMER         PRJ_DRV8870_PWM_TIMER
 #define PRJ_MOTOR_PWM_CLK_HZ        PRJ_DRV8870_PWM_CLK_HZ
@@ -843,3 +910,4 @@ extern "C" {
 #endif
 
 #endif /* PROJECT_CONFIG_H */
+

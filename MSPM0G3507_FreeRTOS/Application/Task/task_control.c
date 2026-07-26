@@ -10,9 +10,11 @@
 #include "app_complementary_filter.h"
 #include "app_model_id.h"
 #include "app_position_control.h"
+#include "app_key_events.h"
 #include "osal_api.h"
 #include "bsp_motor.h"
 #include "bsp_encoder.h"
+#include "bsp_adc.h"
 #include "project_config.h"
 #include "axiomtrace.h"
 #include <math.h>
@@ -66,6 +68,12 @@ void app_control_task(void *param)
 #endif
 
     for (;;) {
+#if (PRJ_KEY_ENABLE != 0U)
+        /* Key callbacks only enqueue actions; execute motion in control context. */
+        app_key_motion_process(
+            osal_ticks_to_ms(osal_get_tick_count()));
+#endif
+
         /* M/T法测速: 读取边沿数和时间戳, 换算RPM
          * 高速用M/T法, 低速用T法, 无脉冲时平滑衰减 */
         bool encoder_had_edge[BSP_ENCODER_COUNT];
@@ -73,6 +81,9 @@ void app_control_task(void *param)
         bool had_edge[BSP_MOTOR_COUNT];
         int32_t rpm_local[BSP_MOTOR_COUNT];
         (void)bsp_encoder_get_all_rpm_mt(encoder_rpm, encoder_had_edge);
+
+        /* Start the five-channel ADC sequence without blocking the 5 ms loop. */
+        (void)bsp_adc_start_all();
 
         /*
          * BSP编码器数组按车轮位置排列，控制器数组按电机接口排列。
@@ -106,6 +117,36 @@ void app_control_task(void *param)
         OSAL_CRITICAL_SECTION {
             for (uint32_t i = 0; i < BSP_MOTOR_COUNT; i++) {
                 ctx->status.rpm[i] = rpm_local[i];
+            }
+        }
+
+        /* The ADC sequence has run while encoder and filter work was executing. */
+        float current_ma_local[BSP_MOTOR_COUNT];
+        bsp_adc_get_all_currents_ma(current_ma_local);
+        const uint32_t bus_voltage_mv = bsp_adc_get_bus_voltage_mv();
+
+        OSAL_CRITICAL_SECTION {
+            for (uint32_t i = 0U; i < BSP_MOTOR_COUNT; i++) {
+                ctx->status.current_ma[i] = current_ma_local[i];
+            }
+            ctx->status.bus_voltage_mv = bus_voltage_mv;
+        }
+
+        /* Stop a motor only after the configured number of consecutive overcurrent
+         * samples.  This rejects one-sample spikes while keeping the stop path
+         * inside the single control owner (no cross-task motor race). */
+        for (uint32_t i = 0U; i < BSP_MOTOR_COUNT; i++) {
+            if (current_ma_local[i] > (float)PRJ_ADC_CURRENT_OVERLOAD_MA) {
+                if (ctx->overload_cnt[i] < PRJ_ADC_CURRENT_OVERLOAD_TICKS) {
+                    ctx->overload_cnt[i]++;
+                }
+                if (ctx->overload_cnt[i] == PRJ_ADC_CURRENT_OVERLOAD_TICKS) {
+                    app_motor_stop(ctx, i);
+                    (void)printf("[WARN] Motor %lu overcurrent: %dmA\r\n",
+                        (unsigned long)i, (int)current_ma_local[i]);
+                }
+            } else {
+                ctx->overload_cnt[i] = 0U;
             }
         }
 
@@ -228,18 +269,23 @@ void app_control_task(void *param)
                         &ctx->ff[i], ctx->pid[i].setpoint);
                     float pid_corr = app_pid_compute(
                         &ctx->pid[i], feedback, dt_s);
+                    float current_corr = app_ff_compute_current_correction(
+                        &ctx->ff[i], ctx->pid[i].setpoint,
+                        current_ma_local[i]);
 
-                    if (!isfinite(ff_duty) || !isfinite(pid_corr)) {
+                    if (!isfinite(ff_duty) || !isfinite(pid_corr) ||
+                        !isfinite(current_corr)) {
                         nan_detected = true;
                         ff_duty = 0.0f;
                         pid_corr = 0.0f;
+                        current_corr = 0.0f;
                         OSAL_CRITICAL_SECTION {
                             app_pid_reset(&ctx->pid[i]);
                         }
                     }
 
                     ctx->status.pid_correction[i] = pid_corr;
-                    output_local = ff_duty + pid_corr;
+                    output_local = ff_duty + pid_corr + current_corr;
                 } else {
                     /* 普通模式: 增量式PID */
                     output_local = app_pid_compute(
