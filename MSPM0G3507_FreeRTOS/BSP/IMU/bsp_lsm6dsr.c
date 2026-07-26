@@ -57,25 +57,25 @@ static bsp_lsm6dsr_ctx_t default_ctx;
  */
 static float compute_acc_variance(bsp_lsm6dsr_ctx_t *ctx)
 {
-    if (ctx->var_samples < BSP_ACC_VAR_WINDOW) return 0.0f;
+    if (ctx->var_samples < PRJ_IMU_ACC_VAR_WINDOW) return 0.0f;
 
     float mx = 0, my = 0, mz = 0;
-    for (int i = 0; i < BSP_ACC_VAR_WINDOW; i++) {
+    for (int i = 0; i < PRJ_IMU_ACC_VAR_WINDOW; i++) {
         mx += ctx->ax_buf[i]; my += ctx->ay_buf[i]; mz += ctx->az_buf[i];
     }
-    mx /= BSP_ACC_VAR_WINDOW;
-    my /= BSP_ACC_VAR_WINDOW;
-    mz /= BSP_ACC_VAR_WINDOW;
+    mx /= PRJ_IMU_ACC_VAR_WINDOW;
+    my /= PRJ_IMU_ACC_VAR_WINDOW;
+    mz /= PRJ_IMU_ACC_VAR_WINDOW;
 
     float vx = 0, vy = 0, vz = 0;
-    for (int i = 0; i < BSP_ACC_VAR_WINDOW; i++) {
+    for (int i = 0; i < PRJ_IMU_ACC_VAR_WINDOW; i++) {
         float dx = ctx->ax_buf[i] - mx; vx += dx * dx;
         float dy = ctx->ay_buf[i] - my; vy += dy * dy;
         float dz = ctx->az_buf[i] - mz; vz += dz * dz;
     }
-    vx /= BSP_ACC_VAR_WINDOW;
-    vy /= BSP_ACC_VAR_WINDOW;
-    vz /= BSP_ACC_VAR_WINDOW;
+    vx /= PRJ_IMU_ACC_VAR_WINDOW;
+    vy /= PRJ_IMU_ACC_VAR_WINDOW;
+    vz /= PRJ_IMU_ACC_VAR_WINDOW;
 
     ctx->last_variance = vx + vy + vz;
     return ctx->last_variance;
@@ -96,11 +96,11 @@ static void init_filter_state(bsp_lsm6dsr_ctx_t *ctx, float ax0, float ay0, floa
     ctx->yaw   = 0.0;
 
     ctx->var_buf_idx = 0;
-    ctx->var_samples = BSP_ACC_VAR_WINDOW;
-    for (int i = 0; i < BSP_ACC_VAR_WINDOW; i++) {
+    ctx->var_samples = PRJ_IMU_ACC_VAR_WINDOW;
+    for (int i = 0; i < PRJ_IMU_ACC_VAR_WINDOW; i++) {
         ctx->ax_buf[i] = ax0; ctx->ay_buf[i] = ay0; ctx->az_buf[i] = az0;
     }
-    ctx->alpha = BSP_ALPHA_STATIONARY;
+    ctx->alpha = PRJ_IMU_ALPHA_STATIONARY;
     ctx->last_variance = 0.0f;
 }
 
@@ -160,7 +160,7 @@ int bsp_lsm6dsr_init_ctx(bsp_lsm6dsr_ctx_t *ctx)
         LSM6DSR_ACCEL_ODR_104HZ, LSM6DSR_ACCEL_FS_4G);
     lsm6dsr_gyro_config(&lsm6dsr_io_spi,
         LSM6DSR_GYRO_ODR_104HZ, LSM6DSR_GYRO_FS_250DPS);
-    g_platform->delay_ms(BSP_CALIB_SETTLE_MS);
+    g_platform->delay_ms(PRJ_IMU_CALIB_SETTLE_MS);
 
     LOG_INDENT("ACC ODR=104Hz FS=4G  GYRO ODR=104Hz FS=250dps");
 
@@ -243,9 +243,9 @@ int bsp_lsm6dsr_calibrate_ctx(bsp_lsm6dsr_ctx_t *ctx)
         paz *= LSM6DSR_MG_TO_G;
 
         LOG_INFO("Calibrating gyro bias (%d samples, keep still)...",
-                 BSP_CALIB_SAMPLES);
+                 PRJ_IMU_CALIB_SAMPLES);
 
-        for (int i = 0; i < BSP_CALIB_SAMPLES; i++)
+        for (int i = 0; i < PRJ_IMU_CALIB_SAMPLES; i++)
         {
             float tax, tay, taz, tgx, tgy, tgz;
             lsm6dsr_read_accel_float(&lsm6dsr_io_spi, &tax, &tay, &taz,
@@ -256,10 +256,10 @@ int bsp_lsm6dsr_calibrate_ctx(bsp_lsm6dsr_ctx_t *ctx)
             taz *= LSM6DSR_MG_TO_G;
 
             float mag2 = tax*tax + tay*tay + taz*taz;
-            if (fabsf(mag2 - BSP_CALIB_ACC_MAG_REF) < BSP_CALIB_ACC_MAG_TOL
-                && fabsf(tax - pax) < BSP_CALIB_ACC_DELTA_MAX
-                && fabsf(tay - pay) < BSP_CALIB_ACC_DELTA_MAX
-                && fabsf(taz - paz) < BSP_CALIB_ACC_DELTA_MAX)
+            if (fabsf(mag2 - PRJ_IMU_CALIB_ACC_MAG_REF) < PRJ_IMU_CALIB_ACC_MAG_TOL
+                && fabsf(tax - pax) < PRJ_IMU_CALIB_ACC_DELTA_MAX
+                && fabsf(tay - pay) < PRJ_IMU_CALIB_ACC_DELTA_MAX
+                && fabsf(taz - paz) < PRJ_IMU_CALIB_ACC_DELTA_MAX)
             {
                 lsm6dsr_read_gyro_float(&lsm6dsr_io_spi, &tgx, &tgy, &tgz,
                                         LSM6DSR_GYRO_FS_250DPS);
@@ -267,10 +267,10 @@ int bsp_lsm6dsr_calibrate_ctx(bsp_lsm6dsr_ctx_t *ctx)
                 n_valid++;
             }
             pax = tax; pay = tay; paz = taz;
-            g_platform->delay_ms(BSP_CALIB_SAMPLE_DELAY_MS);
+            g_platform->delay_ms(PRJ_IMU_CALIB_SAMPLE_DELAY_MS);
         }
 
-        if (n_valid >= BSP_CALIB_SAMPLES / 2)
+        if (n_valid >= PRJ_IMU_CALIB_SAMPLES / 2)
         {
             ctx->bgx /= (float)n_valid;
             ctx->bgy /= (float)n_valid;
@@ -278,13 +278,13 @@ int bsp_lsm6dsr_calibrate_ctx(bsp_lsm6dsr_ctx_t *ctx)
             ctx->cal_ok = 1;
             LOG_INFO("Gyro bias: X=%.4f  Y=%.4f  Z=%.4f dps  (%d/%d OK)",
                      (double)ctx->bgx, (double)ctx->bgy, (double)ctx->bgz,
-                     n_valid, BSP_CALIB_SAMPLES);
+                     n_valid, PRJ_IMU_CALIB_SAMPLES);
         }
         else
         {
             ctx->bgx = ctx->bgy = ctx->bgz = 0.0f;
             LOG_WARN("Too few stationary samples (%d/%d), bias=0",
-                     n_valid, BSP_CALIB_SAMPLES);
+                     n_valid, PRJ_IMU_CALIB_SAMPLES);
         }
     }
 
@@ -339,7 +339,7 @@ int bsp_lsm6dsr_update_ctx(bsp_lsm6dsr_ctx_t *ctx, bsp_lsm6dsr_data_t *data)
     /* [B1] 时间戳在传感器读取后获取，使 dt 反映两次实际数据获取的间隔。
      * 原实现在读取前获取时间戳，未计入 SPI 读取耗时(~200us)，
      * 导致 dt 系统性偏小且与数据时刻存在偏差。
-     * BSP_IMU_DT_READ_COMPENSATION_US 可调，设为0回退原行为。 */
+     * PRJ_IMU_DT_READ_COMPENSATION_US 可调，设为0回退原行为。 */
     /* ---- read sensors ---- */
     float fax, fay, faz, fgx, fgy, fgz;
     /* 初始化为 0, 防止 SPI 读取失败时局部变量为栈垃圾值 */
@@ -363,26 +363,26 @@ int bsp_lsm6dsr_update_ctx(bsp_lsm6dsr_ctx_t *ctx, bsp_lsm6dsr_data_t *data)
 
     if (ctx->last_tick_us == 0) {
         /* 首帧或重置后 */
-        dt = BSP_IMU_DT_DEFAULT_S;
+        dt = PRJ_IMU_DT_DEFAULT_S;
         ctx->dt_ema = dt;
     } else {
         dt = (double)(now - ctx->last_tick_us) * 1e-6;  /* us to seconds */
 
         /* 检测时间戳回绕（理论上 64 位不会发生，但保险起见） */
         if (now < ctx->last_tick_us) {
-            dt = BSP_IMU_DT_DEFAULT_S;
+            dt = PRJ_IMU_DT_DEFAULT_S;
         }
 
         /* 检测异常的时间间隔 */
-#if BSP_ODR_ALIGN
+#if PRJ_IMU_ODR_ALIGN
         /* [方案 ODR 对齐] 收紧异常门限至 [3ms, 30ms], 基于 10ms 任务周期
          * 原门限 0.5s 过宽, 无法检测任务调度异常导致的 dt 偏离 */
-        if (dt > BSP_DT_ANOMALY_MAX_S || dt < BSP_DT_ANOMALY_MIN_S) {
-            dt = BSP_IMU_DT_DEFAULT_S;
+        if (dt > PRJ_IMU_DT_ANOMALY_MAX_S || dt < PRJ_IMU_DT_ANOMALY_MIN_S) {
+            dt = PRJ_IMU_DT_DEFAULT_S;
         }
 #else
         if (dt > 0.5 || dt <= 0.0) {
-            dt = BSP_IMU_DT_DEFAULT_S;
+            dt = PRJ_IMU_DT_DEFAULT_S;
         }
 #endif
 
@@ -403,15 +403,15 @@ int bsp_lsm6dsr_update_ctx(bsp_lsm6dsr_ctx_t *ctx, bsp_lsm6dsr_data_t *data)
     ctx->ax_buf[ctx->var_buf_idx] = fax;
     ctx->ay_buf[ctx->var_buf_idx] = fay;
     ctx->az_buf[ctx->var_buf_idx] = faz;
-    ctx->var_buf_idx = (ctx->var_buf_idx + 1) % BSP_ACC_VAR_WINDOW;
-    if (ctx->var_samples < BSP_ACC_VAR_WINDOW) ctx->var_samples++;
+    ctx->var_buf_idx = (ctx->var_buf_idx + 1) % PRJ_IMU_ACC_VAR_WINDOW;
+    if (ctx->var_samples < PRJ_IMU_ACC_VAR_WINDOW) ctx->var_samples++;
 
     /* ---- variance-based stationary detection ---- */
     float var_sum = compute_acc_variance(ctx);
-    int stationary = (var_sum < BSP_ACC_VAR_THRESHOLD);
+    int stationary = (var_sum < PRJ_IMU_ACC_VAR_THRESHOLD);
     /* dual-check: accel magnitude must be near 1G */
     float mag2 = fax*fax + fay*fay + faz*faz;
-    if (fabsf(mag2 - BSP_CALIB_ACC_MAG_REF) >= BSP_CALIB_ACC_MAG_TOL) {
+    if (fabsf(mag2 - PRJ_IMU_CALIB_ACC_MAG_REF) >= PRJ_IMU_CALIB_ACC_MAG_TOL) {
         stationary = 0;
     }
 
@@ -421,19 +421,19 @@ int bsp_lsm6dsr_update_ctx(bsp_lsm6dsr_ctx_t *ctx, bsp_lsm6dsr_data_t *data)
 
         /* triple-check: gyro magnitude rejects bias-eating pure rotation */
         float gyro_mag2 = fgx*fgx + fgy*fgy + fgz*fgz;
-        if (gyro_mag2 > (BSP_GYRO_MOTION_THRESHOLD * BSP_GYRO_MOTION_THRESHOLD)) {
+        if (gyro_mag2 > (PRJ_IMU_GYRO_MOTION_THRESHOLD * PRJ_IMU_GYRO_MOTION_THRESHOLD)) {
             stationary = 0;
         }
 
         /* ---- runtime bias tracking (only when stationary) ----
          * [FIX] 单轴门控: 仅在该轴校正后角速度 < 0.5dps 时才更新偏置
-         * 根因: 慢转(2-3dps) < BSP_GYRO_MOTION_THRESHOLD(5dps) 被误判为静止,
+         * 根因: 慢转(2-3dps) < PRJ_IMU_GYRO_MOTION_THRESHOLD(5dps) 被误判为静止,
          *       偏置每帧靠拢10%会吃掉真实角速度 → yaw跟随极慢 + 停后反向漂移
          * 门控阈值 0.5dps 与 EKF ZUPT_AXIS_GATE 一致, 形成统一防线 */
         if (stationary) {
-            if (fabsf(fgx) < 0.5f) ctx->bgx += BSP_BIAS_STATIONARY_RATE * fgx;
-            if (fabsf(fgy) < 0.5f) ctx->bgy += BSP_BIAS_STATIONARY_RATE * fgy;
-            if (fabsf(fgz) < 0.5f) ctx->bgz += BSP_BIAS_STATIONARY_RATE_Z * fgz;
+            if (fabsf(fgx) < 0.5f) ctx->bgx += PRJ_IMU_BIAS_STATIONARY_RATE * fgx;
+            if (fabsf(fgy) < 0.5f) ctx->bgy += PRJ_IMU_BIAS_STATIONARY_RATE * fgy;
+            if (fabsf(fgz) < 0.5f) ctx->bgz += PRJ_IMU_BIAS_STATIONARY_RATE_Z * fgz;
         }
     }
 

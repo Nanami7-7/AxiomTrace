@@ -488,7 +488,20 @@ extern "C" {
  *        Re-enable only after the UART TX arbitration work package is verified.
  */
 #define PRJ_IMU_UART_TELEMETRY_ENABLE (0U)
+#define PRJ_IMU_UART_TELEMETRY_PERIOD_MS  (200U)
+#define PRJ_IMU_UART_TELEMETRY_BUF_SIZE   (512U)
+#define PRJ_IMU_KF_FILTER_BUF_SIZE        (2048U)
 /** 允许通过菜单命令查询 IMU 并开启受控 UART0 CSV 遥测。 */
+#if (PRJ_IMU_UART_TELEMETRY_PERIOD_MS < PRJ_IMU_TASK_PERIOD_MS)
+#error "PRJ_IMU_UART_TELEMETRY_PERIOD_MS must be >= PRJ_IMU_TASK_PERIOD_MS"
+#endif
+#if (PRJ_IMU_UART_TELEMETRY_BUF_SIZE < 128U)
+#error "PRJ_IMU_UART_TELEMETRY_BUF_SIZE is too small"
+#endif
+#if (PRJ_IMU_KF_FILTER_BUF_SIZE < 256U)
+#error "PRJ_IMU_KF_FILTER_BUF_SIZE is too small"
+#endif
+
 #define PRJ_IMU_CONSOLE_ENABLE              (1U)
 /** IMU 连续输出默认周期(ms)；上电默认仍为关闭状态。 */
 #define PRJ_IMU_CONSOLE_DEFAULT_PERIOD_MS   (100U)

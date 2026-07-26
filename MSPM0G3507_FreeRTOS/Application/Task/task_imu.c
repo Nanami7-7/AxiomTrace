@@ -29,14 +29,13 @@ static uint8_t g_imu_initialized = 0;
 /* 打印计数器 (控制打印频率) */
 #if (PRJ_IMU_UART_TELEMETRY_ENABLE != 0U)
 /* IMU telemetry cadence and DMA buffer are compiled only when explicitly enabled. */
-static uint32_t g_print_count = 0U;
-#define IMU_PRINT_INTERVAL  (20U)
-#define IMU_DMA_BUF_SIZE    (512U)
-static char g_dma_buf[IMU_DMA_BUF_SIZE];
+static uint32_t g_telemetry_elapsed_ms = 0U;
+
+static char g_dma_buf[PRJ_IMU_UART_TELEMETRY_BUF_SIZE];
 #endif
 /** KF 滤波器静态缓冲区大小 (字节)，需容纳 filter_t + kf_priv_t */
-#define KF_FILTER_BUF_SIZE  2048
-static uint32_t g_kf_filter_buf[KF_FILTER_BUF_SIZE / sizeof(uint32_t)];
+
+static uint32_t g_kf_filter_buf[PRJ_IMU_KF_FILTER_BUF_SIZE / sizeof(uint32_t)];
 
 /**
  * @brief IMU 初始化 (在任务内部调用)
@@ -73,7 +72,7 @@ static int imu_init(void)
     );
     
     if (g_imu_ctx.active_filter == NULL) {
-        printf("[ERROR] KF filter create failed! buf_size=%d\r\n", KF_FILTER_BUF_SIZE);
+        printf("[ERROR] KF filter create failed! buf_size=%u\r\n", (unsigned)PRJ_IMU_KF_FILTER_BUF_SIZE);
         /* 回退到互补滤波器 */
         g_imu_ctx.active_filter = filter_create(FILTER_TYPE_COMPLEMENTARY);
         if (g_imu_ctx.active_filter == NULL) {
@@ -92,20 +91,20 @@ static int imu_init(void)
          *   R_measure=0.03: ACC 测量噪声 (固定)
          *   R_zupt=0.04:   ZUPT 启用 (0.2dps RMS), yaw bias 唯一观测源 */
         g_imu_ctx.active_filter->set_param(g_imu_ctx.active_filter,
-            FILTER_PARAM_KF_Q_ANGLE, 0.003f);
+            FILTER_PARAM_KF_Q_ANGLE, PRJ_KF_Q_ANGLE_DEFAULT);
 
         g_imu_ctx.active_filter->set_param(g_imu_ctx.active_filter,
-            FILTER_PARAM_KF_Q_BIAS, 0.001f);
+            FILTER_PARAM_KF_Q_BIAS, PRJ_KF_Q_BIAS_DEFAULT);
 
         g_imu_ctx.active_filter->set_param(g_imu_ctx.active_filter,
-            FILTER_PARAM_KF_R_MEASURE, 0.03f);
+            FILTER_PARAM_KF_R_MEASURE, PRJ_KF_R_MEASURE_DEFAULT);
 
         /* R_zupt: ZUPT 伪测量噪声 (dps²), 启用 ZUPT 以观测 yaw bias
          * 0.04 对应 0.2dps RMS, 是 yaw 轴偏置的唯一观测途径 */
         g_imu_ctx.active_filter->set_param(g_imu_ctx.active_filter,
-            FILTER_PARAM_KF_R_ZUPT, 0.04f);
+            FILTER_PARAM_KF_R_ZUPT, PRJ_KF_R_ZUPT_DEFAULT);
 
-        printf("[INFO] KF params: Q_angle=0.003, Q_bias=0.001, R_measure=0.03, R_zupt=0.04\r\n");
+        printf("[INFO] KF params configured from project_config.h\r\n");
     }
     
     g_imu_initialized = 1;
@@ -154,7 +153,7 @@ static void imu_send_dma(const bsp_lsm6dsr_data_t *data, const bsp_lsm6dsr_ctx_t
      * ch15:   temp (°C)
      * ch16:   kf_bias_z (KF Z轴偏置估计, dps)
      */
-    int len = snprintf(g_dma_buf, IMU_DMA_BUF_SIZE,
+    int len = snprintf(g_dma_buf, PRJ_IMU_UART_TELEMETRY_BUF_SIZE,
         "%.4f,%.4f,%.4f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.6f,%.6f,%.6f,%.3f,%.4f,%.6f,%.1f,%.4f\r\n",
         data->ax / PRJ_GRAVITY_MS2,
         data->ay / PRJ_GRAVITY_MS2,
@@ -171,7 +170,7 @@ static void imu_send_dma(const bsp_lsm6dsr_data_t *data, const bsp_lsm6dsr_ctx_t
         (double)ctx->kf_bias_z
     );
 
-    if (len > 0 && len < IMU_DMA_BUF_SIZE) {
+    if (len > 0 && len < PRJ_IMU_UART_TELEMETRY_BUF_SIZE) {
         bsp_uart_send_dma((uint8_t *)g_dma_buf, (uint16_t)len);
     }
 }
@@ -248,9 +247,9 @@ void app_imu_task(void *param)
             
 #if (PRJ_IMU_UART_TELEMETRY_ENABLE != 0U)
             /* Optional periodic IMU telemetry; disabled by default on shared UART0. */
-            g_print_count++;
-            if (g_print_count >= IMU_PRINT_INTERVAL) {
-                g_print_count = 0U;
+            g_telemetry_elapsed_ms += PRJ_IMU_TASK_PERIOD_MS;
+            if (g_telemetry_elapsed_ms >= PRJ_IMU_UART_TELEMETRY_PERIOD_MS) {
+                g_telemetry_elapsed_ms = 0U;
                 imu_send_dma(&data, &g_imu_ctx);
             }
 #endif

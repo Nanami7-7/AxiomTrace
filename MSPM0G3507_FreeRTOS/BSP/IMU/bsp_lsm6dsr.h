@@ -19,72 +19,6 @@
 #include "project_config.h"  /**< 项目级 IMU 参数配置 */
 #include "filter.h"          /**< 滤波器统一接口 */
 
-/**
- * @brief IMU 配置兼容别名。
- * @note  业务代码暂保留 BSP_* 名称，实际参数统一由 project_config.h 提供。
- *        使用 #ifndef 可继续兼容编译器命令行对旧 BSP_* 宏的覆盖。
- */
-#ifndef BSP_CALIB_SAMPLES
-#define BSP_CALIB_SAMPLES              PRJ_IMU_CALIB_SAMPLES
-#endif
-#ifndef BSP_CALIB_SETTLE_MS
-#define BSP_CALIB_SETTLE_MS            PRJ_IMU_CALIB_SETTLE_MS
-#endif
-#ifndef BSP_CALIB_ACC_MAG_REF
-#define BSP_CALIB_ACC_MAG_REF          PRJ_IMU_CALIB_ACC_MAG_REF
-#endif
-#ifndef BSP_CALIB_ACC_MAG_TOL
-#define BSP_CALIB_ACC_MAG_TOL          PRJ_IMU_CALIB_ACC_MAG_TOL
-#endif
-#ifndef BSP_CALIB_ACC_DELTA_MAX
-#define BSP_CALIB_ACC_DELTA_MAX        PRJ_IMU_CALIB_ACC_DELTA_MAX
-#endif
-#ifndef BSP_CALIB_SAMPLE_DELAY_MS
-#define BSP_CALIB_SAMPLE_DELAY_MS      PRJ_IMU_CALIB_SAMPLE_DELAY_MS
-#endif
-
-#ifndef BSP_ACC_VAR_WINDOW
-#define BSP_ACC_VAR_WINDOW              PRJ_IMU_ACC_VAR_WINDOW
-#endif
-#ifndef BSP_IMU_DT_READ_COMPENSATION_US
-#define BSP_IMU_DT_READ_COMPENSATION_US PRJ_IMU_DT_READ_COMPENSATION_US
-#endif
-#ifndef BSP_ACC_VAR_THRESHOLD
-#define BSP_ACC_VAR_THRESHOLD           PRJ_IMU_ACC_VAR_THRESHOLD
-#endif
-#ifndef BSP_ALPHA_MOVING
-#define BSP_ALPHA_MOVING                PRJ_IMU_ALPHA_MOVING
-#endif
-#ifndef BSP_ALPHA_STATIONARY
-#define BSP_ALPHA_STATIONARY            PRJ_IMU_ALPHA_STATIONARY
-#endif
-#ifndef BSP_ALPHA_SMOOTH_STEP
-#define BSP_ALPHA_SMOOTH_STEP           PRJ_IMU_ALPHA_SMOOTH_STEP
-#endif
-
-#ifndef BSP_BIAS_STATIONARY_RATE
-#define BSP_BIAS_STATIONARY_RATE        PRJ_IMU_BIAS_STATIONARY_RATE
-#endif
-#ifndef BSP_BIAS_STATIONARY_RATE_Z
-#define BSP_BIAS_STATIONARY_RATE_Z      PRJ_IMU_BIAS_STATIONARY_RATE_Z
-#endif
-#ifndef BSP_GYRO_MOTION_THRESHOLD
-#define BSP_GYRO_MOTION_THRESHOLD       PRJ_IMU_GYRO_MOTION_THRESHOLD
-#endif
-
-#ifndef BSP_ODR_ALIGN
-#define BSP_ODR_ALIGN                   PRJ_IMU_ODR_ALIGN
-#endif
-#ifndef BSP_DT_ANOMALY_MIN_S
-#define BSP_DT_ANOMALY_MIN_S             PRJ_IMU_DT_ANOMALY_MIN_S
-#endif
-#ifndef BSP_DT_ANOMALY_MAX_S
-#define BSP_DT_ANOMALY_MAX_S             PRJ_IMU_DT_ANOMALY_MAX_S
-#endif
-#ifndef BSP_IMU_DT_DEFAULT_S
-#define BSP_IMU_DT_DEFAULT_S             PRJ_IMU_DT_DEFAULT_S
-#endif
-
 /** @brief  IMU 姿态数据结构体 (10 通道输出) */
 typedef struct {
     float ax, ay, az;       /**< 加速度   m/s²  (G × 9.80665) */
@@ -117,9 +51,9 @@ typedef struct {
     int     initialized;             /**< 初始化完成标志 */
 
     /* ---- 自适应滤波器状态 ---- */
-    float   ax_buf[BSP_ACC_VAR_WINDOW]; /**< ACC X 滑动窗口 */
-    float   ay_buf[BSP_ACC_VAR_WINDOW]; /**< ACC Y 滑动窗口 */
-    float   az_buf[BSP_ACC_VAR_WINDOW]; /**< ACC Z 滑动窗口 */
+    float   ax_buf[PRJ_IMU_ACC_VAR_WINDOW]; /**< ACC X 滑动窗口 */
+    float   ay_buf[PRJ_IMU_ACC_VAR_WINDOW]; /**< ACC Y 滑动窗口 */
+    float   az_buf[PRJ_IMU_ACC_VAR_WINDOW]; /**< ACC Z 滑动窗口 */
     int     var_buf_idx;               /**< 窗口循环索引 */
     int     var_samples;               /**< 已采帧数 */
     float   alpha;                     /**< 当前互补滤波 α */
@@ -235,7 +169,7 @@ void bsp_lsm6dsr_init(void);
 
 /**
  * @brief  陀螺零偏校准
- * @details 采集 BSP_CALIB_SAMPLES 帧，用 ACC 静止检测拒斥运动帧，
+ * @details 采集 PRJ_IMU_CALIB_SAMPLES 帧，用 ACC 静止检测拒斥运动帧，
  *          有效帧过半时取均值作为偏置。可在运行时重复调用。
  * @note   使用默认全局上下文
  */
