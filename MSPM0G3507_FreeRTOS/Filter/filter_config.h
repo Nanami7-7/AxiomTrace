@@ -452,20 +452,20 @@ extern "C" {
  *   - 工程推荐: 0.001 ~ 0.5, 默认 0.03
  *
  * 使用时在 task_imu.c 中调用 set_param 覆盖默认值 */
-#define KF_Q_ANGLE_DEFAULT     0.003f
-#define KF_Q_ANGLE_MIN         0.0001f
-#define KF_Q_ANGLE_MAX         0.01f
+#define KF_Q_ANGLE_DEFAULT     FILTER_KF_Q_ANGLE_DEFAULT
+#define KF_Q_ANGLE_MIN         FILTER_KF_Q_ANGLE_MIN
+#define KF_Q_ANGLE_MAX         FILTER_KF_Q_ANGLE_MAX
 
-#define KF_Q_BIAS_DEFAULT      0.001f
-#define KF_Q_BIAS_MIN          0.0001f
-#define KF_Q_BIAS_MAX          0.01f
+#define KF_Q_BIAS_DEFAULT      FILTER_KF_Q_BIAS_DEFAULT
+#define KF_Q_BIAS_MIN          FILTER_KF_Q_BIAS_MIN
+#define KF_Q_BIAS_MAX          FILTER_KF_Q_BIAS_MAX
 
-#define KF_R_MEASURE_DEFAULT   0.03f
-#define KF_R_MEASURE_MIN       0.001f
-#define KF_R_MEASURE_MAX       0.5f
+#define KF_R_MEASURE_DEFAULT   FILTER_KF_R_MEASURE_DEFAULT
+#define KF_R_MEASURE_MIN       FILTER_KF_R_MEASURE_MIN
+#define KF_R_MEASURE_MAX       FILTER_KF_R_MEASURE_MAX
 
-#define KF_ANGLE_MIN_DEFAULT  -180.0f
-#define KF_ANGLE_MAX_DEFAULT   180.0f
+#define KF_ANGLE_MIN_DEFAULT  FILTER_KF_ANGLE_MIN_DEFAULT
+#define KF_ANGLE_MAX_DEFAULT   FILTER_KF_ANGLE_MAX_DEFAULT
 
 /* KF ZUPT (零速更新) 参数
  * R_zupt: ZUPT 伪测量噪声 (dps²)
@@ -477,9 +477,9 @@ extern "C" {
  *
  * 轴门控: 重用 EKF_ZUPT_AXIS_GATE(0.5dps),
  *         创新量幅值超过门控时不更新该轴偏置 */
-#define KF_R_ZUPT_DEFAULT      1e6f     /* 默认禁用 ZUPT */
-#define KF_R_ZUPT_MIN          0.0001f  /* 最小噪声方差 */
-#define KF_R_ZUPT_MAX          1e6f     /* 最大 (等效禁用) */
+#define KF_R_ZUPT_DEFAULT      FILTER_KF_R_ZUPT_DEFAULT     /* 默认禁用 ZUPT */
+#define KF_R_ZUPT_MIN          FILTER_KF_R_ZUPT_MIN  /* 最小噪声方差 */
+#define KF_R_ZUPT_MAX          FILTER_KF_R_ZUPT_MAX     /* 最大 (等效禁用) */
 
 /* ============================================================
  * 退化策略默认配置
