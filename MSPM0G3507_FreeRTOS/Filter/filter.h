@@ -24,7 +24,7 @@
  *   - HOLD_LAST: 冻结输出（保持上次结果）
  *
  * 配置系统：
- *   - filter_config.h: 参数来源标注、范围验证、退化策略、预设配置
+ *   - filter_tuning.h: 参数来源标注、范围验证、退化策略、预设配置
  *   - 所有参数标明来源（论文/经验值/传感器手册/调优）
  *   - 支持运行时参数验证和自动退化模式选择
  *
@@ -40,7 +40,7 @@
  *   f->destroy(f);
  * @endcode
  *
- * @see filter_config.h  参数配置与退化策略
+ * @see filter_tuning.h  参数配置与退化策略
  * @see bsp_lsm6dsr.h   BSP层集成接口
  */
 

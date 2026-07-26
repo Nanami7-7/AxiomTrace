@@ -571,11 +571,6 @@
               <FilePath>..\Filter\filter.h</FilePath>
             </File>
             <File>
-              <FileName>filter_config.h</FileName>
-              <FileType>5</FileType>
-              <FilePath>..\Filter\filter_config.h</FilePath>
-            </File>
-            <File>
               <FileName>filter_config.c</FileName>
               <FileType>1</FileType>
               <FilePath>..\Filter\filter_config.c</FilePath>
@@ -1577,11 +1572,6 @@
               <FileName>filter.h</FileName>
               <FileType>5</FileType>
               <FilePath>..\Filter\filter.h</FilePath>
-            </File>
-            <File>
-              <FileName>filter_config.h</FileName>
-              <FileType>5</FileType>
-              <FilePath>..\Filter\filter_config.h</FilePath>
             </File>
             <File>
               <FileName>filter_config.c</FileName>

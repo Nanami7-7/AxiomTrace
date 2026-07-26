@@ -19,7 +19,7 @@
 
 /* EKF ????????? Config/filter_tuning.h ??? */
 
-/* EKF偏置限制 (dps) - 使用 filter_config.h 中的 EKF_BIAS_LIMIT_DEFAULT */
+/* EKF偏置限制 (dps) - 使用 filter_tuning.h 中的 EKF_BIAS_LIMIT_DEFAULT */
 
 /* 矩阵操作辅助函数 */
 
