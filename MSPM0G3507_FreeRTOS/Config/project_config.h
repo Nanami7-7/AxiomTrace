@@ -22,9 +22,9 @@ extern "C" {
  * Project identity canonical configuration
  *
  * PRJ_* is the canonical configuration used by this firmware project.
- * project_version.h remains as an independent legacy compatibility header
- * for external tools and older projects, but is not required to compile
- * this firmware. New firmware code should use the PRJ_* names.
+ * The standalone project_version.h compatibility header has been removed;
+ * PROJECT_* aliases remain below for older modules and external tooling.
+ * New firmware code should use the PRJ_* names.
  * ================================================================ */
 /** 固件版本主版号。 */
 #define PRJ_VERSION_MAJOR        (0U)
