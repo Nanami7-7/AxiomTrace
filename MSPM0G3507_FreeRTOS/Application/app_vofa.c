@@ -214,7 +214,7 @@ static bool vofa_run_step_id(app_shared_ctx_t *ctx, uint32_t mid,
         return false;
     }
 
-    float dt_s = (float)APP_CONTROL_PERIOD_MS / (float)PRJ_MS_PER_S;
+    float dt_s = (float)PRJ_CONTROL_PERIOD_MS / (float)PRJ_MS_PER_S;
     return app_id_process_step(g_id_data.rpm_buf, g_id_data.write_idx,
                                 pwm, dt_s, result);
 }
@@ -1063,7 +1063,7 @@ void app_vofa_apply_cmd(const vofa_cmd_t *cmd,
             (unsigned long)PRJ_DRV8870_DEADBAND_LOW_PERCENT,
             (unsigned long)PRJ_DRV8870_NEUTRAL_PERCENT,
             (unsigned long)PRJ_DRV8870_DEADBAND_HIGH_PERCENT,
-            (unsigned long)APP_RPM_OUTPUT_PERIOD_MS,
+            (unsigned long)PRJ_RPM_OUTPUT_PERIOD_MS,
             (unsigned long)VOFA_TELEMETRY_CHANNEL_COUNT);
         break;
 

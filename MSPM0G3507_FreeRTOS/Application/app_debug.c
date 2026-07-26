@@ -96,7 +96,7 @@ void app_debug_encoder_diag(struct app_shared_ctx_s *ctx,
     printf("\r\n===== ENCODER DIAGNOSTIC: Motor %s =====\r\n",
         mname[motor_id]);
     printf("PPR=%lu  Control period=%u ms\r\n",
-        (unsigned long)ppr, (unsigned)APP_CONTROL_PERIOD_MS);
+        (unsigned long)ppr, (unsigned)PRJ_CONTROL_PERIOD_MS);
 
     float target;
     OSAL_CRITICAL_SECTION {

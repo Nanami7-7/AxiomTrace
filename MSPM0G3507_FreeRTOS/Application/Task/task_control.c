@@ -42,9 +42,9 @@ void app_control_task(void *param)
 {
     app_shared_ctx_t *ctx = (app_shared_ctx_t *)param;
 
-    const float dt_s = (float)APP_CONTROL_PERIOD_MS / (float)PRJ_MS_PER_S;
+    const float dt_s = (float)PRJ_CONTROL_PERIOD_MS / (float)PRJ_MS_PER_S;
     /* 外环(20ms)时间步长 */
-    const float outer_dt_s = (float)(APP_CONTROL_PERIOD_MS * POSCTRL_OUTER_RATIO)
+    const float outer_dt_s = (float)(PRJ_CONTROL_PERIOD_MS * POSCTRL_OUTER_RATIO)
                               / (float)PRJ_MS_PER_S;
 
     /* 堵转检测: >1s无脉冲强制归零 */
@@ -270,6 +270,6 @@ void app_control_task(void *param)
             }
         }
         /* 周期延时 */
-        osal_task_delay_ms(APP_CONTROL_PERIOD_MS);
+        osal_task_delay_ms(PRJ_CONTROL_PERIOD_MS);
     }
 }

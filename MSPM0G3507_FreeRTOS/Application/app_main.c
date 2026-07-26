@@ -105,17 +105,17 @@ static void pid_controllers_init(void)
 
     for (uint32_t i = 0; i < BSP_MOTOR_COUNT; i++) {
         app_pid_init(&s_shared_ctx.pid[i],
-            APP_PID_DEFAULT_KP,
-            APP_PID_DEFAULT_KI,
-            APP_PID_DEFAULT_KD,
+            PRJ_PID_DEFAULT_KP,
+            PRJ_PID_DEFAULT_KI,
+            PRJ_PID_DEFAULT_KD,
             APP_PID_MODE_INCREMENT,
             -duty_max,
              duty_max);
 
         /* FF模式PID默认参数 */
-        s_shared_ctx.pid[i].ff_kp = APP_FF_PID_DEFAULT_KP;
-        s_shared_ctx.pid[i].ff_ki = APP_FF_PID_DEFAULT_KI;
-        s_shared_ctx.pid[i].ff_kd = APP_FF_PID_DEFAULT_KD;
+        s_shared_ctx.pid[i].ff_kp = PRJ_FF_PID_DEFAULT_KP;
+        s_shared_ctx.pid[i].ff_ki = PRJ_FF_PID_DEFAULT_KI;
+        s_shared_ctx.pid[i].ff_kd = PRJ_FF_PID_DEFAULT_KD;
         s_shared_ctx.pid[i].ff_integral_min = -duty_max;
         s_shared_ctx.pid[i].ff_integral_max =  duty_max;
         s_shared_ctx.pid[i].use_ff = false;
@@ -237,16 +237,16 @@ int32_t app_main_init(void)
     (void)printf("  TB6612  : direction GPIO + active-high PWM | true coast/brake\r\n");
 #endif
     (void)printf("  PID     : Kp=%.2f Ki=%.2f Kd=%.2f (Increment)\r\n",
-        (double)APP_PID_DEFAULT_KP,
-        (double)APP_PID_DEFAULT_KI,
-        (double)APP_PID_DEFAULT_KD);
+        (double)PRJ_PID_DEFAULT_KP,
+        (double)PRJ_PID_DEFAULT_KI,
+        (double)PRJ_PID_DEFAULT_KD);
     (void)printf("  Control : %lu ms | Menu: %lu ms\r\n",
-        (unsigned long)APP_CONTROL_PERIOD_MS,
-        (unsigned long)APP_MENU_POLL_PERIOD_MS);
+        (unsigned long)PRJ_CONTROL_PERIOD_MS,
+        (unsigned long)PRJ_MENU_POLL_PERIOD_MS);
     (void)printf("  Protocol: v%lu, FireWater %lu channels @ %lu ms\r\n",
         (unsigned long)PRJ_PROTOCOL_VERSION,
         (unsigned long)VOFA_TELEMETRY_CHANNEL_COUNT,
-        (unsigned long)APP_RPM_OUTPUT_PERIOD_MS);
+        (unsigned long)PRJ_RPM_OUTPUT_PERIOD_MS);
     (void)printf("  Debug   : AxiomTrace AX_LOG (DEV profile)\r\n");
     (void)printf("  IMU     : LSM6DSR 6-axis @ 104Hz (Hardware SPI)\r\n");
     (void)printf("  Filter  : Complementary/Madgwick/EKF/Mahony/LKF/LPF\r\n");
@@ -259,9 +259,9 @@ int32_t app_main_init(void)
     s_control_task_handle = osal_task_create(
         app_control_task,
         "ctrl",
-        APP_TASK_STACK_CONTROL,
+        PRJ_TASK_STACK_CONTROL,
         &s_shared_ctx,
-        APP_TASK_PRIORITY_CONTROL);
+        PRJ_TASK_PRIORITY_CONTROL);
 
     if (s_control_task_handle == NULL) {
         return -10;
@@ -271,9 +271,9 @@ int32_t app_main_init(void)
     s_menu_task_handle = osal_task_create(
         app_menu_task,
         "menu",
-        APP_TASK_STACK_MENU,
+        PRJ_TASK_STACK_MENU,
         &s_shared_ctx,
-        APP_TASK_PRIORITY_MENU);
+        PRJ_TASK_PRIORITY_MENU);
 
     if (s_menu_task_handle == NULL) {
         return -11;
@@ -283,9 +283,9 @@ int32_t app_main_init(void)
     s_imu_task_handle = osal_task_create(
         app_imu_task,
         "imu",
-        APP_TASK_STACK_IMU,
+        PRJ_TASK_STACK_IMU,
         &s_shared_ctx,
-        APP_TASK_PRIORITY_IMU);
+        PRJ_TASK_PRIORITY_IMU);
 
     if (s_imu_task_handle == NULL) {
         return -12;
@@ -297,9 +297,9 @@ int32_t app_main_init(void)
         osal_task_handle_t test_handle = osal_task_create(
             test_spi_gyro_task,
             "test",
-            APP_TASK_STACK_IMU,
+            PRJ_TASK_STACK_IMU,
             NULL,
-            APP_TASK_PRIORITY_IMU);
+            PRJ_TASK_PRIORITY_IMU);
         if (test_handle == NULL) {
             return -12;
         }

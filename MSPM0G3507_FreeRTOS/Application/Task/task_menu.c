@@ -215,7 +215,7 @@ static bool menu_parse_drvscope(const char *line_buf,
     char command[12];
     char arg1[12];
     char arg2[12];
-    char extra[MENU_LINE_BUF_SIZE];
+    char extra[PRJ_MENU_LINE_BUF_SIZE];
 
     if ((line_buf == NULL) || (cmd == NULL) ||
         !menu_next_token(&cursor, command, sizeof(command)) ||
@@ -395,7 +395,7 @@ static void menu_data_output_loop(app_shared_ctx_t *ctx,
                                    uint32_t *motor,
                                    bool *need_refresh)
 {
-    char line_buf[MENU_LINE_BUF_SIZE];
+    char line_buf[PRJ_MENU_LINE_BUF_SIZE];
     uint32_t line_pos = 0U;
 #if (PRJ_BLE_MENU_CONSOLE_ENABLE != 0U)
     uint32_t ble_line_pos = 0U;
@@ -408,12 +408,12 @@ static void menu_data_output_loop(app_shared_ctx_t *ctx,
     for (;;) {
         /* 闈為樆濉炴鏌ュ懡浠?*/
 #if (PRJ_BLE_MENU_CONSOLE_ENABLE != 0U)
-        if (menu_read_line(line_buf, MENU_LINE_BUF_SIZE, &line_pos) ||
-            menu_read_ble_line(line_buf, MENU_LINE_BUF_SIZE,
+        if (menu_read_line(line_buf, PRJ_MENU_LINE_BUF_SIZE, &line_pos) ||
+            menu_read_ble_line(line_buf, PRJ_MENU_LINE_BUF_SIZE,
                                &ble_line_pos, &ble_line_discard)) {
             (void)printf("[BLE/UART MENU] %s\r\n", line_buf);
 #else
-        if (menu_read_line(line_buf, MENU_LINE_BUF_SIZE, &line_pos)) {
+        if (menu_read_line(line_buf, PRJ_MENU_LINE_BUF_SIZE, &line_pos)) {
 #endif
             vofa_cmd_t cmd;
             if (app_vofa_parse_cmd(line_buf, &cmd)) {
@@ -479,13 +479,13 @@ static void menu_data_output_loop(app_shared_ctx_t *ctx,
         }
 
         /* LED蹇冭烦 */
-        led_cnt += APP_RPM_OUTPUT_PERIOD_MS;
+        led_cnt += PRJ_RPM_OUTPUT_PERIOD_MS;
         if (led_cnt >= LED_TOGGLE_THRESH) {
             led_cnt = 0U;
             bsp_led_toggle();
         }
 
-        osal_task_delay_ms(APP_RPM_OUTPUT_PERIOD_MS);
+        osal_task_delay_ms(PRJ_RPM_OUTPUT_PERIOD_MS);
     }
 }
 
@@ -994,7 +994,7 @@ void app_menu_task(void *param)
 {
     app_shared_ctx_t *ctx = (app_shared_ctx_t *)param;
     uint32_t selected_motor = 0U;
-    char line_buf[MENU_LINE_BUF_SIZE];
+    char line_buf[PRJ_MENU_LINE_BUF_SIZE];
     uint32_t line_pos = 0U;
     uint32_t led_cnt = 0U;
     bool need_refresh = true;
@@ -1036,12 +1036,12 @@ void app_menu_task(void *param)
 
         /* 妫€鏌ュ懡浠?*/
 #if (PRJ_BLE_MENU_CONSOLE_ENABLE != 0U)
-        if (menu_read_line(line_buf, MENU_LINE_BUF_SIZE, &line_pos) ||
-            menu_read_ble_line(line_buf, MENU_LINE_BUF_SIZE,
+        if (menu_read_line(line_buf, PRJ_MENU_LINE_BUF_SIZE, &line_pos) ||
+            menu_read_ble_line(line_buf, PRJ_MENU_LINE_BUF_SIZE,
                                &ble_line_pos, &ble_line_discard)) {
             (void)printf("[BLE/UART MENU] %s\r\n", line_buf);
 #else
-        if (menu_read_line(line_buf, MENU_LINE_BUF_SIZE, &line_pos)) {
+        if (menu_read_line(line_buf, PRJ_MENU_LINE_BUF_SIZE, &line_pos)) {
 #endif
             /*
              * 终端通常以 CRLF 结束命令。menu_read_line() 已在 CR 上
