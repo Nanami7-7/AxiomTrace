@@ -17,6 +17,7 @@
 
 #include <stdint.h>
 #include <stdbool.h>
+#include "project_config.h"  /**< 项目级 MATHACL 配置 */
 
 #ifdef __cplusplus
 extern "C" {
@@ -27,39 +28,41 @@ extern "C" {
  * ============================================================================ */
 
 /**
- * @brief MATHACL 加速使能开关
- * 
- * 定义此宏以启用 MATHACL 硬件加速。
- * 未定义时使用软浮点回退路径。
+ * @brief MATHACL 加速编译开关兼容层。
+ * @note  实际默认值由 project_config.h 的 PRJ_MATHACL_ENABLE 提供；
+ *        保留 BSP_MATHACL_ENABLE 可兼容旧工程和编译器命令行覆盖。
  */
 #ifndef BSP_MATHACL_ENABLE
-#define BSP_MATHACL_ENABLE   /* 启用 MATHACL 硬件加速 */
+#if (PRJ_MATHACL_ENABLE != 0U)
+#define BSP_MATHACL_ENABLE
+#endif
 #endif
 
 /**
- * @brief 选择性硬件加速开关
- * 
- * 性能测试结果:
- *   SQRT:  hw 0.86x (慢) → 默认用软件
- *   ATAN2: hw 1.26x (快) → 默认用硬件
- *   SINCOS: hw 2.51x (快) → 默认用硬件
- *   ASIN:  hw 0.84x (慢) → 默认用软件 (内部调用 SQRT+ATAN2)
+ * @brief 选择性硬件加速路径兼容层。
+ * @note  硬件加速能力由 project_config.h 集中选择，保留 BSP_* 宏名称供现有调用点使用。
  */
-#ifdef BSP_MATHACL_ENABLE
-  #define BSP_MATHACL_ATAN2_HW    /* ATAN2 用硬件 (1.26x) */
-  #define BSP_MATHACL_SINCOS_HW   /* SINCOS 用硬件 (2.51x) */
-  /* SQRT 和 ASIN 用软件 (硬件更慢) */
+#ifndef BSP_MATHACL_ATAN2_HW
+#if (PRJ_MATHACL_ATAN2_HW != 0U)
+#define BSP_MATHACL_ATAN2_HW
 #endif
+#endif
+#ifndef BSP_MATHACL_SINCOS_HW
+#if (PRJ_MATHACL_SINCOS_HW != 0U)
+#define BSP_MATHACL_SINCOS_HW
+#endif
+#endif
+/* SQRT 和 ASIN 仍使用软件路径，保持原有性能选择。 */
 
 /**
- * @brief 线程安全开关
- * 
- * 定义此宏以启用 MATHACL 硬件操作的线程安全保护。
- * 需要包含 OSAL (osal_api.h)。使用临界区保护寄存器访问。
- * 未定义时: 仅单任务安全 (当前默认行为, 兼容裸机初始化)
- * 定义后: 多任务安全 (临界区开销约 10-20 cycles)
+ * @brief MATHACL 线程安全兼容层。
+ * @note  默认关闭以保持原有实时开销；需要多任务并发访问时在 project_config.h 中开启。
  */
-/* #define BSP_MATHACL_THREAD_SAFE */
+#ifndef BSP_MATHACL_THREAD_SAFE
+#if (PRJ_MATHACL_THREAD_SAFE != 0U)
+#define BSP_MATHACL_THREAD_SAFE
+#endif
+#endif
 
 /* ============================================================================
  * MATHACL 寄存器定义 (使用 TI driverlib)
