@@ -9,6 +9,7 @@
 #include "app_pid.h"
 #include "app_feedforward.h"
 #include "app_model_id.h"
+#include "app_state_snapshot.h"
 #include "app_position_control.h"
 #include "osal_api.h"
 #include "bsp_uart.h"
@@ -1068,23 +1069,24 @@ void app_vofa_apply_cmd(const vofa_cmd_t *cmd,
 
     case VOFA_CMD_STATUS_QUERY:
     {
-        bool enabled, ff_enabled;
-        int32_t rpm, output;
-        float target, kp, ki, kd, ff_k, ff_b;
-        app_ctrl_mode_t mode;
-        OSAL_CRITICAL_SECTION {
-            enabled = ctx->motor_enabled[mid];
-            rpm = ctx->status.rpm[mid];
-            output = ctx->status.output[mid];
-            target = ctx->pid[mid].setpoint;
-            kp = ctx->pid[mid].kp;
-            ki = ctx->pid[mid].ki;
-            kd = ctx->pid[mid].kd;
-            ff_enabled = ctx->ff[mid].enabled;
-            ff_k = ctx->ff[mid].k;
-            ff_b = ctx->ff[mid].b;
-            mode = ctx->posctrl.mode;
+        app_state_snapshot_t snapshot;
+        if (!app_state_snapshot_read(ctx, &snapshot)) {
+            (void)printf("@STATUS,error=snapshot\r\n");
+            break;
         }
+
+        const app_motor_state_snapshot_t *motor = &snapshot.motor[mid];
+        bool enabled = motor->enabled;
+        bool ff_enabled = motor->ff_enabled;
+        int32_t rpm = motor->rpm;
+        int32_t output = motor->output;
+        float target = motor->target;
+        float kp = motor->kp;
+        float ki = motor->ki;
+        float kd = motor->kd;
+        float ff_k = motor->ff_k;
+        float ff_b = motor->ff_b;
+        app_ctrl_mode_t mode = snapshot.mode;
         (void)printf("@STATUS,motor=%lu,enabled=%u,power=%u,rpm=%ld,target=%.3f,output=%ld,kp=%.6f,ki=%.6f,kd=%.6f,ff_en=%u,ff_k=%.6f,ff_b=%.6f,mode=%s\r\n",
             (unsigned long)mid, enabled ? 1U : 0U,
             bsp_motor_power_is_enabled() ? 1U : 0U,

@@ -21,8 +21,19 @@ bool app_state_snapshot_read(const app_shared_ctx_t *ctx,
                      sizeof(snapshot->control));
         (void)memcpy(&snapshot->imu, &ctx->imu,
                      sizeof(snapshot->imu));
-        (void)memcpy(snapshot->motor_enabled, ctx->motor_enabled,
-                     sizeof(snapshot->motor_enabled));
+        for (uint32_t i = 0U; i < BSP_MOTOR_COUNT; i++) {
+            snapshot->motor[i].enabled = ctx->motor_enabled[i];
+            snapshot->motor[i].rpm = ctx->status.rpm[i];
+            snapshot->motor[i].output = ctx->status.output[i];
+            snapshot->motor[i].target = ctx->pid[i].setpoint;
+            snapshot->motor[i].kp = ctx->pid[i].kp;
+            snapshot->motor[i].ki = ctx->pid[i].ki;
+            snapshot->motor[i].kd = ctx->pid[i].kd;
+            snapshot->motor[i].ff_enabled = ctx->ff[i].enabled;
+            snapshot->motor[i].ff_k = ctx->ff[i].k;
+            snapshot->motor[i].ff_b = ctx->ff[i].b;
+        }
+        snapshot->mode = ctx->posctrl.mode;
     }
 
     return true;

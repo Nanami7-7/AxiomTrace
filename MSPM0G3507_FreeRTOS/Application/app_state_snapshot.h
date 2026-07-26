@@ -18,6 +18,29 @@ extern "C" {
 #include "app_main.h"
 
 /**
+ * @brief 单个电机的只读状态快照
+ */
+typedef struct {
+    /** 电机使能标志。 */
+    bool enabled;
+    /** 控制任务发布的实时转速。 */
+    int32_t rpm;
+    /** 控制任务发布的输出值。 */
+    int32_t output;
+    /** 当前目标转速。 */
+    float target;
+    /** PID 参数快照。 */
+    float kp;
+    float ki;
+    float kd;
+    /** 前馈使能标志。 */
+    bool ff_enabled;
+    /** 前馈参数快照。 */
+    float ff_k;
+    float ff_b;
+} app_motor_state_snapshot_t;
+
+/**
  * @brief 应用层对外只读状态快照
  *
  * 快照只包含诊断和观测所需的值，不暴露 PID、前馈和位置控制器的
@@ -29,8 +52,10 @@ typedef struct {
     app_control_status_t control;
     /** IMU 任务发布的姿态、惯导数据和时间戳。 */
     app_imu_data_t imu;
-    /** 各电机当前使能状态。 */
-    bool motor_enabled[BSP_MOTOR_COUNT];
+    /** 各电机的参数、使能和实时状态。 */
+    app_motor_state_snapshot_t motor[BSP_MOTOR_COUNT];
+    /** 当前位置控制模式。 */
+    app_ctrl_mode_t mode;
 } app_state_snapshot_t;
 
 /**
