@@ -47,6 +47,64 @@
 /* 前向声明 (kf_update 内部调用 kf_reset) */
 void kf_reset(filter_t *self);
 
+/* 协方差健康检查阈值：仅用于发现数值退化，不改变正常滤波路径。 */
+#define KF_COVARIANCE_MAX          (1.0e6f)
+#define KF_COVARIANCE_SYMMETRY_EPS (1.0e-5f)
+#define KF_COVARIANCE_DET_EPS      (1.0e-6f)
+
+/**
+ * @brief 检查单轴 2x2 协方差矩阵是否仍满足基本数值健康条件
+ * @param p    KF 私有数据
+ * @param axis 轴索引
+ * @return true=协方差有限、对称且半正定；false=检测到退化
+ *
+ * 该检查只负责检测，不在正常路径中修改协方差。检测到异常时由调用者
+ * 统一复位 KF，避免长期运行后出现负方差、非对称或无界增长。
+ */
+static bool kf_covariance_axis_is_healthy(const kf_priv_t *p, int axis)
+{
+    const float p00 = p->P[axis][0][0];
+    const float p01 = p->P[axis][0][1];
+    const float p10 = p->P[axis][1][0];
+    const float p11 = p->P[axis][1][1];
+
+    if (isnan(p00) || isinf(p00) || isnan(p01) || isinf(p01) ||
+        isnan(p10) || isinf(p10) || isnan(p11) || isinf(p11)) {
+        return false;
+    }
+
+    /* 方差不能为负，且任何协方差元素都不能长期无界增长。 */
+    if (p00 < 0.0f || p11 < 0.0f ||
+        fabsf(p00) > KF_COVARIANCE_MAX ||
+        fabsf(p01) > KF_COVARIANCE_MAX ||
+        fabsf(p10) > KF_COVARIANCE_MAX ||
+        fabsf(p11) > KF_COVARIANCE_MAX) {
+        return false;
+    }
+
+    /* 允许极小的浮点舍入误差，但拒绝明显的非对称。 */
+    {
+        const float scale = fmaxf(1.0f, fmaxf(fabsf(p01), fabsf(p10)));
+        if (fabsf(p01 - p10) > KF_COVARIANCE_SYMMETRY_EPS * scale) {
+            return false;
+        }
+    }
+
+    /* 对称 2x2 矩阵半正定的必要条件：det(P)=P00*P11-P01^2 >= 0。 */
+    {
+        const float product = p00 * p11;
+        const float determinant = product - p01 * p01;
+        const float tolerance = KF_COVARIANCE_DET_EPS * fmaxf(product, 1.0e-12f);
+        if (isnan(product) || isinf(product) ||
+            isnan(determinant) || isinf(determinant) ||
+            determinant < -tolerance) {
+            return false;
+        }
+    }
+
+    return true;
+}
+
 /**
  * @brief 单轴 KF 预测步骤 (每轴独立)
  * @param p           KF 私有数据
@@ -348,7 +406,7 @@ void kf_update(filter_t *self, const filter_input_t *in, filter_output_t *out)
 
     /* === 输入验证 === */
     /* dt 上限 0.1s 对应最低 10Hz 采样率，超过此值视为调度异常 */
-    if (dt <= 0.0f || dt > 0.1f ||
+    if (isnan(dt) || isinf(dt) || dt <= 0.0f || dt > 0.1f ||
         isnan(in->ax) || isinf(in->ax) ||
         isnan(in->ay) || isinf(in->ay) ||
         isnan(in->az) || isinf(in->az) ||
@@ -455,15 +513,18 @@ void kf_update(filter_t *self, const filter_input_t *in, filter_output_t *out)
     bool kf_healthy = true;
     for (int axis = 0; axis < KF_AXIS_COUNT && kf_healthy; axis++) {
         for (int i = 0; i < KF_STATE_SIZE; i++) {
-            if (isnan(p->x[axis][i]) || isinf(p->x[axis][i]) ||
-                isnan(p->P[axis][i][0]) || isinf(p->P[axis][i][0]) ||
-                isnan(p->P[axis][i][1]) || isinf(p->P[axis][i][1])) {
+            if (isnan(p->x[axis][i]) || isinf(p->x[axis][i])) {
                 kf_healthy = false;
                 break;
             }
         }
+        if (kf_healthy && !kf_covariance_axis_is_healthy(p, axis)) {
+            kf_healthy = false;
+        }
     }
     if (!kf_healthy) {
+        FILTER_REPORT_ERROR(FILTER_ERR_NUMERICAL,
+                           "KF state/covariance invalid; reset");
         kf_reset(self);
     }
 
