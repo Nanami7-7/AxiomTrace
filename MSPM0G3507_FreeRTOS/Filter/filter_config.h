@@ -17,6 +17,7 @@
 #define FILTER_CONFIG_H
 
 #include "filter.h"
+#include "filter_param_defaults.h"
 
 /* ============================================================
  * 调试详细输出开关
@@ -41,16 +42,16 @@ extern "C" {
  * 范围：0.90~0.99
  * 说明：α越大，越信任陀螺仪，响应快但漂移大
  *       α越小，越信任加速度计，稳定但响应慢 */
-#define COMP_ALPHA_DEFAULT      0.98f
-#define COMP_ALPHA_MIN          0.90f
-#define COMP_ALPHA_MAX          0.99f
+#define COMP_ALPHA_DEFAULT      FILTER_COMP_ALPHA_DEFAULT
+#define COMP_ALPHA_MIN          FILTER_COMP_ALPHA_MIN
+#define COMP_ALPHA_MAX          FILTER_COMP_ALPHA_MAX
 
 /* double 版本（供 bsp_lsm6dsr.c 中 double 精度的互补滤波 fallback 使用）
  * 注意：float 版 COMP_ALPHA_DEFAULT(0.98f) 精度较低，不可用于 double 上下文
  * ⚠️ COMP_ALPHA_INV_DB 独立定义为 0.02，不可用 (1.0 - COMP_ALPHA_DEFAULT_DB)
  *    替代——浮点运算 1.0-0.98=0.020000000000000018 ≠ 字面量 0.02 */
-#define COMP_ALPHA_DEFAULT_DB   0.98
-#define COMP_ALPHA_INV_DB       0.02
+#define COMP_ALPHA_DEFAULT_DB   FILTER_COMP_ALPHA_DEFAULT_DB
+#define COMP_ALPHA_INV_DB       FILTER_COMP_ALPHA_INV_DB
 
 /* --- LPF参数 --- */
 /* [EMPIRICAL] 一阶低通滤波器截止频率

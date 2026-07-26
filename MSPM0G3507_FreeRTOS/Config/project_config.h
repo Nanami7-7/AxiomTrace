@@ -16,6 +16,7 @@ extern "C" {
 #include "hal_common.h"
 #include "ti_msp_dl_config.h"
 #include "project_version.h"
+#include "filter_param_defaults.h"
 
 /* ================================================================
  * Project identity compatibility aliases
@@ -403,7 +404,7 @@ extern "C" {
  * ================================================================ */
 
 /** 互补滤波系数(0~1, 0=全信任IMU, 1=全信任编码器) */
-#define PRJ_CF_ALPHA                 (0.98f)
+#define PRJ_CF_ALPHA                 FILTER_COMP_ALPHA_DEFAULT
 /** 轮胎外径(mm)，应以负载状态下的有效滚动直径标定。 */
 #define PRJ_MOTOR_WHEEL_DIAMETER_MM  (60.0f)
 /** 轮子有效滚动半径(m)，由轮径统一派生，避免重复配置。 */
