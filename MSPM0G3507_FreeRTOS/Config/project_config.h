@@ -36,6 +36,16 @@ extern "C" {
 #define PRJ_UART_DEBUG_ID       HAL_UART_DEBUG
 
 /* ================================================================
+ * VOFA+ communication limits
+ * Keep protocol safety limits in the project configuration so they
+ * can be reviewed and rolled back independently of the VOFA module.
+ * ================================================================ */
+/** Maximum absolute PID parameter accepted by VOFA commands. */
+#define PRJ_VOFA_PID_PARAM_MAX    (100.0f)
+/** Maximum absolute target speed accepted by VOFA commands (RPM). */
+#define PRJ_VOFA_TARGET_RPM_MAX   (800.0f)
+
+/* ================================================================
  *  JDY-23 BLE UART配置
  *  SysConfig: UART1, TX=PB6, RX=PB7, 9600-8-N-1, no flow control.
  *  JDY-23 protocol code is isolated from this hardware mapping.
