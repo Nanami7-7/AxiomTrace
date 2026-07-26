@@ -598,20 +598,6 @@ extern "C" {
 /** 模式切换过渡时长(ms, 1秒渐变) */
 #define PRJ_MODE_TRANSITION_MS      (1000U)
 
-/* 'APP_*' names are retained as compatibility aliases for existing application code. */
-#define APP_POS_PID_KP              PRJ_POS_PID_KP
-#define APP_POS_PID_KI              PRJ_POS_PID_KI
-#define APP_POS_PID_KD              PRJ_POS_PID_KD
-#define APP_YAW_PID_KP              PRJ_YAW_PID_KP
-#define APP_YAW_PID_KI              PRJ_YAW_PID_KI
-#define APP_YAW_PID_KD              PRJ_YAW_PID_KD
-#define APP_PLANNER_ACCEL           PRJ_PLANNER_ACCEL
-#define APP_PLANNER_MAX_RPM         PRJ_PLANNER_MAX_RPM
-#define APP_REACHED_THRESHOLD_POS   PRJ_REACHED_THRESHOLD_POS
-#define APP_REACHED_THRESHOLD_YAW   PRJ_REACHED_THRESHOLD_YAW
-#define APP_REACHED_COUNT           PRJ_REACHED_COUNT
-#define APP_MODE_TRANSITION_MS      PRJ_MODE_TRANSITION_MS
-
 /* ================================================================
  *  系统参数
  * ================================================================ */
