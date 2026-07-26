@@ -33,7 +33,7 @@
  *
  *          P0 模式切换保护:
  *          切换瞬间外环PID复位, 速度环setpoint保持当前RPM,
- *          经 APP_MODE_TRANSITION_MS 渐变到新目标.
+ *          经 PRJ_MODE_TRANSITION_MS 渐变到新目标.
  *
  *          到位判定:
  *          |error| < threshold 持续 N 个周期(200ms) → reached=true

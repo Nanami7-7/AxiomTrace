@@ -133,22 +133,22 @@ static void pid_controllers_init(void)
 
 /**
  * @brief  初始化位置-速度串级控制器
- * @note   使用 project_config.h 中的 APP_POS / APP_YAW / APP_PLANNER 系列参数
+ * @note   使用 project_config.h 中的 PRJ_POS / PRJ_YAW / PRJ_PLANNER 系列参数
  *         默认 SPEED 模式, 不影响现有速度环行为
  */
 static void posctrl_init(void)
 {
     app_posctrl_init(&s_shared_ctx.posctrl,
-        APP_POS_PID_KP, APP_POS_PID_KI, APP_POS_PID_KD,
-        APP_YAW_PID_KP, APP_YAW_PID_KI, APP_YAW_PID_KD,
-        APP_PLANNER_ACCEL, APP_PLANNER_MAX_RPM,
+        PRJ_POS_PID_KP, PRJ_POS_PID_KI, PRJ_POS_PID_KD,
+        PRJ_YAW_PID_KP, PRJ_YAW_PID_KI, PRJ_YAW_PID_KD,
+        PRJ_PLANNER_ACCEL, PRJ_PLANNER_MAX_RPM,
         PRJ_ENCODER_PULSES_PER_REV);
 
     /* 到位判定阈值 */
     s_shared_ctx.posctrl.reached_threshold =
-        APP_REACHED_THRESHOLD_POS;  /* 位置模式阈值(脉冲) */
+        PRJ_REACHED_THRESHOLD_POS;  /* 位置模式阈值(脉冲) */
     s_shared_ctx.posctrl.reached_threshold_count =
-        APP_REACHED_COUNT;          /* 200ms持续 */
+        PRJ_REACHED_COUNT;          /* 200ms持续 */
 }
 
 /* ======================== 公共函数实现 ======================== */

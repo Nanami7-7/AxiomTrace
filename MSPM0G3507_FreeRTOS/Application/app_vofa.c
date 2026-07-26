@@ -941,7 +941,7 @@ void app_vofa_apply_cmd(const vofa_cmd_t *cmd,
             break;
         }
         if (cruise_rpm <= 0.0f ||
-            cruise_rpm > APP_PLANNER_MAX_RPM) {
+            cruise_rpm > PRJ_PLANNER_MAX_RPM) {
             (void)printf("[POS] rejected: speed %.0f out of range\r\n",
                 (double)cruise_rpm);
             break;
@@ -995,7 +995,7 @@ void app_vofa_apply_cmd(const vofa_cmd_t *cmd,
             break;
         }
         if (cruise_rpm <= 0.0f ||
-            cruise_rpm > APP_PLANNER_MAX_RPM) {
+            cruise_rpm > PRJ_PLANNER_MAX_RPM) {
             (void)printf("[ANGLE] rejected: speed %.0f out of range\r\n",
                 (double)cruise_rpm);
             break;
