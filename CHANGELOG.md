@@ -2,6 +2,20 @@
 
 本项目遵循语义化版本号。日期使用 `YYYY-MM-DD`。
 
+## [Unreleased] - 2026-07-26
+
+### Changed
+
+- 完成 `e62ee2f` 配置重构在当前 MSPM0G3507 工程中的适配：以 `Config/project_config.h` 作为项目级统一入口，以 `Config/filter_tuning.h` 作为 EKF/KF 调参入口；
+- 删除已无调用点的版本配置、测试配置和 IMU/BSP 兼容配置，保留协议/板卡/电机名称兼容别名以避免影响外部工具；
+- 将 IMU 遥测周期、DMA 缓冲区、KF 静态缓冲区、任务参数和 MATHACL 矩阵开关纳入统一 `PRJ_*` 配置；
+- 明确生产 Target 与 FactoryTest Target 的配置边界，避免通过修改公共配置文件切换测试模式。
+
+### Verification
+
+- 生产 Target `empty_LP_MSPM0G3507_nortos_keil`：Keil 重编译通过，0 Error(s), 0 Warning(s)；
+- `PRJ_MATHACL_MATRIX_ENABLE=1` 的临时编译验证通过，验证后已恢复为默认值 `0`；
+- FactoryTest Target 的链接区容量不足为迁移前已存在的问题，本次未改变其链接布局。
 ## [0.1.0] - 2026-07-18
 
 ### Added

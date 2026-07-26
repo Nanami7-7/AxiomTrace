@@ -69,6 +69,20 @@ MSPM0G3507_FreeRTOS/
 tools/mspm0_configurator/   PySide6 配置与绘图软件
 ```
 
+## 配置归属与 e62ee2f 迁移结果
+
+本工程的配置入口已经收口，后续修改请遵循以下边界，避免同一参数在多个文件重复定义：
+
+- `MSPM0G3507_FreeRTOS/Config/project_config.h`：项目级统一配置入口，负责板级标识、外设映射、任务周期/优先级/栈大小、IMU 运行参数、VOFA 安全限值、MATHACL 开关以及应用默认参数。
+- `MSPM0G3507_FreeRTOS/Config/filter_tuning.h`：滤波算法调参入口，负责 EKF/KF 的噪声、门限、协方差保护、ZUPT 和鲁棒更新等算法参数；调整滤波效果时优先修改此文件。
+- `MSPM0G3507_FreeRTOS/Config/filter_param_defaults.h`：滤波器公共默认值和范围，供项目配置映射使用；不要在业务源文件中重新定义同名默认参数。
+- IMU/BSP 代码统一使用 `PRJ_IMU_*` 配置，不再依赖旧的 `BSP_*` 配置兼容宏。
+- MATHACL 代码统一使用 `PRJ_MATHACL_*` 配置；`PRJ_MATHACL_MATRIX_ENABLE` 默认关闭，只有经过单独验证后才允许在实验目标中打开。
+- `PROJECT_PROTOCOL_VERSION`、`PROJECT_BOARD_NAME` 和 `PROJECT_MOTOR_DRIVER_NAME` 仅作为旧模块/外部工具兼容别名保留；新固件代码应使用对应的 `PRJ_*` 名称。
+
+生产 Target 使用 `PRJ_DRV8870_FACTORY_TEST_ENABLE=0`，FactoryTest Target 通过 Keil Target 私有定义覆盖为 `1`。两者共享源代码和统一配置入口，但 FactoryTest 仅用于受控台架诊断，不应作为生产固件烧录。
+
+本次 e62ee2f 配置迁移只改变配置归属和引用方式，不改变默认控制/滤波行为。生产 Target 已完成 Keil 重编译验证（0 Error(s), 0 Warning(s)）；FactoryTest 当前仍受既有链接区容量不足影响，未将该独立问题混入本次迁移。
 ## 文档入口
 
 - [架构与重构报告](MSPM0G3507_FreeRTOS/Docs/架构与重构报告_v0.1.0.md)
