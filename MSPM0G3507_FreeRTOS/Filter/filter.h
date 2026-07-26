@@ -163,8 +163,8 @@ typedef enum {
     FILTER_PARAM_COUNT              /**< 参数数量（勿用） */
 } filter_param_t;
 /* ============================================================
- * Public filter-configuration types (migrated from filter_config.h).
- * Configuration constants and APIs remain in filter_config.h.
+ * Public filter-configuration types and API declarations.
+ * Configuration constants are provided by filter_tuning.h.
  * ============================================================ */
 
 /** Parameter source category. */
@@ -228,6 +228,43 @@ typedef enum {
 } filter_preset_t;
 
 typedef struct filter filter_t;
+
+/**
+ * @brief ????????????????
+ * @param type ??????
+ * @param count ????????? NULL?
+ * @return ????????????????? NULL?
+ */
+const filter_param_desc_t *filter_config_get_params(filter_type_t type, int *count);
+
+/** @brief ???????????? */
+float filter_config_get_default(filter_type_t type, filter_param_t param);
+
+/** @brief ???????????????? */
+int filter_config_validate(filter_type_t type, filter_param_t param, float value);
+
+/** @brief ??????????????? */
+float filter_config_clamp(filter_type_t type, filter_param_t param, float value);
+
+/** @brief ????????? */
+const degrade_config_t *filter_config_get_degrade(degrade_mode_t mode);
+
+/** @brief ??????????????? */
+sensor_quality_t filter_config_assess_quality(float ax, float ay, float az,
+                                               float gx, float gy, float gz);
+
+/** @brief ?????????????? */
+degrade_mode_t filter_config_select_degrade(sensor_quality_t acc_quality,
+                                            sensor_quality_t gyro_quality);
+
+/** @brief ?????????????? */
+void filter_config_apply_preset(filter_t *f, filter_preset_t preset);
+
+/** @brief ????????? */
+const char *filter_config_preset_name(filter_preset_t preset);
+
+/** @brief ???????????? */
+void filter_config_print(filter_type_t type);
 
 /**
  * @brief 滤波器更新函数类型

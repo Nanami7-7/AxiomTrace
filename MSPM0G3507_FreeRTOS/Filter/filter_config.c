@@ -3,7 +3,8 @@
  * @brief   滤波器参数配置实现
  */
 
-#include "filter_config.h"
+#include "filter.h"
+#include "filter_tuning.h"
 #include <stdio.h>
 #include <math.h>
 
