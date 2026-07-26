@@ -28,9 +28,7 @@
 #define M_PI 3.14159265358979323846
 #endif
 
-/* 数值安全阈值（供 normalize_quaternion_internal 和 KF 使用） */
-#define EKF_NORM_EPS            1e-10f
-#define KF_HW_S_MIN             1e-10f
+/* ????????? Config/filter_tuning.h ??? */
 
 /* EKF 状态向量维度 */
 #define EKF_STATE_SIZE 7

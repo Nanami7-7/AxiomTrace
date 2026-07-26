@@ -112,7 +112,7 @@ int normalize_quaternion_internal(float *q0, float *q1, float *q2, float *q3)
     float norm = mathacl_sqrtf((*q0)*(*q0) + (*q1)*(*q1) + (*q2)*(*q2) + (*q3)*(*q3));
 
     /* 统一阈值检查 */
-    if (norm < EKF_NORM_EPS) {
+    if (norm < FILTER_EKF_NORM_EPS) {
         /* 范数太小，重置为单位四元数 */
         *q0 = 1.0f; *q1 = 0.0f; *q2 = 0.0f; *q3 = 0.0f;
         return -1;

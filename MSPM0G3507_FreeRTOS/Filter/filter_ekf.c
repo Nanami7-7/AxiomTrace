@@ -17,11 +17,7 @@
 #include "bsp_mathacl.h"
 #include "mathacl_matrix.h"
 
-/* EKF 数值安全阈值 */
-#define EKF_COV_MAX_LIMIT       1e6f
-#define EKF_COV_MIN_LIMIT       1e-10f
-#define EKF_INV_DET_EPS         1e-12f
-/* EKF_NORM_EPS 已在 filter_internal.h 中定义 */
+/* EKF ????????? Config/filter_tuning.h ??? */
 
 /* EKF偏置限制 (dps) - 使用 filter_config.h 中的 EKF_BIAS_LIMIT_DEFAULT */
 
@@ -53,7 +49,7 @@ static inline bool ekf_covariance_healthy(const float P[7][7])
                 return false;
             }
         }
-        if (P[i][i] < -EKF_COV_MAX_LIMIT || P[i][i] > EKF_COV_MAX_LIMIT) {
+        if (P[i][i] < -FILTER_EKF_COV_MAX_LIMIT || P[i][i] > FILTER_EKF_COV_MAX_LIMIT) {
             return false;
         }
     }
@@ -66,7 +62,7 @@ static inline bool ekf_covariance_healthy(const float P[7][7])
 static inline void ekf_normalize_quaternion(float *q0, float *q1, float *q2, float *q3)
 {
     float norm = mathacl_sqrtf((*q0) * (*q0) + (*q1) * (*q1) + (*q2) * (*q2) + (*q3) * (*q3));
-    if (norm > EKF_NORM_EPS) {
+    if (norm > FILTER_EKF_NORM_EPS) {
         *q0 /= norm; *q1 /= norm; *q2 /= norm; *q3 /= norm;
     } else {
         *q0 = 1.0f; *q1 = 0.0f; *q2 = 0.0f; *q3 = 0.0f;
@@ -87,7 +83,6 @@ static inline void ekf_state_to_output(const float *state, filter_output_t *out)
  * ============================================================ */
 
 /** @brief EKF 除法 Q24 范围上限，避免 float_to_q24 溢出 */
-#define EKF_HW_DIV_CLAMP_MAX   120.0f
 
 /**
  * @brief 使用 MATHACL DIV 计算 num/den（Q24 定点）
@@ -100,11 +95,11 @@ static inline float ekf_div_hw(float num, float den)
         isnan(den) || isinf(den)) {
         return 0.0f;
     }
-    if (fabsf(num) > EKF_HW_DIV_CLAMP_MAX || fabsf(den) > EKF_HW_DIV_CLAMP_MAX) {
+    if (fabsf(num) > FILTER_EKF_HW_DIV_CLAMP_MAX || fabsf(den) > FILTER_EKF_HW_DIV_CLAMP_MAX) {
         return num / den;
     }
     /* 检查输出是否会在 Q24 范围内，避免结果溢出 */
-    if (fabsf(den) * EKF_HW_DIV_CLAMP_MAX < fabsf(num)) {
+    if (fabsf(den) * FILTER_EKF_HW_DIV_CLAMP_MAX < fabsf(num)) {
         return num / den;
     }
     int32_t nq = float_to_q24(num);
@@ -605,10 +600,10 @@ void ekf_update(filter_t *self, const filter_input_t *in, filter_output_t *out)
             if (v > max_s) max_s = v;
         }
     }
-    if (max_s < EKF_COV_MIN_LIMIT) {
-        max_s = EKF_COV_MIN_LIMIT;
+    if (max_s < FILTER_EKF_COV_MIN_LIMIT) {
+        max_s = FILTER_EKF_COV_MIN_LIMIT;
     }
-    if (fabsf(det) < EKF_INV_DET_EPS * max_s) {
+    if (fabsf(det) < FILTER_EKF_INV_DET_EPS * max_s) {
         /* S 接近奇异，跳过测量更新，仅做预测 */
         ekf_state_to_output(p->state, out);
         return;
@@ -854,7 +849,7 @@ void ekf_update(filter_t *self, const filter_input_t *in, filter_output_t *out)
     }
     /* 对角线强制为正 */
     for (int i = 0; i < 7; i++) {
-        if (p->P[i][i] < EKF_COV_MIN_LIMIT) p->P[i][i] = EKF_COV_MIN_LIMIT;
+        if (p->P[i][i] < FILTER_EKF_COV_MIN_LIMIT) p->P[i][i] = FILTER_EKF_COV_MIN_LIMIT;
     }
 
     /* ===== 10b. 协方差矩阵定期正则化 (每 100 次更新) ===== */
@@ -871,11 +866,11 @@ void ekf_update(filter_t *self, const filter_input_t *in, filter_output_t *out)
         }
         /* 对角线下界保护 */
         for (int i = 0; i < 7; i++) {
-            if (p->P[i][i] < EKF_COV_MIN_LIMIT) p->P[i][i] = EKF_COV_MIN_LIMIT;
+            if (p->P[i][i] < FILTER_EKF_COV_MIN_LIMIT) p->P[i][i] = FILTER_EKF_COV_MIN_LIMIT;
         }
         /* 最大协方差限制，防止发散 */
         for (int i = 0; i < 7; i++) {
-            if (p->P[i][i] > EKF_COV_MAX_LIMIT) p->P[i][i] = EKF_COV_MAX_LIMIT;
+            if (p->P[i][i] > FILTER_EKF_COV_MAX_LIMIT) p->P[i][i] = FILTER_EKF_COV_MAX_LIMIT;
         }
     }
 

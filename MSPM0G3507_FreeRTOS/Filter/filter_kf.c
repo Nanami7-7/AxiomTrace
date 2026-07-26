@@ -42,7 +42,7 @@
 #include "bsp_mathacl.h"
 #include "mathacl_matrix.h"
 
-/* KF_STATE_SIZE, KF_AXIS_COUNT, KF_HW_S_MIN 已在 filter_internal.h 中定义 */
+/* KF_STATE_SIZE, KF_AXIS_COUNT, FILTER_KF_HW_S_MIN 已在 filter_internal.h 中定义 */
 
 /* 前向声明 (kf_update 内部调用 kf_reset) */
 void kf_reset(filter_t *self);
@@ -165,7 +165,7 @@ static inline void kf_update_axis(kf_priv_t *p, int axis, float acc_angle)
     float P11 = p->P[axis][1][1];
 
     float S = P00 + p->R_measure;
-    if (S < KF_HW_S_MIN) S = KF_HW_S_MIN;  /* 防除零 */
+    if (S < FILTER_KF_HW_S_MIN) S = FILTER_KF_HW_S_MIN;  /* 防除零 */
 
     /* 卡尔曼增益 K = P*H'/S */
     float K0 = P00 / S;  /* angle 增益 */
@@ -231,7 +231,7 @@ static inline void kf_zupt_update_axis(kf_priv_t *p, int axis, float gyro_rate)
 
     /* 创新协方差 S = H*P*H' + R = P[1][1] + R_zupt (H = [0, 1]) */
     float S = P11 + p->R_zupt;
-    if (S < KF_HW_S_MIN) S = KF_HW_S_MIN;
+    if (S < FILTER_KF_HW_S_MIN) S = FILTER_KF_HW_S_MIN;
 
     /* 卡尔曼增益 K = P*H'/S */
     float K0 = P01 / S;  /* angle 增益 (通过交叉协方差) */
@@ -264,21 +264,20 @@ static inline void kf_zupt_update_axis(kf_priv_t *p, int axis, float gyro_rate)
  * KF 硬件加速辅助函数（Q24 定点 MAC / DIV）
  * ============================================================ */
 
-/** @brief 协方差 Q24 范围上限，避免 float_to_q24 溢出 */
-#define KF_HW_P_CLAMP_MAX   120.0f
+/** KF Q24 ??????? Config/filter_tuning.h ??? */
 
-/* KF_HW_S_MIN 已在 filter_internal.h 中定义 */
+/* FILTER_KF_HW_S_MIN 已在 filter_internal.h 中定义 */
 
 /**
  * @brief 将协方差值钳位到 Q24 安全范围
  */
 static inline float kf_p_clamp_hw(float v)
 {
-    if (v > KF_HW_P_CLAMP_MAX) {
-        return KF_HW_P_CLAMP_MAX;
+    if (v > FILTER_KF_HW_P_CLAMP_MAX) {
+        return FILTER_KF_HW_P_CLAMP_MAX;
     }
-    if (v < -KF_HW_P_CLAMP_MAX) {
-        return -KF_HW_P_CLAMP_MAX;
+    if (v < -FILTER_KF_HW_P_CLAMP_MAX) {
+        return -FILTER_KF_HW_P_CLAMP_MAX;
     }
     return v;
 }
@@ -294,11 +293,11 @@ static inline float kf_div_hw(float num, float den)
         isnan(den) || isinf(den)) {
         return 0.0f;
     }
-    if (fabsf(num) > KF_HW_P_CLAMP_MAX || fabsf(den) > KF_HW_P_CLAMP_MAX) {
+    if (fabsf(num) > FILTER_KF_HW_P_CLAMP_MAX || fabsf(den) > FILTER_KF_HW_P_CLAMP_MAX) {
         return num / den;
     }
     /* 检查输出是否会在 Q24 范围内，避免结果溢出 */
-    if (fabsf(den) * KF_HW_P_CLAMP_MAX < fabsf(num)) {
+    if (fabsf(den) * FILTER_KF_HW_P_CLAMP_MAX < fabsf(num)) {
         return num / den;
     }
     int32_t nq = float_to_q24(num);
@@ -330,8 +329,8 @@ static inline void kf_update_axis_hw(kf_priv_t *p, int axis, float acc_angle)
     float P11 = p->P[axis][1][1];
 
     float S = P00 + p->R_measure;
-    if (S < KF_HW_S_MIN) {
-        S = KF_HW_S_MIN;
+    if (S < FILTER_KF_HW_S_MIN) {
+        S = FILTER_KF_HW_S_MIN;
     }
 
     /* 卡尔曼增益使用硬件除法 */
