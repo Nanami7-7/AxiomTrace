@@ -27,50 +27,50 @@ extern "C" {
 /* ======================== 任务优先级 ======================== */
 
 /** 控制任务优先级(最高,保证实时性) */
-#define APP_TASK_PRIORITY_CONTROL   (5U)
+#define APP_TASK_PRIORITY_CONTROL   PRJ_TASK_PRIORITY_CONTROL
 /** IMU任务优先级(中) */
-#define APP_TASK_PRIORITY_IMU       (4U)
+#define APP_TASK_PRIORITY_IMU       PRJ_TASK_PRIORITY_IMU
 /** 菜单任务优先级(低) */
-#define APP_TASK_PRIORITY_MENU      (2U)
+#define APP_TASK_PRIORITY_MENU      PRJ_TASK_PRIORITY_MENU
 
 /* ======================== 任务栈大小 ======================== */
 
 /** 控制任务栈大小(字, 含浮点运算+软件FPU) */
-#define APP_TASK_STACK_CONTROL      (256U)
+#define APP_TASK_STACK_CONTROL      PRJ_TASK_STACK_CONTROL
 /** IMU任务栈大小(字, 含EKF滤波器+浮点运算) */
-#define APP_TASK_STACK_IMU          (1280U)
+#define APP_TASK_STACK_IMU          PRJ_TASK_STACK_IMU
 /** 菜单任务栈大小(字, 行缓冲+printf+sscanf+VOFA+11通道DMA) */
-#define APP_TASK_STACK_MENU         (384U)
+#define APP_TASK_STACK_MENU         PRJ_TASK_STACK_MENU
 
 /* ======================== 控制周期 ======================== */
 
 /** 控制任务周期(ms) */
-#define APP_CONTROL_PERIOD_MS       (5U)
+#define APP_CONTROL_PERIOD_MS       PRJ_CONTROL_PERIOD_MS
 /** 菜单轮询周期(ms) */
-#define APP_MENU_POLL_PERIOD_MS     (100U)
+#define APP_MENU_POLL_PERIOD_MS     PRJ_MENU_POLL_PERIOD_MS
 /** RPM输出周期(ms, 运行模式下, DMA非阻塞发送) */
-#define APP_RPM_OUTPUT_PERIOD_MS    (30U)
+#define APP_RPM_OUTPUT_PERIOD_MS    PRJ_RPM_OUTPUT_PERIOD_MS
 
 /* ======================== 菜单配置 ======================== */
 
 /** 行输入缓冲区大小(字节) */
-#define MENU_LINE_BUF_SIZE          (64U)
+#define MENU_LINE_BUF_SIZE          PRJ_MENU_LINE_BUF_SIZE
 
 /* ======================== PID默认参数 ======================== */
 
 /** 速度环默认比例增益(空载MG310 RPM控制,保守值) */
-#define APP_PID_DEFAULT_KP          (0.8f)
+#define APP_PID_DEFAULT_KP          PRJ_PID_DEFAULT_KP
 /** 速度环默认积分增益(空载MG310 RPM控制) */
-#define APP_PID_DEFAULT_KI          (0.3f)
+#define APP_PID_DEFAULT_KI          PRJ_PID_DEFAULT_KI
 /** 速度环默认微分增益 */
-#define APP_PID_DEFAULT_KD          (0.0f)
+#define APP_PID_DEFAULT_KD          PRJ_PID_DEFAULT_KD
 
 /** FF模式默认比例增益 */
-#define APP_FF_PID_DEFAULT_KP       (0.5f)
+#define APP_FF_PID_DEFAULT_KP       PRJ_FF_PID_DEFAULT_KP
 /** FF模式默认积分增益 */
-#define APP_FF_PID_DEFAULT_KI       (0.1f)
+#define APP_FF_PID_DEFAULT_KI       PRJ_FF_PID_DEFAULT_KI
 /** FF模式默认微分增益 */
-#define APP_FF_PID_DEFAULT_KD       (0.0f)
+#define APP_FF_PID_DEFAULT_KD       PRJ_FF_PID_DEFAULT_KD
 
 /* ======================== 共享上下文 ======================== */
 

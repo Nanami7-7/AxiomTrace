@@ -502,8 +502,47 @@ extern "C" {
     (PRJ_IMU_CONSOLE_DEFAULT_PERIOD_MS > PRJ_IMU_CONSOLE_MAX_PERIOD_MS)
 #error "Invalid IMU console default period"
 #endif
-/* IMU任务优先级与栈大小由 app_main.h 中 APP_TASK_PRIORITY_IMU /
- * APP_TASK_STACK_IMU 统一管理, 此处不重复定义 */
+/* ================================================================
+ *  应用任务与控制默认参数
+ *  统一由项目配置入口管理，app_main.h 仅提供 APP_* 兼容别名。
+ * ================================================================ */
+
+/** 控制任务优先级，数值越大优先级越高。 */
+#define PRJ_TASK_PRIORITY_CONTROL       (5U)
+/** IMU任务优先级。 */
+#define PRJ_TASK_PRIORITY_IMU           (4U)
+/** 菜单任务优先级。 */
+#define PRJ_TASK_PRIORITY_MENU          (2U)
+
+/** 控制任务栈大小，单位为 FreeRTOS 栈字。 */
+#define PRJ_TASK_STACK_CONTROL          (256U)
+/** IMU任务栈大小，单位为 FreeRTOS 栈字。 */
+#define PRJ_TASK_STACK_IMU              (1280U)
+/** 菜单任务栈大小，单位为 FreeRTOS 栈字。 */
+#define PRJ_TASK_STACK_MENU             (384U)
+
+/** 控制任务周期(ms)。 */
+#define PRJ_CONTROL_PERIOD_MS           (5U)
+/** 菜单任务轮询周期(ms)。 */
+#define PRJ_MENU_POLL_PERIOD_MS         (100U)
+/** 运行模式下的 RPM 输出周期(ms)。 */
+#define PRJ_RPM_OUTPUT_PERIOD_MS        (30U)
+
+/** 菜单命令行输入缓冲区大小(字节)。 */
+#define PRJ_MENU_LINE_BUF_SIZE          (64U)
+
+/** 速度环默认比例增益。 */
+#define PRJ_PID_DEFAULT_KP              (0.8f)
+/** 速度环默认积分增益。 */
+#define PRJ_PID_DEFAULT_KI              (0.3f)
+/** 速度环默认微分增益。 */
+#define PRJ_PID_DEFAULT_KD              (0.0f)
+/** 前馈模式 PID 默认比例增益。 */
+#define PRJ_FF_PID_DEFAULT_KP           (0.5f)
+/** 前馈模式 PID 默认积分增益。 */
+#define PRJ_FF_PID_DEFAULT_KI           (0.1f)
+/** 前馈模式 PID 默认微分增益。 */
+#define PRJ_FF_PID_DEFAULT_KD           (0.0f)
 
 /* ================================================================
  *  互补滤波器配置
