@@ -573,30 +573,44 @@ extern "C" {
  * ================================================================ */
 
 /** 位置环PID参数(位置式PID, 输出RPM修正) */
-#define APP_POS_PID_KP              (0.5f)
-#define APP_POS_PID_KI              (0.0f)
-#define APP_POS_PID_KD              (0.0f)
+#define PRJ_POS_PID_KP              (0.5f)
+#define PRJ_POS_PID_KI              (0.0f)
+#define PRJ_POS_PID_KD              (0.0f)
 
 /** 角度环PID参数(位置式PID, 输出差速RPM) */
-#define APP_YAW_PID_KP              (2.0f)
-#define APP_YAW_PID_KI              (0.0f)
-#define APP_YAW_PID_KD              (0.0f)
+#define PRJ_YAW_PID_KP              (2.0f)
+#define PRJ_YAW_PID_KI              (0.0f)
+#define PRJ_YAW_PID_KD              (0.0f)
 
 /** 规划器加速度(RPM/s, 控制加减速平滑度) */
-#define APP_PLANNER_ACCEL           (500.0f)
+#define PRJ_PLANNER_ACCEL           (500.0f)
 
 /** 最大目标RPM(速度限幅, 防止过速) */
-#define APP_PLANNER_MAX_RPM         (300.0f)
+#define PRJ_PLANNER_MAX_RPM         (300.0f)
 
 /** 到位判定阈值(位置:脉冲, 角度:度) */
-#define APP_REACHED_THRESHOLD_POS   (5.0f)
-#define APP_REACHED_THRESHOLD_YAW   (0.5f)
+#define PRJ_REACHED_THRESHOLD_POS   (5.0f)
+#define PRJ_REACHED_THRESHOLD_YAW   (0.5f)
 
 /** 到位持续周期数(20ms×10=200ms) */
-#define APP_REACHED_COUNT           (10U)
+#define PRJ_REACHED_COUNT           (10U)
 
 /** 模式切换过渡时长(ms, 1秒渐变) */
-#define APP_MODE_TRANSITION_MS      (1000U)
+#define PRJ_MODE_TRANSITION_MS      (1000U)
+
+/* 'APP_*' names are retained as compatibility aliases for existing application code. */
+#define APP_POS_PID_KP              PRJ_POS_PID_KP
+#define APP_POS_PID_KI              PRJ_POS_PID_KI
+#define APP_POS_PID_KD              PRJ_POS_PID_KD
+#define APP_YAW_PID_KP              PRJ_YAW_PID_KP
+#define APP_YAW_PID_KI              PRJ_YAW_PID_KI
+#define APP_YAW_PID_KD              PRJ_YAW_PID_KD
+#define APP_PLANNER_ACCEL           PRJ_PLANNER_ACCEL
+#define APP_PLANNER_MAX_RPM         PRJ_PLANNER_MAX_RPM
+#define APP_REACHED_THRESHOLD_POS   PRJ_REACHED_THRESHOLD_POS
+#define APP_REACHED_THRESHOLD_YAW   PRJ_REACHED_THRESHOLD_YAW
+#define APP_REACHED_COUNT           PRJ_REACHED_COUNT
+#define APP_MODE_TRANSITION_MS      PRJ_MODE_TRANSITION_MS
 
 /* ================================================================
  *  系统参数
