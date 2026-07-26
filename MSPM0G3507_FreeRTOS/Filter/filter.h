@@ -162,8 +162,71 @@ typedef enum {
 
     FILTER_PARAM_COUNT              /**< 参数数量（勿用） */
 } filter_param_t;
+/* ============================================================
+ * Public filter-configuration types (migrated from filter_config.h).
+ * Configuration constants and APIs remain in filter_config.h.
+ * ============================================================ */
 
-/* ---- 滤波器接口（前向声明） ---- */
+/** Parameter source category. */
+typedef enum {
+    PARAM_SOURCE_PAPER = 0,     /**< Paper or academic research. */
+    PARAM_SOURCE_EMPIRICAL,     /**< Empirical engineering value. */
+    PARAM_SOURCE_DATASHEET,     /**< Sensor datasheet value. */
+    PARAM_SOURCE_TUNED,         /**< Value obtained by tuning. */
+    PARAM_SOURCE_COUNT
+} param_source_t;
+
+/** Description and validation range for a filter parameter. */
+typedef struct {
+    filter_param_t  param;          /**< Parameter identifier. */
+    float           default_value;  /**< Default value. */
+    float           min_value;      /**< Minimum valid value. */
+    float           max_value;      /**< Maximum valid value. */
+    param_source_t  source_type;    /**< Source category. */
+    const char     *source_name;    /**< Source name. */
+    const char     *source_detail;  /**< Source details. */
+    const char     *unit;           /**< Engineering unit. */
+} filter_param_desc_t;
+
+/** Sensor-data degradation mode. */
+typedef enum {
+    DEGRADE_NONE = 0,           /**< Normal operation. */
+    DEGRADE_STATIC_ONLY,        /**< Static-only mode. */
+    DEGRADE_GYRO_ONLY,          /**< Gyroscope-only mode. */
+    DEGRADE_ACC_ONLY,           /**< Accelerometer-only mode. */
+    DEGRADE_HOLD_LAST,          /**< Hold the previous output. */
+    DEGRADE_COUNT
+} degrade_mode_t;
+
+/** Sensor data quality category. */
+typedef enum {
+    SENSOR_QUALITY_GOOD = 0,    /**< Data is valid. */
+    SENSOR_QUALITY_NOISY,       /**< Data is noisy. */
+    SENSOR_QUALITY_SATURATED,   /**< Data is saturated or out of range. */
+    SENSOR_QUALITY_INVALID,     /**< Data is invalid (NaN/Inf). */
+    SENSOR_QUALITY_COUNT
+} sensor_quality_t;
+
+/** Degradation thresholds and description. */
+typedef struct {
+    degrade_mode_t  mode;               /**< Degradation mode. */
+    float           acc_threshold_low;  /**< Lower accelerometer threshold. */
+    float           acc_threshold_high; /**< Upper accelerometer threshold. */
+    float           gyro_threshold;     /**< Gyroscope threshold. */
+    float           variance_threshold; /**< Variance threshold. */
+    const char     *description;        /**< Human-readable description. */
+} degrade_config_t;
+
+/** Built-in filter preset. */
+typedef enum {
+    FILTER_PRESET_DEFAULT = 0,      /**< Balanced default. */
+    FILTER_PRESET_HIGH_PRECISION,   /**< Low-noise high precision. */
+    FILTER_PRESET_FAST_RESPONSE,    /**< Low-latency response. */
+    FILTER_PRESET_ROBUST,           /**< Noise-robust preset. */
+    FILTER_PRESET_LOW_POWER,        /**< Reduced-computation preset. */
+    FILTER_PRESET_COUNT
+} filter_preset_t;
+
 typedef struct filter filter_t;
 
 /**
