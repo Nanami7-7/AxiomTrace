@@ -506,6 +506,16 @@
               <FilePath>..\Application\app_vofa.h</FilePath>
             </File>
             <File>
+              <FileName>app_state_snapshot.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\Application\app_state_snapshot.c</FilePath>
+            </File>
+            <File>
+              <FileName>app_state_snapshot.h</FileName>
+              <FileType>5</FileType>
+              <FilePath>..\Application\app_state_snapshot.h</FilePath>
+            </File>
+            <File>
               <FileName>task_control.c</FileName>
               <FileType>1</FileType>
               <FilePath>..\Application\Task\task_control.c</FilePath>
@@ -1492,6 +1502,16 @@
               <FileName>app_vofa.h</FileName>
               <FileType>5</FileType>
               <FilePath>..\Application\app_vofa.h</FilePath>
+            </File>
+            <File>
+              <FileName>app_state_snapshot.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\Application\app_state_snapshot.c</FilePath>
+            </File>
+            <File>
+              <FileName>app_state_snapshot.h</FileName>
+              <FileType>5</FileType>
+              <FilePath>..\Application\app_state_snapshot.h</FilePath>
             </File>
             <File>
               <FileName>task_control.c</FileName>
