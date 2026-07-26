@@ -109,8 +109,8 @@ static void vofa_apply_pid_param(app_pid_t *pid, float new_val,
                                   pid_param_idx_t which, uint32_t motor_id)
 {
     static const char *names[] = { "Kp", "Ki", "Kd" };
-    if (new_val >  VOFA_PID_PARAM_MAX) { new_val =  VOFA_PID_PARAM_MAX; }
-    if (new_val < -VOFA_PID_PARAM_MAX) { new_val = -VOFA_PID_PARAM_MAX; }
+    if (new_val >  PRJ_VOFA_PID_PARAM_MAX) { new_val =  PRJ_VOFA_PID_PARAM_MAX; }
+    if (new_val < -PRJ_VOFA_PID_PARAM_MAX) { new_val = -PRJ_VOFA_PID_PARAM_MAX; }
 
     float old_val;
     OSAL_CRITICAL_SECTION {
@@ -631,8 +631,8 @@ void app_vofa_apply_cmd(const vofa_cmd_t *cmd,
                     (unsigned long)mid);
             } else {
                 float val = cmd->value;
-                if (val > VOFA_TARGET_RPM_MAX) { val = VOFA_TARGET_RPM_MAX; }
-                if (val < -VOFA_TARGET_RPM_MAX) { val = -VOFA_TARGET_RPM_MAX; }
+                if (val > PRJ_VOFA_TARGET_RPM_MAX) { val = PRJ_VOFA_TARGET_RPM_MAX; }
+                if (val < -PRJ_VOFA_TARGET_RPM_MAX) { val = -PRJ_VOFA_TARGET_RPM_MAX; }
                 float old_sp;
                 OSAL_CRITICAL_SECTION {
                     old_sp = ctx->pid[mid].setpoint;
@@ -758,8 +758,8 @@ void app_vofa_apply_cmd(const vofa_cmd_t *cmd,
                     (unsigned long)mid);
             } else {
                 float val = cmd->value;
-                if (val >  VOFA_PID_PARAM_MAX) { val =  VOFA_PID_PARAM_MAX; }
-                if (val < -VOFA_PID_PARAM_MAX) { val = -VOFA_PID_PARAM_MAX; }
+                if (val >  PRJ_VOFA_PID_PARAM_MAX) { val =  PRJ_VOFA_PID_PARAM_MAX; }
+                if (val < -PRJ_VOFA_PID_PARAM_MAX) { val = -PRJ_VOFA_PID_PARAM_MAX; }
                 OSAL_CRITICAL_SECTION {
                     ctx->pid[mid].ff_kp = val;
                 }
@@ -776,8 +776,8 @@ void app_vofa_apply_cmd(const vofa_cmd_t *cmd,
                     (unsigned long)mid);
             } else {
                 float val = cmd->value;
-                if (val >  VOFA_PID_PARAM_MAX) { val =  VOFA_PID_PARAM_MAX; }
-                if (val < -VOFA_PID_PARAM_MAX) { val = -VOFA_PID_PARAM_MAX; }
+                if (val >  PRJ_VOFA_PID_PARAM_MAX) { val =  PRJ_VOFA_PID_PARAM_MAX; }
+                if (val < -PRJ_VOFA_PID_PARAM_MAX) { val = -PRJ_VOFA_PID_PARAM_MAX; }
                 OSAL_CRITICAL_SECTION {
                     ctx->pid[mid].ff_ki = val;
                 }
@@ -794,8 +794,8 @@ void app_vofa_apply_cmd(const vofa_cmd_t *cmd,
                     (unsigned long)mid);
             } else {
                 float val = cmd->value;
-                if (val >  VOFA_PID_PARAM_MAX) { val =  VOFA_PID_PARAM_MAX; }
-                if (val < -VOFA_PID_PARAM_MAX) { val = -VOFA_PID_PARAM_MAX; }
+                if (val >  PRJ_VOFA_PID_PARAM_MAX) { val =  PRJ_VOFA_PID_PARAM_MAX; }
+                if (val < -PRJ_VOFA_PID_PARAM_MAX) { val = -PRJ_VOFA_PID_PARAM_MAX; }
                 OSAL_CRITICAL_SECTION {
                     ctx->pid[mid].ff_kd = val;
                 }

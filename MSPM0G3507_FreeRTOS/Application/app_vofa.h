@@ -40,16 +40,6 @@ extern "C" {
 /** 下行命令最大长度 */
 #define VOFA_CMD_MAX_LEN           (64U)
 
-/** PID参数允许的最大绝对值 (防止极端值导致控制不稳定) */
-/* Compatibility aliases: values are owned by project_config.h. */
-#ifndef VOFA_PID_PARAM_MAX
-#define VOFA_PID_PARAM_MAX         PRJ_VOFA_PID_PARAM_MAX
-#endif
-
-#ifndef VOFA_TARGET_RPM_MAX
-#define VOFA_TARGET_RPM_MAX        PRJ_VOFA_TARGET_RPM_MAX
-#endif
-
 /** Stable FireWater telemetry schema used by VOFA+ and the desktop GUI. */
 #define VOFA_TELEMETRY_CHANNEL_COUNT (11U)
 
