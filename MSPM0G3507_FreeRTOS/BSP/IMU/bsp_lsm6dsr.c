@@ -117,9 +117,9 @@ int bsp_lsm6dsr_init_ctx(bsp_lsm6dsr_ctx_t *ctx)
         return -1;
     }
 
-    /* 初始化 MATHACL 硬件加速器 (仅 BSP_MATHACL_ENABLE 时生效) */
+    /* 初始化 MATHACL 硬件加速器 (仅 PRJ_MATHACL_ENABLE 时生效) */
     mathacl_init();
-#ifdef BSP_MATHACL_ENABLE
+#if (PRJ_MATHACL_ENABLE != 0U)
     {
         /* 硬件自检: 测试 SQRT(4.0) 是否返回 ≈2.0 */
         bool hw_ok = mathacl_selftest();
@@ -135,7 +135,7 @@ int bsp_lsm6dsr_init_ctx(bsp_lsm6dsr_ctx_t *ctx)
         }
     }
 #else
-    LOG_INDENT("MATHACL: soft-float fallback (BSP_MATHACL_ENABLE not defined)");
+    LOG_INDENT("MATHACL: soft-float fallback (PRJ_MATHACL_ENABLE not defined)");
 #endif
 
     /* 清零所有状态 */

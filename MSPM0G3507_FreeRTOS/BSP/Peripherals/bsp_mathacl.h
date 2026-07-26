@@ -8,7 +8,7 @@
  * 特点：
  *   - 使用 TI driverlib 确保寄存器访问正确
  *   - 支持 Keil ARMCC 工具链
- *   - 可选编译开关 BSP_MATHACL_ENABLE
+ *   - 可选编译开关 PRJ_MATHACL_ENABLE
  *   - 提供软浮点回退路径
  */
 
@@ -26,43 +26,6 @@ extern "C" {
 /* ============================================================================
  * 编译开关
  * ============================================================================ */
-
-/**
- * @brief MATHACL 加速编译开关兼容层。
- * @note  实际默认值由 project_config.h 的 PRJ_MATHACL_ENABLE 提供；
- *        保留 BSP_MATHACL_ENABLE 可兼容旧工程和编译器命令行覆盖。
- */
-#ifndef BSP_MATHACL_ENABLE
-#if (PRJ_MATHACL_ENABLE != 0U)
-#define BSP_MATHACL_ENABLE
-#endif
-#endif
-
-/**
- * @brief 选择性硬件加速路径兼容层。
- * @note  硬件加速能力由 project_config.h 集中选择，保留 BSP_* 宏名称供现有调用点使用。
- */
-#ifndef BSP_MATHACL_ATAN2_HW
-#if (PRJ_MATHACL_ATAN2_HW != 0U)
-#define BSP_MATHACL_ATAN2_HW
-#endif
-#endif
-#ifndef BSP_MATHACL_SINCOS_HW
-#if (PRJ_MATHACL_SINCOS_HW != 0U)
-#define BSP_MATHACL_SINCOS_HW
-#endif
-#endif
-/* SQRT 和 ASIN 仍使用软件路径，保持原有性能选择。 */
-
-/**
- * @brief MATHACL 线程安全兼容层。
- * @note  默认关闭以保持原有实时开销；需要多任务并发访问时在 project_config.h 中开启。
- */
-#ifndef BSP_MATHACL_THREAD_SAFE
-#if (PRJ_MATHACL_THREAD_SAFE != 0U)
-#define BSP_MATHACL_THREAD_SAFE
-#endif
-#endif
 
 /* ============================================================================
  * MATHACL 寄存器定义 (使用 TI driverlib)
@@ -102,7 +65,7 @@ extern "C" {
  *       如需全局统计, 请使用 mathacl_get_op_count() 在各编译单元分别查询。
  * ============================================================================ */
 
-#ifdef BSP_MATHACL_ENABLE
+#if (PRJ_MATHACL_ENABLE != 0U)
 /** @brief 当前编译单元内 MATHACL 启动次数计数器 (每编译单元独立) */
 static volatile uint32_t g_mathacl_op_count = 0U;
 
@@ -121,7 +84,7 @@ static inline void mathacl_reset_op_count(void)
 {
     g_mathacl_op_count = 0U;
 }
-#endif /* BSP_MATHACL_ENABLE */
+#endif /* PRJ_MATHACL_ENABLE */
 
 
 /** @brief SQRT 配置: 31次迭代, QVAL=0 (TI 官方: QVAL 仅 DIV 使用) */
@@ -249,12 +212,12 @@ static inline int mathacl_wait_and_check(void)
 /* ============================================================================
  * 线程安全支持 (可选)
  * 
- * 当定义 BSP_MATHACL_THREAD_SAFE 时, 使用临界区保护硬件寄存器访问。
+ * 当定义 PRJ_MATHACL_THREAD_SAFE 时, 使用临界区保护硬件寄存器访问。
  * 临界区保护范围: CTL/OP2/OP1 写入 → STATUS 读取 → RES 读取的完整序列。
  * 注意: mathacl_init() 不需要保护 (在调度器启动前调用)。
  * ============================================================================ */
 
-#ifdef BSP_MATHACL_THREAD_SAFE
+#if (PRJ_MATHACL_THREAD_SAFE != 0U)
 #include "osal_api.h"
 
 /** @brief 进入 MATHACL 临界区 */
@@ -272,7 +235,7 @@ static inline int mathacl_wait_and_check(void)
  * 核心运算函数
  * ============================================================================ */
 
-#ifdef BSP_MATHACL_ENABLE
+#if (PRJ_MATHACL_ENABLE != 0U)
 
 /**
  * @brief 初始化 MATHACL 外设
@@ -716,7 +679,7 @@ static inline void matrix_mul_f32(float *C, const float *A, const float *B,
     }
 }
 
-#endif /* BSP_MATHACL_ENABLE */
+#endif /* PRJ_MATHACL_ENABLE */
 
 /* ============================================================================
  * 软浮点回退函数 (始终编译，用于选择性加速)
@@ -750,7 +713,7 @@ static inline float soft_asinf(float x) { return asinf(x); }
  *   ASIN:  软件更快 (0.84x) → 默认用软件
  * ============================================================================ */
 
-#ifdef BSP_MATHACL_ENABLE
+#if (PRJ_MATHACL_ENABLE != 0U)
 
 /* SQRT: 根据宏选择 */
 #ifdef BSP_MATHACL_SQRT_HW
@@ -760,7 +723,7 @@ static inline float soft_asinf(float x) { return asinf(x); }
 #endif
 
 /* SINCOS: 根据宏选择 */
-#ifdef BSP_MATHACL_SINCOS_HW
+#if (PRJ_MATHACL_SINCOS_HW != 0U)
   #define mathacl_sincosf(a,s,c)  hw_sincosf(a,s,c)
   #define mathacl_sinf(x)         hw_sinf(x)
   #define mathacl_cosf(x)         hw_cosf(x)
@@ -771,7 +734,7 @@ static inline float soft_asinf(float x) { return asinf(x); }
 #endif
 
 /* ATAN2: 根据宏选择 */
-#ifdef BSP_MATHACL_ATAN2_HW
+#if (PRJ_MATHACL_ATAN2_HW != 0U)
   #define mathacl_atan2f(y,x) hw_atan2f(y,x)
 #else
   #define mathacl_atan2f(y,x) soft_atan2f(y,x)
@@ -780,7 +743,7 @@ static inline float soft_asinf(float x) { return asinf(x); }
 /* ASIN: 使用已选择的 sqrt 和 atan2 */
 #define mathacl_asinf(x)    soft_asinf(x)
 
-#else /* !BSP_MATHACL_ENABLE */
+#else /* !PRJ_MATHACL_ENABLE */
 
 /* 全部使用软件 */
 #define mathacl_sqrtf(x)        soft_sqrtf(x)
@@ -796,7 +759,7 @@ static inline void mathacl_mac_acc(int32_t a, int32_t b) { (void)a; (void)b; }
 static inline int32_t mathacl_mac_result(void) { return 0; }
 static inline int32_t mathacl_div_q24(int32_t n, int32_t d) { (void)n; (void)d; return 0; }
 
-#endif /* BSP_MATHACL_ENABLE */
+#endif /* PRJ_MATHACL_ENABLE */
 
 #ifdef __cplusplus
 }

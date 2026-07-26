@@ -26,7 +26,7 @@
 #include <stdbool.h>
 #include <stddef.h>
 
-#include "bsp_mathacl.h"  /* 提供 BSP_MATHACL_ENABLE 开关 */
+#include "bsp_mathacl.h"  /* 提供 PRJ_MATHACL_ENABLE 开关 */
 
 #ifdef __cplusplus
 extern "C" {
@@ -36,8 +36,8 @@ extern "C" {
  * 编译开关与配置
  * ============================================================================ */
 
-/** @brief 启用 MATHACL 矩阵加速（依赖 BSP_MATHACL_ENABLE） */
-#if defined(BSP_MATHACL_ENABLE)
+/** @brief 启用 MATHACL 矩阵加速（依赖 PRJ_MATHACL_ENABLE） */
+#if (PRJ_MATHACL_ENABLE != 0U)
 #define MATHACL_MATRIX_ENABLE
 #endif
 

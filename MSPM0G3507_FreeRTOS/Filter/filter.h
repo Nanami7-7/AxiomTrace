@@ -437,7 +437,7 @@ const char* filter_degrade_name(filter_degrade_t degrade);
  * @param f       滤波器实例（必须是 FILTER_TYPE_KF）
  * @param enable  1=启用硬件加速，0=使用纯软浮点
  *
- * @note 仅在 BSP_MATHACL_ENABLE 已定义且硬件路径编译进工程时生效。
+ * @note 仅在 PRJ_MATHACL_ENABLE 已定义且硬件路径编译进工程时生效。
  *       对非 KF 类型调用会被安全忽略。
  */
 void filter_kf_set_hw(filter_t *f, int enable);
@@ -454,7 +454,7 @@ int filter_kf_get_hw(const filter_t *f);
  * @param f       滤波器实例（必须是 FILTER_TYPE_EKF）
  * @param enable  1=启用硬件加速，0=使用纯软浮点
  *
- * @note 仅在 BSP_MATHACL_ENABLE 已定义且硬件路径编译进工程时生效。
+ * @note 仅在 PRJ_MATHACL_ENABLE 已定义且硬件路径编译进工程时生效。
  *       对非 EKF 类型调用会被安全忽略。
  */
 void filter_ekf_set_hw(filter_t *f, int enable);
