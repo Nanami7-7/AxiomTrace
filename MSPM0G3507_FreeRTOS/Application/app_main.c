@@ -10,7 +10,6 @@
  */
 
 #include "app_main.h"
-#include "project_version.h"
 #include "app_vofa.h"
 #include "Task/task_control.h"
 #include "Task/task_menu.h"
@@ -210,7 +209,7 @@ int32_t app_main_init(void)
     (void)printf("\r\n");
     (void)printf("============================================================\r\n");
     (void)printf("  MSPM0G3507 4-Motor Controller v%s (FreeRTOS)\r\n",
-        PROJECT_VERSION_STRING);
+        PRJ_VERSION_STRING);
     (void)printf("============================================================\r\n");
     (void)printf("  Motors  : %lu (A/B/C/D)\r\n",
         (unsigned long)BSP_MOTOR_COUNT);
@@ -241,7 +240,7 @@ int32_t app_main_init(void)
         (unsigned long)APP_CONTROL_PERIOD_MS,
         (unsigned long)APP_MENU_POLL_PERIOD_MS);
     (void)printf("  Protocol: v%lu, FireWater %lu channels @ %lu ms\r\n",
-        (unsigned long)PROJECT_PROTOCOL_VERSION,
+        (unsigned long)PRJ_PROTOCOL_VERSION,
         (unsigned long)VOFA_TELEMETRY_CHANNEL_COUNT,
         (unsigned long)APP_RPM_OUTPUT_PERIOD_MS);
     (void)printf("  Debug   : AxiomTrace AX_LOG (DEV profile)\r\n");

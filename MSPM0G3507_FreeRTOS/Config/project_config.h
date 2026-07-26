@@ -15,6 +15,21 @@ extern "C" {
 /* ======================== 包含 ======================== */
 #include "hal_common.h"
 #include "ti_msp_dl_config.h"
+#include "project_version.h"
+
+/* ================================================================
+ * Project identity compatibility aliases
+ * project_version.h remains dependency-free and is retained as
+ * the rollback boundary for this migration stage.
+ * ================================================================
+ */
+#define PRJ_VERSION_MAJOR        PROJECT_VERSION_MAJOR
+#define PRJ_VERSION_MINOR        PROJECT_VERSION_MINOR
+#define PRJ_VERSION_PATCH        PROJECT_VERSION_PATCH
+#define PRJ_VERSION_STRING       PROJECT_VERSION_STRING
+#define PRJ_PROTOCOL_VERSION     PROJECT_PROTOCOL_VERSION
+#define PRJ_BOARD_NAME           PROJECT_BOARD_NAME
+#define PRJ_MOTOR_DRIVER_NAME    PROJECT_MOTOR_DRIVER_NAME
 
 /* ================================================================
  *  LED配置

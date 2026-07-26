@@ -15,7 +15,6 @@
 #include "bsp_motor.h"
 #include "bsp_encoder.h"
 #include "axiomtrace.h"
-#include "project_version.h"
 #include "ti_msp_dl_config.h"
 #include <stdio.h>
 #include <string.h>
@@ -1045,8 +1044,8 @@ void app_vofa_apply_cmd(const vofa_cmd_t *cmd,
 
     case VOFA_CMD_INFO_QUERY:
         (void)printf("@INFO,fw=%s,proto=%lu,board=%s,driver=%s,motors=%lu,baud=%lu,telemetry=firewater\r\n",
-            PROJECT_VERSION_STRING, (unsigned long)PROJECT_PROTOCOL_VERSION,
-            PROJECT_BOARD_NAME, PROJECT_MOTOR_DRIVER_NAME,
+            PRJ_VERSION_STRING, (unsigned long)PRJ_PROTOCOL_VERSION,
+            PRJ_BOARD_NAME, PRJ_MOTOR_DRIVER_NAME,
             (unsigned long)BSP_MOTOR_COUNT,
             (unsigned long)UART_0_DEBUG_BAUD_RATE);
         break;
