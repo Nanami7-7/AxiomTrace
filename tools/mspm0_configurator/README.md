@@ -110,10 +110,11 @@ python -m venv .venv
 
 ### Option B: Standalone executable / 独立可执行文件
 
-Pre-built executables are available in `tools/release/`:
+A tracked single-file Windows build is available in the repository release directory:
 
-- Windows: `tools/release/mspm0-configurator/mspm0-configurator.exe`
-- Linux: `tools/release/mspm0-configurator/mspm0-configurator`
+- Windows: `tools/release/mspm0-configurator.exe`
+
+双击即可运行，无需安装 Python。单文件程序首次启动需要解压运行库，可能会等待几秒。
 
 Or download the latest archive from CI:
 - `mspm0-configurator-windows.zip`
@@ -125,7 +126,7 @@ Or download the latest archive from CI:
 cd tools\mspm0_configurator
 python -m pip install -e ".[build]"
 python build_release.py --clean
-# Output: tools/release/mspm0-configurator/
+# Output: tools/release/mspm0-configurator.exe
 ```
 
 Run the protocol/settings regression tests without GUI dependencies:
@@ -138,6 +139,14 @@ python -m unittest discover -s tests -v
 Connect at **115200 8-N-1**, select the port, then click Connect. The tool queries `Info?`, `Config?` and `Status=n`. Use Start telemetry to send `Stream=1`; this does not enable any motor.
 
 以 **115200 8-N-1** 连接设备。软件会查询版本、配置和状态。"开始遥测"只发送 `Stream=1`，不会使能电机。
+
+## Serial command reference / 串口指令大全
+
+仓库主页已经按固件实际解析逻辑整理了完整指令表，包括查询、速度环 PID、前馈、位置环、角度环、阶跃辨识、自动整定和扫频命令：
+
+- [查看 Board A UART0 串口指令大全](../../README.md#board-a-uart0-串口指令大全)
+- Board A UART0：PA10 TX / PA11 RX，115200，8-N-1
+- 一行一条命令，以 CR、LF 或 CRLF 结束，命令不区分大小写
 
 ## Keyboard Shortcuts / 键盘快捷键
 

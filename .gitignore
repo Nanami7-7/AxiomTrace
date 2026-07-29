@@ -24,7 +24,8 @@
 *.bak_*
 **/*.uvprojx.bak_*
 **/*_before_*.uvprojx
-tools/release/
+tools/release/*
+!tools/release/mspm0-configurator.exe
 # Never publish MCUboot signing keys. Keep local copies outside Git.
 **/source/third_party/mcuboot/image_signTEST.pem
 **/source/third_party/mcuboot/root-ec-p256.pem

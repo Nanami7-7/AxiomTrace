@@ -15,7 +15,7 @@ Requirements:
     - PySide6 and pyserial (installed from pyproject.toml)
 
 The output is placed in ../release/ relative to this script, which maps to
-firmware/MSPM0G3507_Project/tools/release/.
+tools/release/.
 """
 from __future__ import annotations
 
@@ -86,7 +86,7 @@ def build_executable() -> Path:
         "--paths",
         str(root / "src"),
         "--windowed",  # GUI application, no console
-        "--onedir",    # One-dir mode for faster startup and smaller size
+        "--onefile",   # Single EXE: easy to download, copy and run
         "--distpath",
         str(release_dir),
         "--workpath",
@@ -99,13 +99,6 @@ def build_executable() -> Path:
     print(f"  Command: {' '.join(cmd)}")
     subprocess.check_call(cmd)
 
-    # The onedir output is at release/mspm0-configurator/
-    onedir = release_dir / "mspm0-configurator"
-    if onedir.exists():
-        print(f"Build successful: {onedir}")
-        return onedir
-
-    # Fallback: onefile mode
     exe_path = release_dir / exe_name
     if exe_path.exists():
         print(f"Build successful: {exe_path}")
@@ -114,9 +107,9 @@ def build_executable() -> Path:
     raise RuntimeError("Build failed: output not found")
 
 
-def write_release_info(output_dir: Path) -> None:
+def write_release_info(output_path: Path) -> None:
     """Write a RELEASE_INFO.txt with build metadata."""
-    info = output_dir.parent / "RELEASE_INFO.txt"
+    info = output_path.parent / "RELEASE_INFO.txt"
     import datetime
 
     # Read version from the package __init__.py to avoid hard-coding.
