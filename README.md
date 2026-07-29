@@ -172,6 +172,8 @@ Board B 调试串口为 **UART0，PA10 TX / PA11 RX，9600，8-N-1**。它只负
 
 详细使用、源码运行、测试和打包方法见：
 
+- [串口控制命令完整参考](串口控制命令参考.md)
+- [外设 API 快速参考](外设API快速参考_v0.1.0.md)
 - [MSPM0 Configurator 使用说明](tools/mspm0_configurator/README.md)
 - [Board A GUI 配置软件说明](MSPM0G3507_Project/MSPM0G3507_FreeRTOS/Docs/GUI配置软件使用说明_v0.1.0.md)
 - [Board A UART0 通信协议](MSPM0G3507_Project/MSPM0G3507_FreeRTOS/Docs/通信协议_v1.md)
