@@ -1176,6 +1176,16 @@ extern "C" {
 
 /** 控制任务周期(ms)。 */
 #define PRJ_CONTROL_PERIOD_MS           (5U)
+
+/*
+ * 速度反馈一阶低通滤波。
+ * 低速使用较小 alpha 抑制编码器量化跳变，高速使用较大 alpha 减小响应延迟。
+ * 不使用高通滤波：高通会放大编码器边沿量化和 M/T 模式切换噪声。
+ */
+#define PRJ_SPEED_RPM_FILTER_ENABLE       (1U)
+#define PRJ_SPEED_RPM_FILTER_SWITCH_RPM   (160.0f)
+#define PRJ_SPEED_RPM_FILTER_ALPHA_LOW    (0.22f)
+#define PRJ_SPEED_RPM_FILTER_ALPHA_HIGH   (0.55f)
 /** 菜单任务轮询周期(ms)。 */
 #define PRJ_MENU_POLL_PERIOD_MS         (100U)
 /** 运行模式下的 RPM 输出周期(ms)。 */
@@ -1186,7 +1196,7 @@ extern "C" {
 
 /** 速度环默认比例增益。 */
 #define PRJ_PID_DEFAULT_KP              (0.8f)
-/** 速度环默认积分增益。 */
+/** 速度环默认积分增益（按秒制定义；本次修正后需要重新实车整定）。 */
 #define PRJ_PID_DEFAULT_KI              (0.3f)
 /** 速度环默认微分增益。 */
 #define PRJ_PID_DEFAULT_KD              (0.0f)

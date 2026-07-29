@@ -39,6 +39,192 @@ static const bsp_encoder_id_t s_motor_encoder_map[BSP_MOTOR_COUNT] =
 #if PRJ_LINE_TRACK_ENABLE
 /* 保存最近一次循迹结果；实际输出由 app_line_track_step() 复用电机 BSP 完成。 */
 static line_track_output_t s_line_track_output;
+
+typedef enum {
+    LINE_LAP_IDLE = 0,
+    LINE_LAP_WAIT_LEAVE_START,
+    LINE_LAP_RUNNING,
+    LINE_LAP_FINISH_ARMED,
+    LINE_LAP_FINISH_ADVANCE
+} line_lap_state_t;
+
+typedef struct {
+    line_lap_state_t state;
+    uint32_t start_ms;
+    uint32_t state_since_ms;
+    uint32_t lost_since_ms;
+    int32_t start_counts[BSP_ENCODER_COUNT];
+    float finish_trigger_distance_m;
+} line_lap_manager_t;
+
+static line_lap_manager_t s_line_lap;
+
+/* 根据参与车体反馈的编码器累计值计算本次运行的平均行驶里程。 */
+static float line_lap_get_distance_m(void)
+{
+    int32_t totals[BSP_ENCODER_COUNT];
+    int64_t abs_count_sum = 0;
+    uint32_t valid_count = 0U;
+
+    if (bsp_encoder_get_all_totals(totals) != BSP_OK) {
+        return 0.0f;
+    }
+
+    for (uint32_t motor = 0U; motor < BSP_MOTOR_COUNT; motor++) {
+        if ((PRJ_MOTION_FEEDBACK_MASK & (1UL << motor)) == 0UL) {
+            continue;
+        }
+
+        const uint32_t encoder = (uint32_t)s_motor_encoder_map[motor];
+        if (encoder < BSP_ENCODER_COUNT) {
+            int64_t delta = (int64_t)totals[encoder]
+                          - (int64_t)s_line_lap.start_counts[encoder];
+            if (delta < 0) {
+                delta = -delta;
+            }
+            abs_count_sum += delta;
+            valid_count++;
+        }
+    }
+
+    if ((valid_count == 0U) || (PRJ_ENCODER_PULSES_PER_REV == 0U)) {
+        return 0.0f;
+    }
+
+    const float average_counts = (float)abs_count_sum / (float)valid_count;
+    return average_counts * (2.0f * PRJ_PI_F * PRJ_CF_WHEEL_RADIUS_M)
+         / (float)PRJ_ENCODER_PULSES_PER_REV;
+}
+
+static void line_lap_start(uint32_t now_ms)
+{
+    (void)bsp_encoder_get_all_totals(s_line_lap.start_counts);
+    s_line_lap.state = LINE_LAP_WAIT_LEAVE_START;
+    s_line_lap.start_ms = now_ms;
+    s_line_lap.state_since_ms = now_ms;
+    s_line_lap.lost_since_ms = 0U;
+    s_line_lap.finish_trigger_distance_m = 0.0f;
+    (void)printf("[LINE] 单圈循迹启动，等待离开 A 点横线\r\n");
+}
+
+static void line_lap_reset(void)
+{
+    s_line_lap.state = LINE_LAP_IDLE;
+    s_line_lap.start_ms = 0U;
+    s_line_lap.state_since_ms = 0U;
+    s_line_lap.lost_since_ms = 0U;
+    s_line_lap.finish_trigger_distance_m = 0.0f;
+}
+
+static void line_lap_stop(app_shared_ctx_t *ctx, const char *reason,
+                          float distance_m, uint32_t now_ms)
+{
+    const uint32_t elapsed_ms = now_ms - s_line_lap.start_ms;
+
+    app_id_abort();
+    app_line_track_stop();
+    app_protocol_user_line_track_force_stop();
+    app_motor_stop_all(ctx);
+
+    OSAL_CRITICAL_SECTION {
+        for (uint32_t i = 0U; i < BSP_MOTOR_COUNT; i++) {
+            ctx->status.output[i] = 0;
+            ctx->status.pid_correction[i] = 0.0f;
+        }
+    }
+
+    (void)printf("[LINE] 停止：%s，里程=%.3fm，用时=%lu.%03lus\r\n",
+        reason, (double)distance_m,
+        (unsigned long)(elapsed_ms / 1000U),
+        (unsigned long)(elapsed_ms % 1000U));
+    line_lap_reset();
+}
+
+/* 返回 true 表示本周期已经执行停车。 */
+static bool line_lap_update(app_shared_ctx_t *ctx,
+                            const line_track_output_t *out,
+                            uint32_t now_ms)
+{
+    if ((ctx == NULL) || (out == NULL) ||
+        (s_line_lap.state == LINE_LAP_IDLE)) {
+        return false;
+    }
+
+    const float distance_m = line_lap_get_distance_m();
+    const uint32_t elapsed_ms = now_ms - s_line_lap.start_ms;
+
+    if (elapsed_ms >= LINE_TRACK_MAX_RUN_MS) {
+        line_lap_stop(ctx, "运行超时", distance_m, now_ms);
+        return true;
+    }
+
+    if (out->current_state == LINE_TRACK_STATE_LOST) {
+        if (s_line_lap.lost_since_ms == 0U) {
+            s_line_lap.lost_since_ms = now_ms;
+        } else if ((now_ms - s_line_lap.lost_since_ms) >=
+                   LINE_TRACK_LOST_STOP_MS) {
+            line_lap_stop(ctx, "持续丢线", distance_m, now_ms);
+            return true;
+        }
+    } else {
+        s_line_lap.lost_since_ms = 0U;
+    }
+
+    switch (s_line_lap.state) {
+    case LINE_LAP_WAIT_LEAVE_START:
+        if (out->current_state != LINE_TRACK_STATE_CROSS) {
+            if ((now_ms - s_line_lap.state_since_ms) >=
+                LINE_TRACK_START_LEAVE_CONFIRM_MS) {
+                s_line_lap.state = LINE_LAP_RUNNING;
+                s_line_lap.state_since_ms = now_ms;
+                (void)printf("[LINE] 已离开起点横线\r\n");
+            }
+        } else {
+            s_line_lap.state_since_ms = now_ms;
+        }
+        break;
+
+    case LINE_LAP_RUNNING:
+        if (distance_m >= LINE_TRACK_LAP_ARM_DISTANCE_M) {
+            s_line_lap.state = LINE_LAP_FINISH_ARMED;
+            s_line_lap.state_since_ms = now_ms;
+            (void)printf("[LINE] 终点识别已使能，里程=%.3fm\r\n",
+                (double)distance_m);
+        }
+        break;
+
+    case LINE_LAP_FINISH_ARMED:
+        if (out->current_state == LINE_TRACK_STATE_CROSS) {
+            if ((now_ms - s_line_lap.state_since_ms) >=
+                LINE_TRACK_FINISH_CONFIRM_MS) {
+                if (LINE_TRACK_FINISH_ADVANCE_M <= 0.0f) {
+                    line_lap_stop(ctx, "完成一圈", distance_m, now_ms);
+                    return true;
+                }
+                s_line_lap.finish_trigger_distance_m = distance_m;
+                s_line_lap.state = LINE_LAP_FINISH_ADVANCE;
+                s_line_lap.state_since_ms = now_ms;
+            }
+        } else {
+            s_line_lap.state_since_ms = now_ms;
+        }
+        break;
+
+    case LINE_LAP_FINISH_ADVANCE:
+        if ((distance_m - s_line_lap.finish_trigger_distance_m) >=
+            LINE_TRACK_FINISH_ADVANCE_M) {
+            line_lap_stop(ctx, "完成一圈", distance_m, now_ms);
+            return true;
+        }
+        break;
+
+    case LINE_LAP_IDLE:
+    default:
+        break;
+    }
+
+    return false;
+}
 #endif
 
 /*
@@ -111,11 +297,13 @@ void app_control_task(void *param)
             app_id_abort();
             app_motor_stop_all(ctx);
             app_line_track_start();
+            line_lap_start(control_now_ms);
         } else if (!line_track_requested && app_line_track_is_running()) {
             /* 停止循迹后不自动恢复旧目标，等待后续标准使能/运行流程。 */
             app_id_abort();
             app_line_track_stop();
             app_motor_stop_all(ctx);
+            line_lap_reset();
         }
 
         line_track_active = app_line_track_is_running();
@@ -135,6 +323,11 @@ void app_control_task(void *param)
                         ctx->status.pid_correction[i] = 0.0f;
                     }
                 }
+            }
+
+            if (line_lap_update(ctx, line_out, control_now_ms)) {
+                line_track_fault_stopped = true;
+                line_track_active = false;
             }
         }
 #endif
@@ -178,6 +371,31 @@ void app_control_task(void *param)
                 }
             }
         }
+
+#if (PRJ_SPEED_RPM_FILTER_ENABLE != 0U)
+        /* 一阶低通抑制低速量化跳变；高通会放大边沿噪声，因此不采用。 */
+        {
+            static float rpm_filtered[BSP_MOTOR_COUNT] = {0.0f};
+            static bool filter_initialized = false;
+
+            for (uint32_t i = 0U; i < BSP_MOTOR_COUNT; i++) {
+                const float raw = (float)rpm_local[i];
+                const float alpha = (fabsf(raw) < PRJ_SPEED_RPM_FILTER_SWITCH_RPM) ?
+                    PRJ_SPEED_RPM_FILTER_ALPHA_LOW :
+                    PRJ_SPEED_RPM_FILTER_ALPHA_HIGH;
+
+                if (!filter_initialized) {
+                    rpm_filtered[i] = raw;
+                } else {
+                    rpm_filtered[i] += alpha * (raw - rpm_filtered[i]);
+                }
+
+                rpm_local[i] = (int32_t)(rpm_filtered[i] +
+                    ((rpm_filtered[i] >= 0.0f) ? 0.5f : -0.5f));
+            }
+            filter_initialized = true;
+        }
+#endif
 
         OSAL_CRITICAL_SECTION {
             for (uint32_t i = 0; i < BSP_MOTOR_COUNT; i++) {

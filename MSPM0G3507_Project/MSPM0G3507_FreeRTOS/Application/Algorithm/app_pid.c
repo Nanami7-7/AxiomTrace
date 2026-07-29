@@ -165,9 +165,10 @@ float app_pid_compute(app_pid_t *pid, float feedback,
     } else {
         /*
          * ---- 增量式PID ----
-         * 增量式PID公式: Δu = Kp*Δe + Ki*e + Kd*Δ²e
-         *   Δe  = e(k) - e(k-1)          (偏差增量)
-         *   Δ²e = e(k) - 2*e(k-1) + e(k-2) (偏差二阶差分)
+         * 增量式PID公式:
+         *   Δu = Kp*Δe + Ki*e*dt + Kd*Δ²e/dt
+         *   Δe  = e(k) - e(k-1)             (偏差增量)
+         *   Δ²e = e(k) - 2*e(k-1) + e(k-2)  (偏差二阶差分)
          *   u(k) = u(k-1) + Δu            (输出累加)
          *
          * 本实现中, pid->integral 用于存储"上次输出 u(k-1)",
@@ -179,9 +180,12 @@ float app_pid_compute(app_pid_t *pid, float feedback,
         if (pid->is_first_run) {
             /*
              * 首次运行: 无历史偏差, 用当前偏差估算初始输出
-             * output ≈ Kp*e + Ki*e (等效 P+I 启动)
+             * output ≈ Kp*e + Ki*e*dt（Ki 的单位按“每秒”定义）
              */
-            output = kp * error + ki * error;
+            output = kp * error;
+            if (dt_s > 0.0f) {
+                output += ki * error * dt_s;
+            }
         } else {
             /* 计算偏差增量和二阶差分 */
             float delta_error =
@@ -193,11 +197,12 @@ float app_pid_compute(app_pid_t *pid, float feedback,
                     + pid->last_last_error;
             }
 
-            /* 计算输出增量 Δu */
-            float delta_out =
-                kp * delta_error
-              + ki * error
-              + kd * delta2_error;
+            /* 计算输出增量，积分和微分项必须包含采样周期。 */
+            float delta_out = kp * delta_error;
+            if (dt_s > 0.0f) {
+                delta_out += ki * error * dt_s
+                           + kd * delta2_error / dt_s;
+            }
 
             /* 累加到上次输出, 先限幅再累加(抗饱和) */
             pid->integral = clamp_f(

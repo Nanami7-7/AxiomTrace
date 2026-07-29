@@ -392,89 +392,102 @@ bsp_status_t bsp_encoder_get_all_rpm_mt(int32_t rpms[], bool had_edge[])
     }
 
     OSAL_CRITICAL_SECTION {
-        for (uint32_t i = 0; i < s_encoder_cfg_count; i++) {
-            int32_t M = s_encoder_count[i];
-            bool has_edge = s_mt_has_edge[i];
-            uint16_t first_cnt = s_mt_first_cnt[i];
-            uint16_t last_cnt  = s_mt_last_cnt[i];
-            uint32_t period    = s_mt_last_period[i];
-            int32_t  last_dir  = s_mt_last_dir[i];
-            uint32_t last_abs  = s_mt_last_abs[i];
+        for (uint32_t i = 0U; i < s_encoder_cfg_count; i++) {
+            const int32_t m_count = s_encoder_count[i];
+            const uint32_t abs_m = (m_count < 0) ?
+                (uint32_t)(-m_count) : (uint32_t)m_count;
+            const bool has_edge = s_mt_has_edge[i];
+            const uint16_t first_cnt = s_mt_first_cnt[i];
+            const uint16_t last_cnt = s_mt_last_cnt[i];
+            uint32_t period = s_mt_last_period[i];
+            const int32_t last_dir = s_mt_last_dir[i];
+            const uint32_t last_abs = s_mt_last_abs[i];
+            const uint16_t now_cnt = (uint16_t)hal_timer_get_count(
+                s_encoder_cfg[i].timer);
+            const uint32_t now_abs = (s_mt_overflow_cnt[i] << 16) |
+                                     (uint32_t)now_cnt;
+            const uint32_t time_since = now_abs - last_abs;
+            const uint32_t stop_ticks = (uint32_t)(
+                ((uint64_t)PRJ_CAPTURE_TIMER_FREQ_HZ *
+                 (uint64_t)PRJ_ENCODER_STOP_TIMEOUT_MS) /
+                (uint64_t)PRJ_MS_PER_S);
 
             s_encoder_count[i] = 0;
-            s_mt_has_edge[i]   = false;
+            s_mt_has_edge[i] = false;
 
             if (had_edge != NULL) {
                 had_edge[i] = has_edge;
             }
 
+            /* 100ms 无边沿直接判停，避免旧周期值长时间拖尾。 */
+            if ((last_dir == 0) ||
+                ((stop_ticks > 0U) && (time_since >= stop_ticks))) {
+                s_mt_speed_mode[i] = BSP_ENCODER_SPEED_MODE_STOP;
+                s_mt_m_enter_cycles[i] = 0U;
+                s_mt_t_enter_cycles[i] = 0U;
+                rpms[i] = 0;
+                continue;
+            }
+
+            if (has_edge &&
+                (s_mt_speed_mode[i] == BSP_ENCODER_SPEED_MODE_STOP)) {
+                s_mt_speed_mode[i] = BSP_ENCODER_SPEED_MODE_T;
+            }
+
+            /* 连续多个窗口满足条件后再切换，防止阈值附近 T/M 来回跳。 */
+            if (has_edge &&
+                (abs_m >= PRJ_ENCODER_SPEED_MODE_ENTER_M_COUNT)) {
+                if (s_mt_m_enter_cycles[i] < 0xFFU) {
+                    s_mt_m_enter_cycles[i]++;
+                }
+                s_mt_t_enter_cycles[i] = 0U;
+                if (s_mt_m_enter_cycles[i] >=
+                    PRJ_ENCODER_SPEED_MODE_CONFIRM_CYCLES) {
+                    s_mt_speed_mode[i] = BSP_ENCODER_SPEED_MODE_M;
+                }
+            } else if (abs_m <= PRJ_ENCODER_SPEED_MODE_EXIT_M_COUNT) {
+                if (s_mt_t_enter_cycles[i] < 0xFFU) {
+                    s_mt_t_enter_cycles[i]++;
+                }
+                s_mt_m_enter_cycles[i] = 0U;
+                if (s_mt_t_enter_cycles[i] >=
+                    PRJ_ENCODER_SPEED_MODE_CONFIRM_CYCLES) {
+                    s_mt_speed_mode[i] = BSP_ENCODER_SPEED_MODE_T;
+                }
+            } else {
+                s_mt_m_enter_cycles[i] = 0U;
+                s_mt_t_enter_cycles[i] = 0U;
+            }
+
             int32_t rpm = 0;
 
-            if (M >= 2 || M <= -2) {
-                /* Legacy M/T behavior: T_ref = last edge - first edge. */
-                int16_t diff = (int16_t)(last_cnt - first_cnt);
-                uint32_t t_ref = (diff > 0)
-                    ? (uint32_t)diff
-                    : (uint32_t)(diff + PRJ_UINT16_MOD);
+            if ((s_mt_speed_mode[i] == BSP_ENCODER_SPEED_MODE_M) &&
+                (abs_m >= 2U)) {
+                /* M 个边沿之间只有 M-1 个时间间隔。 */
+                const uint32_t interval_count = abs_m - 1U;
+                const int32_t direction = (m_count < 0) ? -1 : 1;
+                const int16_t diff = (int16_t)(last_cnt - first_cnt);
+                uint32_t t_ref = (diff > 0) ?
+                    (uint32_t)diff : (uint32_t)(diff + PRJ_UINT16_MOD);
                 if (t_ref == 0U) {
                     t_ref = 1U;
                 }
-                int64_t num = (int64_t)M * PRJ_ENCODER_RPM_CALC_CONST;
-                int64_t den = (int64_t)t_ref *
-                              (int64_t)s_encoder_pulses_per_rev;
+
+                const int64_t num = (int64_t)direction *
+                    (int64_t)interval_count * PRJ_ENCODER_RPM_CALC_CONST;
+                const int64_t den = (int64_t)t_ref *
+                    (int64_t)s_encoder_pulses_per_rev;
                 rpm = (int32_t)(num / den);
-
-            } else if (M == 1 || M == -1) {
-                /* Legacy T behavior: CC1 capture value is the period. */
-                if (period == 0U) {
-                    uint16_t now_cnt;
-                    uint32_t now_abs;
-                    OSAL_CRITICAL_SECTION {
-                        now_cnt = (uint16_t)hal_timer_get_count(
-                            s_encoder_cfg[i].timer);
-                        now_abs = (s_mt_overflow_cnt[i] << 16) |
-                                  now_cnt;
-                    }
-                    uint32_t time_since = now_abs - last_abs;
-                    if (time_since == 0U) {
-                        time_since = 1U;
-                    }
-                    int64_t num = (int64_t)M * PRJ_ENCODER_RPM_CALC_CONST;
-                    int64_t den = (int64_t)time_since *
-                                  (int64_t)s_encoder_pulses_per_rev;
-                    rpm = (int32_t)(num / den);
-                } else {
-                    int64_t num = (int64_t)M * PRJ_ENCODER_RPM_CALC_CONST;
-                    int64_t den = (int64_t)period *
-                                  (int64_t)s_encoder_pulses_per_rev;
-                    rpm = (int32_t)(num / den);
+            } else if (period != 0U) {
+                /* T 法周期是 A 相上升沿到上升沿，每转周期数是双边沿计数的一半。 */
+                if (!has_edge && (time_since > period)) {
+                    period = time_since;
                 }
-
-            } else {
-                /* Legacy M=0 smooth decay: MAX(time_since, last_period). */
-                if (last_dir == 0) {
-                    rpm = 0;
-                } else {
-                    uint16_t now_cnt;
-                    uint32_t now_abs;
-                    OSAL_CRITICAL_SECTION {
-                        now_cnt = (uint16_t)hal_timer_get_count(
-                            s_encoder_cfg[i].timer);
-                        now_abs = (s_mt_overflow_cnt[i] << 16) |
-                                  now_cnt;
-                    }
-                    uint32_t time_since = now_abs - last_abs;
-                    if (period == 0U) {
-                        period = 1U;
-                    }
-                    uint32_t effective = (time_since > period)
-                        ? time_since : period;
-                    int64_t num = (int64_t)last_dir *
-                                  PRJ_ENCODER_RPM_CALC_CONST;
-                    int64_t den = (int64_t)effective *
-                                  (int64_t)s_encoder_pulses_per_rev;
-                    rpm = (int32_t)(num / den);
-                }
+                const int64_t num = (int64_t)last_dir *
+                    PRJ_ENCODER_RPM_CALC_CONST;
+                const int64_t den = (int64_t)period *
+                    (int64_t)PRJ_ENCODER_PERIODS_PER_OUTPUT_REV;
+                rpm = (int32_t)(num / den);
             }
 
             rpms[i] = rpm;
@@ -533,7 +546,7 @@ void bsp_encoder_irq_handler(bsp_encoder_id_t id)
             s_mt_last_cnt[id] = cnt;
             s_mt_last_abs[id] =
                 (s_mt_overflow_cnt[id] << 16) | cnt;
-            s_mt_last_dir[id] = s_encoder_sign[id];
+            s_mt_last_dir[id] = (int32_t)s_encoder_sign[id] * (int32_t)dir_sign;
         }
         break;
 
@@ -553,6 +566,8 @@ void bsp_encoder_irq_handler(bsp_encoder_id_t id)
                 s_cap_cc1_previous[id] = s_cap_cc1_value[id];
                 s_cap_cc1_delta[id] = current_abs - s_cap_cc1_last_abs[id];
                 s_cap_cc1_valid[id] = true;
+                /* CC1 保存的是上升沿时间戳，连续两次时间戳之差才是周期。 */
+                s_mt_last_period[id] = s_cap_cc1_delta[id];
             }
             s_cap_cc1_value[id] = capture;
             s_cap_cc1_last_abs[id] = current_abs;
@@ -579,17 +594,7 @@ void bsp_encoder_irq_handler(bsp_encoder_id_t id)
             s_mt_last_cnt[id] = cnt;
             s_mt_last_abs[id] =
                 (s_mt_overflow_cnt[id] << 16) | cnt;
-            s_mt_last_dir[id] = s_encoder_sign[id];
-        }
-        {
-            /*
-             * COMBINED_UP 模式下，CC1 捕获寄存器由硬件直接给出
-             * 两个连续 A 相上升沿之间的周期计数。
-             * 这里必须直接使用 CC1，而不能再次用 CC1 数值做差。
-             */
-            s_mt_last_period[id] =
-                (uint32_t)hal_timer_get_capture_value(
-                    s_encoder_cfg[id].timer, 1U);
+            s_mt_last_dir[id] = (int32_t)s_encoder_sign[id] * (int32_t)dir_sign;
         }
         break;
 

@@ -74,6 +74,34 @@ extern "C" {
 #define LINE_TRACK_TURN90_MAX_CYCLES    (200U)
 #endif
 
+/*
+ * 一圈识别参数。标准赛道中心线周长约为：2×1.5m + 2×π×0.5m = 6.14m。
+ * 启动后先确认离开起点横线，再累计里程；达到消隐里程后才允许识别终点横线，
+ * 防止车辆刚启动时把脚下的 A 点横线误判为终点。
+ */
+#ifndef LINE_TRACK_LAP_ARM_DISTANCE_M
+#define LINE_TRACK_LAP_ARM_DISTANCE_M        (4.50f)
+#endif
+#ifndef LINE_TRACK_START_LEAVE_CONFIRM_MS
+#define LINE_TRACK_START_LEAVE_CONFIRM_MS    (50U)
+#endif
+#ifndef LINE_TRACK_FINISH_CONFIRM_MS
+#define LINE_TRACK_FINISH_CONFIRM_MS         (20U)
+#endif
+#ifndef LINE_TRACK_LOST_STOP_MS
+#define LINE_TRACK_LOST_STOP_MS              (300U)
+#endif
+#ifndef LINE_TRACK_MAX_RUN_MS
+#define LINE_TRACK_MAX_RUN_MS                (35000U)
+#endif
+/*
+ * 检测到终点横线后继续前进的补偿距离，单位 m。
+ * 默认 0 表示立即刹车；实车根据“传感器到停车基准点距离－制动滑行距离”标定。
+ */
+#ifndef LINE_TRACK_FINISH_ADVANCE_M
+#define LINE_TRACK_FINISH_ADVANCE_M          (0.0f)
+#endif
+
 /** 红外组合状态，bit3=最左，bit0=最右；0=黑线，1=白色。 */
 typedef enum {
     LINE_TRACK_STATE_CROSS       = 0,

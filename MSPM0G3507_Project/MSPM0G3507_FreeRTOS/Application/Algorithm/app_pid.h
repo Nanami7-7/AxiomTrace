@@ -6,7 +6,7 @@
  *
  *          支持两种PID模式:
  *          1. 位置式PID: output = Kp*e + Ki*∫e + Kd*de/dt
- *          2. 增量式PID: Δoutput = Kp*Δe + Ki*e + Kd*Δ²e
+ *          2. 增量式PID: Δoutput = Kp*Δe + Ki*e*dt + Kd*Δ²e/dt
  *
  *          抗积分饱和: 积分项限幅,防止超调
  *          微分项滤波: 一阶低通滤波,抑制高频噪声
@@ -126,8 +126,9 @@ void app_pid_set_setpoint(app_pid_t *pid, float setpoint);
  * @param  dt_s       采样周期(秒), 0则使用上次间隔
  * @retval PID输出值(已限幅)
  * @note   位置式: out = Kp*e + Ki*∫e + Kd*de/dt
- *         增量式: Δout = Kp*(e-e') + Ki*e +
- *                        Kd*(e-2*e'+e'')
+ *         增量式: Δout = Kp*(e-e') + Ki*e*dt +
+ *                        Kd*(e-2*e'+e'')/dt
+ *         Ki、Kd 均按秒制定义，修改控制周期时不需要同步缩放参数。
  */
 float app_pid_compute(app_pid_t *pid, float feedback,
                        float dt_s);
