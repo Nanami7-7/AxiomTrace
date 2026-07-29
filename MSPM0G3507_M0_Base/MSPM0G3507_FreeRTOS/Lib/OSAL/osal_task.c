@@ -27,32 +27,60 @@ osal_task_handle_t osal_task_create(osal_task_func_t func,
     return handle;
 }
 
+/**
+ * @brief 删除函数 osal_task_delete，完成对应模块的功能处理。
+ * @param handle 函数参数 handle。
+ * @return 函数执行结果。
+ */
 void osal_task_delete(osal_task_handle_t handle)
 {
     vTaskDelete(handle);
 }
 
+/**
+ * @brief 获取函数 osal_task_get_current，完成对应模块的功能处理。
+ * @return 函数执行结果。
+ */
 osal_task_handle_t osal_task_get_current(void)
 {
     return xTaskGetCurrentTaskHandle();
 }
 
+/**
+ * @brief 执行任务函数 osal_task_delay_ms，完成对应模块的功能处理。
+ * @param ms 函数参数 ms。
+ * @return 函数执行结果。
+ */
 void osal_task_delay_ms(uint32_t ms)
 {
     /* 将毫秒转换为FreeRTOS tick数 */
     vTaskDelay(pdMS_TO_TICKS(ms));
 }
 
+/**
+ * @brief 获取函数 osal_get_tick_count，完成对应模块的功能处理。
+ * @return 函数执行结果。
+ */
 uint32_t osal_get_tick_count(void)
 {
     return (uint32_t)xTaskGetTickCount();
 }
 
+/**
+ * @brief 执行周期处理函数 osal_ms_to_ticks，完成对应模块的功能处理。
+ * @param ms 函数参数 ms。
+ * @return 函数执行结果。
+ */
 uint32_t osal_ms_to_ticks(uint32_t ms)
 {
     return pdMS_TO_TICKS(ms);
 }
 
+/**
+ * @brief 执行周期处理函数 osal_ticks_to_ms，完成对应模块的功能处理。
+ * @param ticks 函数参数 ticks。
+ * @return 函数执行结果。
+ */
 uint32_t osal_ticks_to_ms(uint32_t ticks)
 {
     return ticks * portTICK_PERIOD_MS;
@@ -84,23 +112,41 @@ osal_task_handle_t osal_task_create(osal_task_func_t func,
     return &s_task_slots[s_task_count - 1U];
 }
 
+/**
+ * @brief 删除函数 osal_task_delete，完成对应模块的功能处理。
+ * @param handle 函数参数 handle。
+ * @return 函数执行结果。
+ */
 void osal_task_delete(osal_task_handle_t handle)
 {
     (void)handle;
     /* 裸机模式: 无动态删除，标记为无效即可 */
 }
 
+/**
+ * @brief 获取函数 osal_task_get_current，完成对应模块的功能处理。
+ * @return 函数执行结果。
+ */
 osal_task_handle_t osal_task_get_current(void)
 {
     return NULL;
 }
 
+/**
+ * @brief 执行任务函数 osal_task_delay_ms，完成对应模块的功能处理。
+ * @param ms 函数参数 ms。
+ * @return 函数执行结果。
+ */
 void osal_task_delay_ms(uint32_t ms)
 {
     /* 裸机模式: 忙等延时 */
     osal_delay_ms(ms);
 }
 
+/**
+ * @brief 获取函数 osal_get_tick_count，完成对应模块的功能处理。
+ * @return 函数执行结果。
+ */
 uint32_t osal_get_tick_count(void)
 {
     /* 裸机模式: 返回自维护的毫秒计数器 */
@@ -108,12 +154,22 @@ uint32_t osal_get_tick_count(void)
     return g_osal_tick_ms;
 }
 
+/**
+ * @brief 执行周期处理函数 osal_ms_to_ticks，完成对应模块的功能处理。
+ * @param ms 函数参数 ms。
+ * @return 函数执行结果。
+ */
 uint32_t osal_ms_to_ticks(uint32_t ms)
 {
     /* 裸机模式: 1 tick = 1 ms */
     return ms;
 }
 
+/**
+ * @brief 执行周期处理函数 osal_ticks_to_ms，完成对应模块的功能处理。
+ * @param ticks 函数参数 ticks。
+ * @return 函数执行结果。
+ */
 uint32_t osal_ticks_to_ms(uint32_t ticks)
 {
     /* 裸机模式: 1 tick = 1 ms */

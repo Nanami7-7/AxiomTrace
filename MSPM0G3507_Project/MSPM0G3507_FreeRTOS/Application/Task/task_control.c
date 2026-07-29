@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file    task_control.c
  * @brief   控制任务实现
  * @note    5ms周期: 读取编码器→M法测速RPM→PID计算→设置电机duty
@@ -11,6 +11,8 @@
 #include "app_model_id.h"
 #include "app_position_control.h"
 #include "app_key_events.h"
+#include "app_encoder_telemetry.h"
+#include "app_protocol_user.h"
 #include "osal_api.h"
 #include "bsp_motor.h"
 #include "bsp_encoder.h"
@@ -20,12 +22,24 @@
 #include <math.h>
 #include <stdio.h>
 
+#ifndef PRJ_LINE_TRACK_ENABLE
+#define PRJ_LINE_TRACK_ENABLE (1U)
+#endif
+#if PRJ_LINE_TRACK_ENABLE
+#include "app_line_track.h"
+#endif
+
 /** 位置/角度外环周期倍数(5ms×4=20ms) */
 #define POSCTRL_OUTER_RATIO     (4U)
 
 /** 将车轮逻辑顺序(LF/LB/RF/RB)映射为电机顺序(A/M1~D/M4)。 */
 static const bsp_encoder_id_t s_motor_encoder_map[BSP_MOTOR_COUNT] =
     PRJ_MOTOR_ENCODER_MAP;
+
+#if PRJ_LINE_TRACK_ENABLE
+/* 保存最近一次循迹结果；实际输出由 app_line_track_step() 复用电机 BSP 完成。 */
+static line_track_output_t s_line_track_output;
+#endif
 
 /*
  * 位置控制输出与编码器BSP都使用LF/LB/RF/RB车轮顺序。若任一模块改变
@@ -68,10 +82,61 @@ void app_control_task(void *param)
 #endif
 
     for (;;) {
+        uint32_t control_now_ms = osal_ticks_to_ms(osal_get_tick_count());
+        bool line_track_active = false;
+        bool line_track_fault_stopped = false;
 #if (PRJ_KEY_ENABLE != 0U)
         /* Key callbacks only enqueue actions; execute motion in control context. */
-        app_key_motion_process(
-            osal_ticks_to_ms(osal_get_tick_count()));
+        app_key_motion_process(control_now_ms);
+#endif
+        /* Position-loop telemetry is independent of RPM calculation and PWM control. */
+        app_encoder_telemetry_process(control_now_ms);
+
+#if PRJ_LINE_TRACK_ENABLE
+        /*
+         * 模块4是独立的循迹控制模式：
+         * - 协议任务只修改请求标志，不直接操作电机；
+         * - 控制任务在5ms周期内完成启停切换和循迹输出；
+         * - 运行时跳过辨识/PID的最终输出，避免两个控制器互相覆盖。
+         */
+        const bool line_track_requested =
+            app_protocol_user_line_track_is_enabled();
+
+        if (app_protocol_user_line_track_take_reset_request()) {
+            app_line_track_reset();
+        }
+
+        if (line_track_requested && !app_line_track_is_running()) {
+            /* 切换控制器前先清除旧PID目标和正在进行的模型辨识。 */
+            app_id_abort();
+            app_motor_stop_all(ctx);
+            app_line_track_start();
+        } else if (!line_track_requested && app_line_track_is_running()) {
+            /* 停止循迹后不自动恢复旧目标，等待后续标准使能/运行流程。 */
+            app_id_abort();
+            app_line_track_stop();
+            app_motor_stop_all(ctx);
+        }
+
+        line_track_active = app_line_track_is_running();
+        if (line_track_active && app_line_track_step()) {
+            const line_track_output_t *line_out =
+                app_line_track_get_output();
+
+            /* 状态快照同步显示循迹实际命令；PID修正量在循迹模式下清零。 */
+            if (line_out != NULL) {
+                OSAL_CRITICAL_SECTION {
+                    for (uint32_t i = 0U; i < BSP_MOTOR_COUNT; i++) {
+                        const int32_t command = (i < 2U) ?
+                            line_out->right_command : line_out->left_command;
+                        ctx->status.output[i] =
+                            ((PRJ_MOTION_MOTOR_ACTIVE_MASK & (1UL << i)) != 0UL) ?
+                            command : 0;
+                        ctx->status.pid_correction[i] = 0.0f;
+                    }
+                }
+            }
+        }
 #endif
 
         /* M/T法测速: 读取边沿数和时间戳, 换算RPM
@@ -132,18 +197,38 @@ void app_control_task(void *param)
             ctx->status.bus_voltage_mv = bus_voltage_mv;
         }
 
-        /* Stop a motor only after the configured number of consecutive overcurrent
-         * samples.  This rejects one-sample spikes while keeping the stop path
-         * inside the single control owner (no cross-task motor race). */
+        /* 连续过流达到阈值后停止；循迹模式必须一次性停止全部电机。 */
         for (uint32_t i = 0U; i < BSP_MOTOR_COUNT; i++) {
             if (current_ma_local[i] > (float)PRJ_ADC_CURRENT_OVERLOAD_MA) {
                 if (ctx->overload_cnt[i] < PRJ_ADC_CURRENT_OVERLOAD_TICKS) {
                     ctx->overload_cnt[i]++;
                 }
                 if (ctx->overload_cnt[i] == PRJ_ADC_CURRENT_OVERLOAD_TICKS) {
-                    app_motor_stop(ctx, i);
-                    (void)printf("[WARN] Motor %lu overcurrent: %dmA\r\n",
-                        (unsigned long)i, (int)current_ma_local[i]);
+#if PRJ_LINE_TRACK_ENABLE
+                    if (line_track_active && !line_track_fault_stopped) {
+                        /* 过流时撤销循迹请求，防止下一周期按旧请求自动重启。 */
+                        line_track_fault_stopped = true;
+                        line_track_active = false;
+                        app_id_abort();
+                        app_line_track_stop();
+                        app_protocol_user_line_track_force_stop();
+                        app_motor_stop_all(ctx);
+                        OSAL_CRITICAL_SECTION {
+                            for (uint32_t j = 0U; j < BSP_MOTOR_COUNT; j++) {
+                                ctx->status.output[j] = 0;
+                                ctx->status.pid_correction[j] = 0.0f;
+                            }
+                        }
+                        (void)printf("[WARN] Line track overcurrent: M%lu=%dmA, all motors stopped\r\n",
+                            (unsigned long)i, (int)current_ma_local[i]);
+                    } else
+#endif
+                    {
+                        /* 普通速度/PID模式保持原有的单路停机行为。 */
+                        app_motor_stop(ctx, i);
+                        (void)printf("[WARN] Motor %lu overcurrent: %dmA\r\n",
+                            (unsigned long)i, (int)current_ma_local[i]);
+                    }
                 }
             } else {
                 ctx->overload_cnt[i] = 0U;
@@ -152,12 +237,18 @@ void app_control_task(void *param)
 
         /* 互补滤波: 融合编码器RPM和IMU数据 */
         {
-            /* 编码器线速度: v = rpm * 2π * r / 60 (取4轮平均) */
+            /* 编码器线速度: v = rpm * 2π * r / 60 (按反馈轮平均) */
             float avg_rpm = 0.0f;
-            for (uint32_t i = 0; i < BSP_MOTOR_COUNT; i++) {
-                avg_rpm += (float)rpm_local[i];
+            uint32_t active_count = 0U;
+            for (uint32_t i = 0U; i < BSP_MOTOR_COUNT; i++) {
+                if ((PRJ_MOTION_FEEDBACK_MASK & (1UL << i)) != 0UL) {
+                    avg_rpm += (float)rpm_local[i];
+                    active_count++;
+                }
             }
-            avg_rpm /= (float)BSP_MOTOR_COUNT;
+            if (active_count != 0U) {
+                avg_rpm /= (float)active_count;
+            }
             float encoder_vx = avg_rpm * 2.0f * PRJ_PI_F
                 * PRJ_CF_WHEEL_RADIUS_M / 60.0f;
 
@@ -173,25 +264,43 @@ void app_control_task(void *param)
         }
 
         /* ---- 模型参数辨识: 控制任务周期调用(纯算法) ---- */
-        app_id_cycle_out_t id_out;
-        app_id_control_cycle(rpm_local, &id_out);
-        bool id_active = (id_out.action != ID_ACTION_NONE);
+        app_id_cycle_out_t id_out = { ID_ACTION_NONE, 0, 0U };
+        if (!line_track_active && !line_track_fault_stopped) {
+            app_id_control_cycle(rpm_local, &id_out);
+        }
+        bool id_active = !line_track_active && !line_track_fault_stopped &&
+                         (id_out.action != ID_ACTION_NONE);
 
         /* ---- 位置/角度外环(20ms, 4倍降频) ----
          * SPEED模式: 不修改速度环setpoint(保持现有行为)
          * POSITION/ANGLE模式: 计算target_rpm并写入速度环setpoint
          */
-        if (++outer_counter >= POSCTRL_OUTER_RATIO) {
+        if (!line_track_active && !line_track_fault_stopped && (++outer_counter >= POSCTRL_OUTER_RATIO)) {
             outer_counter = 0U;
 
-            /* 读取编码器累计脉冲(4路平均, 不清零) */
-            int32_t enc_counts[BSP_ENCODER_COUNT];
-            (void)bsp_encoder_get_all_counts(enc_counts);
+            /* 读取编码器累计脉冲(反馈轮平均, 不清零) */
+            int32_t enc_totals[BSP_ENCODER_COUNT];
+            (void)bsp_encoder_get_all_totals(enc_totals);
             float enc_avg = 0.0f;
-            for (uint32_t i = 0; i < BSP_ENCODER_COUNT; i++) {
-                enc_avg += (float)enc_counts[i];
+            app_pos_feedback_t pos_feedback = {0};
+            uint32_t active_encoder_count = 0U;
+            for (uint32_t i = 0U; i < BSP_MOTOR_COUNT; i++) {
+                if ((PRJ_MOTION_FEEDBACK_MASK & (1UL << i)) != 0UL) {
+                    const uint32_t encoder_id = (uint32_t)s_motor_encoder_map[i];
+                    if (encoder_id < BSP_ENCODER_COUNT) {
+                        pos_feedback.position[encoder_id] =
+                            (float)enc_totals[encoder_id];
+                        pos_feedback.rpm[encoder_id] = (float)rpm_local[i];
+                        pos_feedback.valid_mask |= (1UL << encoder_id);
+                        enc_avg += (float)enc_totals[encoder_id];
+                        active_encoder_count++;
+                    }
+                }
             }
-            enc_avg /= (float)BSP_ENCODER_COUNT;
+            if (active_encoder_count != 0U) {
+                enc_avg /= (float)active_encoder_count;
+            }
+            pos_feedback.average_position = enc_avg;
 
             /* 读取KF yaw(IMU任务写入) */
             float kf_yaw;
@@ -203,8 +312,8 @@ void app_control_task(void *param)
             const app_pos_output_t *pos_out;
             uint32_t now_tick = osal_get_tick_count();
             OSAL_CRITICAL_SECTION {
-                pos_out = app_posctrl_update(&ctx->posctrl,
-                    enc_avg, kf_yaw, outer_dt_s, now_tick);
+                pos_out = app_posctrl_update_feedback(&ctx->posctrl,
+                    &pos_feedback, kf_yaw, outer_dt_s, now_tick);
             }
 
             /*
@@ -216,12 +325,17 @@ void app_control_task(void *param)
             if (pos_out != NULL &&
                 pos_out->mode != APP_CTRL_MODE_SPEED) {
                 for (uint32_t i = 0U; i < BSP_MOTOR_COUNT; i++) {
+                    if ((PRJ_MOTION_MOTOR_ACTIVE_MASK & (1UL << i)) == 0UL) {
+                        /* 未开放的输出通道安全置零。 */
+                        app_pid_set_setpoint(&ctx->pid[i], 0.0f);
+                        ctx->motor_enabled[i] = false;
+                        continue;
+                    }
                     uint32_t wheel_id = (uint32_t)s_motor_encoder_map[i];
                     if (wheel_id < APP_POS_MOTOR_COUNT) {
                         app_pid_set_setpoint(&ctx->pid[i],
                             pos_out->target_rpm[wheel_id]);
                     } else {
-                        /* 配置异常时安全降为零目标；正常构建不会进入。 */
                         app_pid_set_setpoint(&ctx->pid[i], 0.0f);
                     }
                 }
@@ -230,8 +344,13 @@ void app_control_task(void *param)
 
         /* PID计算 + 电机输出(仅使能电机) */
         for (uint32_t i = 0; i < BSP_MOTOR_COUNT; i++) {
+            /* 循迹模式已有独立输出，禁止PID/辨识再次覆盖电机命令。 */
+            if (line_track_active || line_track_fault_stopped) {
+                continue;
+            }
             /* 辨识模式下跳过目标电机(PWM由id_out控制) */
-            if (id_active && i == id_out.motor_id) {
+            if (id_active && i == id_out.motor_id &&
+                ((PRJ_MOTION_MOTOR_ACTIVE_MASK & (1UL << i)) != 0UL)) {
                 OSAL_CRITICAL_SECTION {
                     ctx->status.output[i] = id_out.pwm;
                 }
@@ -250,7 +369,8 @@ void app_control_task(void *param)
             bool nan_detected = false;
 
             OSAL_CRITICAL_SECTION {
-                enabled = ctx->motor_enabled[i];
+                enabled = ctx->motor_enabled[i] &&
+                    ((PRJ_MOTION_MOTOR_ACTIVE_MASK & (1UL << i)) != 0UL);
             }
 
             if (!enabled) {

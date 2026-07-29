@@ -15,6 +15,11 @@ osal_mutex_t osal_mutex_create(void)
     return xSemaphoreCreateMutex();
 }
 
+/**
+ * @brief 删除函数 osal_mutex_delete，完成对应模块的功能处理。
+ * @param mutex 函数参数 mutex。
+ * @return 函数执行结果。
+ */
 void osal_mutex_delete(osal_mutex_t mutex)
 {
     if (NULL != mutex) {
@@ -22,6 +27,11 @@ void osal_mutex_delete(osal_mutex_t mutex)
     }
 }
 
+/**
+ * @brief 加锁函数 osal_mutex_lock，完成对应模块的功能处理。
+ * @param mutex 函数参数 mutex。
+ * @return 函数执行结果。
+ */
 void osal_mutex_lock(osal_mutex_t mutex)
 {
     if (NULL != mutex) {
@@ -30,6 +40,11 @@ void osal_mutex_lock(osal_mutex_t mutex)
     }
 }
 
+/**
+ * @brief 加锁函数 osal_mutex_unlock，完成对应模块的功能处理。
+ * @param mutex 函数参数 mutex。
+ * @return 函数执行结果。
+ */
 void osal_mutex_unlock(osal_mutex_t mutex)
 {
     if (NULL != mutex) {
@@ -46,11 +61,21 @@ osal_mutex_t osal_mutex_create(void)
     return NULL;
 }
 
+/**
+ * @brief 删除函数 osal_mutex_delete，完成对应模块的功能处理。
+ * @param mutex 函数参数 mutex。
+ * @return 函数执行结果。
+ */
 void osal_mutex_delete(osal_mutex_t mutex)
 {
     (void)mutex;
 }
 
+/**
+ * @brief 加锁函数 osal_mutex_lock，完成对应模块的功能处理。
+ * @param mutex 函数参数 mutex。
+ * @return 函数执行结果。
+ */
 void osal_mutex_lock(osal_mutex_t mutex)
 {
     if (NULL != mutex) {
@@ -63,6 +88,11 @@ void osal_mutex_lock(osal_mutex_t mutex)
     }
 }
 
+/**
+ * @brief 加锁函数 osal_mutex_unlock，完成对应模块的功能处理。
+ * @param mutex 函数参数 mutex。
+ * @return 函数执行结果。
+ */
 void osal_mutex_unlock(osal_mutex_t mutex)
 {
     if (NULL != mutex) {

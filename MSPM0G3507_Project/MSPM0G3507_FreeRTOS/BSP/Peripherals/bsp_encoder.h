@@ -59,7 +59,7 @@ typedef struct {
     uint16_t first_cnt;  /**< s_mt_first_cnt */
     uint16_t last_cnt;   /**< s_mt_last_cnt */
     int32_t  last_dir;   /**< s_mt_last_dir */
-    uint16_t period;     /**< s_mt_last_period */
+    uint32_t period;     /**< 最近一次CC1上升沿周期(ticks) */
     uint32_t overflow;   /**< s_mt_overflow_cnt */
     uint32_t last_abs;   /**< s_mt_last_abs */
     uint32_t time_since; /**< 距末边沿的ticks(当前timer - last_abs), 诊断用 */

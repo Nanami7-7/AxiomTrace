@@ -144,6 +144,10 @@ int bsp_lsm6dsr_init_ctx(bsp_lsm6dsr_ctx_t *ctx)
     /* Full reset + wait */
     lsm6dsr_reset(&lsm6dsr_io_spi);
     g_platform->delay_ms(100);
+#if (PRJ_IMU_STARTUP_DIAG_ENABLE != 0U)
+    LOG_INFO("[IMU-DIAG] sensor reset wait done t_us=%lu",
+             (unsigned long)bsp_get_us());
+#endif
 
     /* Debug: hardware info */
     {
@@ -210,6 +214,10 @@ int bsp_lsm6dsr_init_ctx(bsp_lsm6dsr_ctx_t *ctx)
     ctx->initialized = 1;
 
     /* Calibrate */
+#if (PRJ_IMU_STARTUP_DIAG_ENABLE != 0U)
+    LOG_INFO("[IMU-DIAG] entering calibration t_us=%lu",
+             (unsigned long)bsp_get_us());
+#endif
     bsp_lsm6dsr_calibrate_ctx(ctx);
 
     LOG_INDENT("BSP init done  (cal=%s, bias=%.4f,%.4f,%.4f)  alpha=%.2f",
@@ -260,6 +268,10 @@ int bsp_lsm6dsr_calibrate_ctx(bsp_lsm6dsr_ctx_t *ctx)
 
         LOG_INFO("Calibrating gyro bias (%d samples, keep still)...",
                  PRJ_IMU_CALIB_SAMPLES);
+#if (PRJ_IMU_STARTUP_DIAG_ENABLE != 0U)
+        LOG_INFO("[IMU-DIAG] calibration loop start t_us=%lu",
+                 (unsigned long)bsp_get_us());
+#endif
 
         for (int i = 0; i < PRJ_IMU_CALIB_SAMPLES; i++)
         {

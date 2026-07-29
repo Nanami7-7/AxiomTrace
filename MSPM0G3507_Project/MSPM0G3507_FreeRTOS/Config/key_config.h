@@ -1,4 +1,4 @@
-﻿#ifndef KEY_CONFIG_H
+#ifndef KEY_CONFIG_H
 #define KEY_CONFIG_H
 
 #include "project_config.h"
@@ -6,7 +6,7 @@
 #include "app_key_events.h"
 #include "ti_msp_dl_config.h"
 
-/* Feature and timing configuration. */
+/* 按键功能开关、扫描周期和消抖/长按时间配置。 */
 #ifndef PRJ_KEY_ENABLE
 #define PRJ_KEY_ENABLE               (1U)
 #endif
@@ -17,7 +17,7 @@
 #define PRJ_KEY_BUTTON_MAX_HOLD_MS   (5000U)
 #define PRJ_KEY_SWITCH_DEBOUNCE_MS   (20U)
 
-/* Safe first-stage motion limits. */
+/* 首次联调用的安全运动参数，短按/长按动作会读取这些配置。 */
 #define PRJ_KEY_FORWARD_RPM          (200.0f)
 #define PRJ_KEY_FORWARD_TIMEOUT_MS   (3000U)
 #define PRJ_KEY_TURN_TARGET_DEG      (90.0f)
@@ -33,9 +33,8 @@
 #endif
 
 /*
- * The current checked-in generated header predates the PA7/PB3 SysConfig
- * regeneration.  Use generated names when present, otherwise use the
- * verified MSPM0G3507 pin mapping from the reference project.
+ * 兼容尚未重新生成 PA7/PB3 的 SysConfig 头文件：
+ * 如果生成头中已有这些宏，优先使用生成值；否则使用已核对的引脚映射。
  */
 #ifndef KEY_key_PORT
 #define KEY_key_PORT                 (GPIOA)

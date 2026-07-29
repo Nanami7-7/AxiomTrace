@@ -3,6 +3,7 @@
  * @brief   Generic MSPM0G3507 + FreeRTOS entry point.
  */
 #include <stdint.h>
+#include <stdio.h>
 #include "FreeRTOS.h"
 #include "task.h"
 #include "ti_msp_dl_config.h"
@@ -11,6 +12,10 @@
 int main(void)
 {
     SYSCFG_DL_init();
+
+    /* 最早期启动日志：用于区分“没有烧录/串口配置错误”和“应用初始化卡住”。 */
+    printf("[BOOT] main entered, UART0=PA10/PA11 9600\r\n");
+
     (void)app_main_init();
     vTaskStartScheduler();
 
@@ -56,6 +61,12 @@ void vApplicationGetTimerTaskMemory(
 #else
 #define OSAL_WEAK
 #endif
+/**
+ * @brief ?? FreeRTOS ????????
+ * @param task ??????????
+ * @param name ??????????
+ * @return ??
+ */
 OSAL_WEAK void vApplicationStackOverflowHook(TaskHandle_t task, char *name)
 {
     (void)task;

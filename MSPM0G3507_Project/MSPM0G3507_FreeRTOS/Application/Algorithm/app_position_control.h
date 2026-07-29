@@ -84,11 +84,26 @@ typedef struct {
     float planned_speed;                   /**< 规划器输出速度 */
     float planned_pos;                     /**< 规划器输出位置 */
     float pos_correction;                  /**< 位置环修正 */
+    float sync_correction;                 /**< 左右轮同步修正(RPM) */
+    float pos_error;                       /**< 平均位置误差(count) */
+    float sync_error;                      /**< 右侧减左侧累计差(count) */
     float yaw_correction;                  /**< 角度环修正 */
     bool  reached;                         /**< 到位标志 */
     app_ctrl_mode_t mode;                  /**< 当前模式 */
     app_planner_state_t planner_state;     /**< 规划器状态 */
 } app_pos_output_t;
+
+/**
+ * @brief 位置环反馈快照，数组顺序为 LF、LB、RF、RB。
+ * @note average_position 为当前有效反馈轮的平均累计计数；valid_mask
+ *       使用 APP_POS_MOTOR_* 位。rpm 仅用于末端停止确认，不参与测速计算。
+ */
+typedef struct {
+    float average_position;
+    float position[APP_POS_MOTOR_COUNT];
+    float rpm[APP_POS_MOTOR_COUNT];
+    uint32_t valid_mask;
+} app_pos_feedback_t;
 
 /**
  * @brief 位置-速度串级控制器
@@ -108,6 +123,10 @@ typedef struct {
     /* ---- 位置环PID(POSITION模式) ---- */
     app_pid_t pos_pid;
     float     pos_correction;          /**< 位置环输出修正 */
+    float     position_start[APP_POS_MOTOR_COUNT]; /**< 各轮位置启动基准 */
+    uint32_t  position_feedback_mask;  /**< 启动时有效反馈轮掩码 */
+    float     sync_error;               /**< 右侧减左侧累计差(count) */
+    float     sync_correction;          /**< 左右轮同步修正(RPM) */
 
     /* ---- 角度环PID(ANGLE模式) ---- */
     app_pid_t yaw_pid;
@@ -180,6 +199,16 @@ void app_posctrl_start_position(app_position_ctrl_t *ctrl,
                                 float current_pos);
 
 /**
+ * @brief 启动位置控制并保存各反馈轮的独立基准。
+ * @param feedback 启动瞬间的反馈快照；NULL时退化为平均位置模式。
+ */
+void app_posctrl_start_position_feedback(app_position_ctrl_t *ctrl,
+                                          float target_pulses,
+                                          float cruise_speed,
+                                          float current_pos,
+                                          const app_pos_feedback_t *feedback);
+
+/**
  * @brief  启动角度控制(转向指定角度)
  * @param  ctrl          控制器指针
  * @param  target_angle  目标角度(度, 正=左转, 负=右转)
@@ -208,6 +237,18 @@ const app_pos_output_t *app_posctrl_update(app_position_ctrl_t *ctrl,
                                             float kf_yaw,
                                             float dt_s,
                                             uint32_t now_tick);
+
+/**
+ * @brief 使用独立车轮反馈更新位置环。
+ * @note 速度环、角度环和编码器测速公式保持不变；本接口只增加
+ *       位置模式的左右同步与末端停止判定。
+ */
+const app_pos_output_t *app_posctrl_update_feedback(
+    app_position_ctrl_t *ctrl,
+    const app_pos_feedback_t *feedback,
+    float kf_yaw,
+    float dt_s,
+    uint32_t now_tick);
 
 /**
  * @brief  查询是否到位

@@ -7,13 +7,12 @@
  *          优先级: 4(介于control=5和menu=2之间)
  */
 #include "task_imu.h"
-#include "app_imu_console.h"
 #include "app_main.h"
 #include "osal_api.h"
 #include "project_config.h"
 #include "bsp_lsm6dsr.h"
-#include "bsp_uart.h"
 #include "platform.h"
+#include "bsp_timer.h"
 #include "spi_bridge.h"
 #include "app_test_runner.h"
 #include <stdio.h>
@@ -27,12 +26,6 @@ static bsp_lsm6dsr_ctx_t g_imu_ctx;
 static uint8_t g_imu_initialized = 0;
 
 /* 打印计数器 (控制打印频率) */
-#if (PRJ_IMU_UART_TELEMETRY_ENABLE != 0U)
-/* IMU telemetry cadence and DMA buffer are compiled only when explicitly enabled. */
-static uint32_t g_telemetry_elapsed_ms = 0U;
-
-static char g_dma_buf[PRJ_IMU_UART_TELEMETRY_BUF_SIZE];
-#endif
 /** KF 滤波器静态缓冲区大小 (字节)，需容纳 filter_t + kf_priv_t */
 
 static uint32_t g_kf_filter_buf[PRJ_IMU_KF_FILTER_BUF_SIZE / sizeof(uint32_t)];
@@ -43,11 +36,24 @@ static uint32_t g_kf_filter_buf[PRJ_IMU_KF_FILTER_BUF_SIZE / sizeof(uint32_t)];
  */
 static int imu_init(void)
 {
-    /* 1. 初始化硬件 SPI */
+#if (PRJ_IMU_STARTUP_DIAG_ENABLE != 0U)
+    printf("[IMU-DIAG] task entered tick_ms=%lu\r\n",
+           (unsigned long)osal_ticks_to_ms(osal_get_tick_count()));
+#endif
+
+    /* 1. Initialize SPI bridge. */
     spi_bridge_init();
-    
-    /* 2. 初始化平台计时器 (TimerG8) */
+#if (PRJ_IMU_STARTUP_DIAG_ENABLE != 0U)
+    printf("[IMU-DIAG] spi_bridge_init done tick_ms=%lu\r\n",
+           (unsigned long)osal_ticks_to_ms(osal_get_tick_count()));
+#endif
+
+    /* 2. Start the platform timer used for diagnostics. */
     platform_timer_init();
+#if (PRJ_IMU_STARTUP_DIAG_ENABLE != 0U)
+    printf("[IMU-DIAG] platform_timer_init done t_us=%lu\r\n",
+           (unsigned long)bsp_get_us());
+#endif
     
     /* 3. 初始化 LSM6DSR BSP 上下文 (默认使用互补滤波器) */
     if (bsp_lsm6dsr_init_ctx(&g_imu_ctx) != 0) {
@@ -131,52 +137,6 @@ void app_imu_reset_filter(void)
  * @note  17通道: ax,ay,az,gx,gy,gz, pitch,roll,yaw, kf_p00_x,kf_p00_y,kf_p00_z,gyro_mag,acc_err,kf_p11_x,temp,kf_bias_z
  *        诊断通道在 KF 模式下有效
  */
-#if (PRJ_IMU_UART_TELEMETRY_ENABLE != 0U)
-static void imu_send_dma(const bsp_lsm6dsr_data_t *data, const bsp_lsm6dsr_ctx_t *ctx)
-{
-    if (data == NULL || ctx == NULL) return;
-
-    /* 检查 DMA 是否空闲 */
-    if (!bsp_uart_tx_idle()) {
-        return;  /* 上一次发送未完成，跳过本次 */
-    }
-
-    /* 17通道 VOFA+ FireWater 格式:
-     * ch0-2:  ax,ay,az (g)
-     * ch3-5:  gx,gy,gz (dps, BSP偏置补偿后)
-     * ch6-8:  pitch,roll,yaw (deg)
-     * ch9:    kf_p00_x (KF X轴角度协方差)
-     * ch10:   kf_p00_y (KF Y轴角度协方差)
-     * ch11:   kf_p00_z (KF Z轴角度协方差)
-     * ch12:   gyro_mag (dps)
-     * ch13:   acc_norm_err (g)
-     * ch14:   kf_p11_x (KF X轴偏置协方差)
-     * ch15:   temp (°C)
-     * ch16:   kf_bias_z (KF Z轴偏置估计, dps)
-     */
-    int len = snprintf(g_dma_buf, PRJ_IMU_UART_TELEMETRY_BUF_SIZE,
-        "%.4f,%.4f,%.4f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.6f,%.6f,%.6f,%.3f,%.4f,%.6f,%.1f,%.4f\r\n",
-        data->ax / PRJ_GRAVITY_MS2,
-        data->ay / PRJ_GRAVITY_MS2,
-        data->az / PRJ_GRAVITY_MS2,
-        data->gx, data->gy, data->gz,
-        data->pitch, data->roll, data->yaw,
-        (double)ctx->kf_p00_x,
-        (double)ctx->kf_p00_y,
-        (double)ctx->kf_p00_z,
-        (double)ctx->gyro_mag_dps,
-        (double)ctx->acc_norm_err,
-        (double)ctx->kf_p11_x,
-        data->temperature,
-        (double)ctx->kf_bias_z
-    );
-
-    if (len > 0 && len < PRJ_IMU_UART_TELEMETRY_BUF_SIZE) {
-        bsp_uart_send_dma((uint8_t *)g_dma_buf, (uint16_t)len);
-    }
-}
-
-#endif
 void app_imu_task(void *param)
 {
     app_shared_ctx_t *ctx = (app_shared_ctx_t *)param;
@@ -222,38 +182,7 @@ void app_imu_task(void *param)
             
             /* 时间戳 (OSAL tick, 不需要在临界区内) */
             ctx->imu.timestamp_ms = osal_ticks_to_ms(osal_get_tick_count());
-            /* 提交独立副本，控制台内部负责状态保护和非阻塞 DMA 输出。 */
             {
-                app_imu_console_sample_t console_sample;
-                console_sample.accel_x_g = data.ax / PRJ_GRAVITY_MS2;
-                console_sample.accel_y_g = data.ay / PRJ_GRAVITY_MS2;
-                console_sample.accel_z_g = data.az / PRJ_GRAVITY_MS2;
-                console_sample.gyro_x_dps = data.gx;
-                console_sample.gyro_y_dps = data.gy;
-                console_sample.gyro_z_dps = data.gz;
-                console_sample.pitch = data.pitch;
-                console_sample.roll = data.roll;
-                console_sample.yaw = data.yaw;
-                console_sample.kf_p00_x = g_imu_ctx.kf_p00_x;
-                console_sample.kf_p00_y = g_imu_ctx.kf_p00_y;
-                console_sample.kf_p00_z = g_imu_ctx.kf_p00_z;
-                console_sample.gyro_mag_dps = g_imu_ctx.gyro_mag_dps;
-                console_sample.acc_norm_err = g_imu_ctx.acc_norm_err;
-                console_sample.kf_p11_x = g_imu_ctx.kf_p11_x;
-                console_sample.temperature = data.temperature;
-                console_sample.kf_bias_z = g_imu_ctx.kf_bias_z;
-                console_sample.timestamp_ms = ctx->imu.timestamp_ms;
-                app_imu_console_update(&console_sample);
-            }
-            
-#if (PRJ_IMU_UART_TELEMETRY_ENABLE != 0U)
-            /* Optional periodic IMU telemetry; disabled by default on shared UART0. */
-            g_telemetry_elapsed_ms += PRJ_IMU_TASK_PERIOD_MS;
-            if (g_telemetry_elapsed_ms >= PRJ_IMU_UART_TELEMETRY_PERIOD_MS) {
-                g_telemetry_elapsed_ms = 0U;
-                imu_send_dma(&data, &g_imu_ctx);
-            }
-#endif
 
             /* Test runner: feed attitude data and poll timeout. */
             if (app_test_runner_is_active()) {
@@ -277,6 +206,7 @@ void app_imu_task(void *param)
                 diag.acc_norm = sqrtf(ax_g*ax_g + ay_g*ay_g + az_g*az_g);
                 app_test_runner_feed_diag(data.pitch, data.roll, data.yaw, &diag);
                 app_test_runner_poll();
+            }
             }
         } else {
         }

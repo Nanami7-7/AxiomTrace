@@ -21,6 +21,7 @@
 #include "app_position_control.h"
 #include <stddef.h>   /* NULL */
 #include <math.h>
+#include "project_config.h"
 
 /* ======================== 私有常量 ======================== */
 
@@ -103,8 +104,14 @@ static float transition_factor(const app_position_ctrl_t *ctrl,
  */
 static float normalize_angle(float angle)
 {
-    while (angle > 180.0f)  { angle -= 360.0f; }
-    while (angle < -180.0f) { angle += 360.0f; }
+    if (!isfinite(angle)) { return 0.0f; }
+    if (angle > 180.0f) {
+        angle = (angle <= 540.0f) ? angle - 360.0f
+                                  : fmodf(angle + 180.0f, 360.0f) - 180.0f;
+    } else if (angle < -180.0f) {
+        angle = (angle >= -540.0f) ? angle + 360.0f
+                                   : fmodf(angle - 180.0f, 360.0f) + 180.0f;
+    }
     return angle;
 }
 
@@ -121,6 +128,7 @@ static float yaw_rate_ramp_limit(app_position_ctrl_t *ctrl,
                                    float current,
                                    float dt)
 {
+    (void)ctrl;
     if (dt <= 0.0f) { return current; }
     float max_change = YAW_RATE_LIMIT_DEFAULT * dt;
     float delta = target - current;
@@ -143,7 +151,7 @@ void app_posctrl_init(app_position_ctrl_t *ctrl,
     ctrl->prev_mode = APP_CTRL_MODE_SPEED;
     ctrl->phase    = APP_CTRL_PHASE_STABLE;
     ctrl->transition_tick = 0U;
-    ctrl->transition_ms  = TRANSITION_DEFAULT_MS;
+    ctrl->transition_ms  = PRJ_MODE_TRANSITION_MS;
     ctrl->transition_rpm = 0.0f;
 
     /* 每转脉冲数(用于位置模式RPM↔脉冲/s转换) */
@@ -198,6 +206,15 @@ void app_posctrl_init(app_position_ctrl_t *ctrl,
     ctrl->output.planner_state  = APP_PLANNER_STATE_IDLE;
 
     ctrl->pos_correction = 0.0f;
+    ctrl->sync_error = 0.0f;
+    ctrl->sync_correction = 0.0f;
+    ctrl->position_feedback_mask = 0U;
+    for (uint32_t i = 0U; i < APP_POS_MOTOR_COUNT; ++i) {
+        ctrl->position_start[i] = 0.0f;
+    }
+    ctrl->output.sync_correction = 0.0f;
+    ctrl->output.pos_error = 0.0f;
+    ctrl->output.sync_error = 0.0f;
     ctrl->yaw_correction = 0.0f;
 }
 
@@ -215,11 +232,15 @@ void app_posctrl_set_mode(app_position_ctrl_t *ctrl,
     /* 记录当前RPM(用于过渡) */
     if (current_rpm != NULL) {
         float avg = 0.0f;
-        for (uint32_t i = 0; i < APP_POS_MOTOR_COUNT; i++) {
-            avg += current_rpm[i];
+        uint32_t active_count = 0U;
+        for (uint32_t i = 0U; i < APP_POS_MOTOR_COUNT; i++) {
+            if ((PRJ_MOTION_FEEDBACK_MASK & (1UL << i)) != 0UL) {
+                avg += current_rpm[i];
+                active_count++;
+            }
         }
-        avg /= (float)APP_POS_MOTOR_COUNT;
-        ctrl->transition_rpm = avg;
+        ctrl->transition_rpm = active_count != 0U
+            ? avg / (float)active_count : 0.0f;
     } else {
         ctrl->transition_rpm = 0.0f;
     }
@@ -235,6 +256,9 @@ void app_posctrl_set_mode(app_position_ctrl_t *ctrl,
 
     /* 启动过渡 */
     ctrl->mode              = mode;
+    ctrl->transition_ms     = (mode == APP_CTRL_MODE_POSITION) ?
+                              PRJ_POSITION_TRANSITION_MS :
+                              PRJ_MODE_TRANSITION_MS;
     ctrl->phase             = APP_CTRL_PHASE_TRANSITION;
     ctrl->transition_tick   = now_tick;
     ctrl->pos_correction    = 0.0f;
@@ -254,33 +278,51 @@ void app_posctrl_start_position(app_position_ctrl_t *ctrl,
                                 float cruise_speed,
                                 float current_pos)
 {
+    app_posctrl_start_position_feedback(ctrl, target_pulses,
+                                        cruise_speed, current_pos, NULL);
+}
+
+void app_posctrl_start_position_feedback(app_position_ctrl_t *ctrl,
+                                          float target_pulses,
+                                          float cruise_speed,
+                                          float current_pos,
+                                          const app_pos_feedback_t *feedback)
+{
     if (ctrl == NULL) { return; }
     if (ctrl->mode != APP_CTRL_MODE_POSITION) { return; }
-
-    /* NaN/Inf 保护 */
     if (!isfinite(target_pulses) || !isfinite(cruise_speed) ||
         !isfinite(current_pos)) {
         return;
     }
 
-    ctrl->pos_start    = current_pos;
+    ctrl->pos_start = current_pos;
     ctrl->cruise_speed = fabsf(cruise_speed);
-    ctrl->reached      = false;
+    ctrl->reached = false;
     ctrl->reached_count = 0U;
+    ctrl->sync_error = 0.0f;
+    ctrl->sync_correction = 0.0f;
+    ctrl->position_feedback_mask = 0U;
+    for (uint32_t i = 0U; i < APP_POS_MOTOR_COUNT; ++i) {
+        ctrl->position_start[i] = current_pos;
+    }
+    if (feedback != NULL) {
+        ctrl->position_feedback_mask = feedback->valid_mask;
+        for (uint32_t i = 0U; i < APP_POS_MOTOR_COUNT; ++i) {
+            if ((feedback->valid_mask & (1UL << i)) != 0UL &&
+                isfinite(feedback->position[i])) {
+                ctrl->position_start[i] = feedback->position[i];
+            } else {
+                ctrl->position_feedback_mask &= ~(1UL << i);
+            }
+        }
+    }
 
-    /* 规划器启动(脉冲单位)
-     * cruise_speed RPM → 脉冲/s
-     * 这样 planner 内部 pos = ∫(脉冲/s) dt = 脉冲(单位一致)
-     */
+    /* 规划器启动(脉冲单位): RPM -> 脉冲/s。 */
     float cruise_pulse = rpm_to_pulse_rate(cruise_speed,
                                            ctrl->pulses_per_rev);
-    app_planner_start(&ctrl->planner, target_pulses,
-                      cruise_pulse);
+    app_planner_start(&ctrl->planner, target_pulses, cruise_pulse);
 
-    /* 位置环PID: setpoint=目标位移(相对值)
-     * feedback也用相对值(encoder_avg - pos_start)
-     * 这样 error = target - (encoder - pos_start) 物理意义正确
-     */
+    /* 位置环PID: feedback 使用相对启动点的平均计数。 */
     app_pid_set_setpoint(&ctrl->pos_pid, target_pulses);
     app_pid_reset(&ctrl->pos_pid);
 }
@@ -311,13 +353,31 @@ void app_posctrl_start_angle(app_position_ctrl_t *ctrl,
     ctrl->yaw_correction = 0.0f;
 }
 
-const app_pos_output_t *app_posctrl_update(app_position_ctrl_t *ctrl,
-                                            float encoder_avg,
-                                            float kf_yaw,
-                                            float dt_s,
-                                            uint32_t now_tick)
+const app_pos_output_t *app_posctrl_update_feedback(
+    app_position_ctrl_t *ctrl,
+    const app_pos_feedback_t *feedback,
+    float kf_yaw,
+    float dt_s,
+    uint32_t now_tick)
 {
-    if (ctrl == NULL) { return NULL; }
+    if (ctrl == NULL || feedback == NULL) { return NULL; }
+    float encoder_avg = feedback->average_position;
+    if (!isfinite(encoder_avg)) {
+        float sum = 0.0f;
+        uint32_t count = 0U;
+        for (uint32_t i = 0U; i < APP_POS_MOTOR_COUNT; ++i) {
+            if ((feedback->valid_mask & (1UL << i)) != 0UL &&
+                isfinite(feedback->position[i])) {
+                sum += feedback->position[i];
+                count++;
+            }
+        }
+        encoder_avg = (count != 0U) ? (sum / (float)count) : 0.0f;
+    }
+    if (!isfinite(encoder_avg) || !isfinite(kf_yaw) ||
+        !isfinite(dt_s) || dt_s <= 0.0f) {
+        return &ctrl->output;
+    }
 
     /* 更新输出模式 */
     ctrl->output.mode = ctrl->mode;
@@ -336,65 +396,151 @@ const app_pos_output_t *app_posctrl_update(app_position_ctrl_t *ctrl,
     float t_factor = transition_factor(ctrl, now_tick);
 
     if (ctrl->mode == APP_CTRL_MODE_POSITION) {
-        /* ---- 位置模式: 梯形规划 + 位置环PID ---- */
-
-        /* 1. 规划器更新(脉冲单位, 输出脉冲/s) */
-        float planned_pulse_rate =
-            app_planner_update(&ctrl->planner, dt_s);
-
-        /* 脉冲/s → RPM (供速度环setpoint使用) */
+        /* ---- 位置模式: 梯形规划 + 平均位置 + 左右同步修正 ---- */
+        float planned_pulse_rate = app_planner_update(&ctrl->planner, dt_s);
         float planned_rpm = pulse_rate_to_rpm(planned_pulse_rate,
                                                ctrl->pulses_per_rev);
 
-        /* 2. 位置环PID修正 */
-        /*    feedback=当前编码器脉冲(相对启动点) */
-        /*    setpoint=启动点+目标 */
         float relative_pos = encoder_avg - ctrl->pos_start;
-        float correction =
-            app_pid_compute(&ctrl->pos_pid, relative_pos, dt_s);
-
-        /* NaN保护 */
+        float correction = app_pid_compute(&ctrl->pos_pid,
+                                           relative_pos, dt_s);
         if (!isfinite(correction)) {
             correction = 0.0f;
             app_pid_reset(&ctrl->pos_pid);
         }
-
         ctrl->pos_correction = correction;
 
-        /* 3. 合成目标速度 */
-        float target_rpm;
+        /* 右侧减左侧：正值表示右侧超前。 */
+        float left_delta = 0.0f;
+        float right_delta = 0.0f;
+        uint32_t left_count = 0U;
+        uint32_t right_count = 0U;
+        const uint32_t feedback_mask = feedback->valid_mask &
+                                        ctrl->position_feedback_mask;
+        for (uint32_t i = 0U; i < APP_POS_MOTOR_COUNT; ++i) {
+            if ((feedback_mask & (1UL << i)) == 0UL ||
+                !isfinite(feedback->position[i])) {
+                continue;
+            }
+            float delta = feedback->position[i] - ctrl->position_start[i];
+            if (i == APP_POS_MOTOR_LF || i == APP_POS_MOTOR_LB) {
+                left_delta += delta;
+                left_count++;
+            } else {
+                right_delta += delta;
+                right_count++;
+            }
+        }
+        if (left_count != 0U) {
+            left_delta /= (float)left_count;
+        }
+        if (right_count != 0U) {
+            right_delta /= (float)right_count;
+        }
+
+        bool sync_valid = (left_count != 0U) && (right_count != 0U);
+        float sync_error = sync_valid ? (right_delta - left_delta) : 0.0f;
+        float sync_trim = 0.0f;
+        if (sync_valid &&
+            fabsf(sync_error) > PRJ_POSITION_SYNC_DEADBAND_COUNTS) {
+            sync_trim = clamp_f(sync_error * PRJ_POSITION_SYNC_KP,
+                                -PRJ_POSITION_SYNC_MAX_RPM,
+                                PRJ_POSITION_SYNC_MAX_RPM);
+        }
+        ctrl->sync_error = sync_error;
+        ctrl->sync_correction = sync_trim;
+
+        float base_target_rpm = planned_rpm + correction;
+        float left_target_rpm = base_target_rpm + sync_trim;
+        float right_target_rpm = base_target_rpm - sync_trim;
         if (ctrl->phase == APP_CTRL_PHASE_TRANSITION) {
-            /* 过渡期: 从transition_rpm渐变到planned+correction */
-            float new_target = planned_rpm + correction;
-            target_rpm = ctrl->transition_rpm * (1.0f - t_factor)
-                       + new_target * t_factor;
-        } else {
-            target_rpm = planned_rpm + correction;
+            left_target_rpm = ctrl->transition_rpm * (1.0f - t_factor)
+                            + left_target_rpm * t_factor;
+            right_target_rpm = ctrl->transition_rpm * (1.0f - t_factor)
+                             + right_target_rpm * t_factor;
         }
+        left_target_rpm = clamp_f(left_target_rpm,
+                                  ctrl->pos_pid.out_min,
+                                  ctrl->pos_pid.out_max);
+        right_target_rpm = clamp_f(right_target_rpm,
+                                   ctrl->pos_pid.out_min,
+                                   ctrl->pos_pid.out_max);
 
-        /* 限幅(用PID的限幅, RPM单位) */
-        target_rpm = clamp_f(target_rpm,
-                              ctrl->pos_pid.out_min,
-                              ctrl->pos_pid.out_max);
-
-        /* 4. 4轮相同目标(直行) */
-        for (uint32_t i = 0; i < APP_POS_MOTOR_COUNT; i++) {
-            ctrl->output.target_rpm[i] = target_rpm;
-        }
-
-        /* 5. 到位检测
-         *    pos_error = setpoint - relative_pos
-         *    = target_pulses - (encoder_avg - pos_start)
+        /*
+         * 位置环同向保护：同步修正只能改变左右轮速度差，
+         * 不能把同向前进/后退变成一侧反转。
+         * 该保护只作用于位置环输出，不改测速、速度 PID 或角度环。
          */
-        float pos_error = ctrl->pos_pid.setpoint - relative_pos;
-        if (app_planner_is_done(&ctrl->planner) &&
-            fabsf(pos_error) < ctrl->reached_threshold) {
+        const float pos_error = ctrl->pos_pid.setpoint - relative_pos;
+        if (fabsf(pos_error) > PRJ_POSITION_STOP_ERROR_COUNTS) {
+            if (pos_error > 0.0f) {
+                left_target_rpm = fmaxf(left_target_rpm, 0.0f);
+                right_target_rpm = fmaxf(right_target_rpm, 0.0f);
+            } else {
+                left_target_rpm = fminf(left_target_rpm, 0.0f);
+                right_target_rpm = fminf(right_target_rpm, 0.0f);
+            }
+        }
+
+        /*
+         * Avoid a fixed minimum RPM step near the target. A hard step between
+         * zero and +/-MIN_ACTIVE_RPM makes the position loop repeatedly reverse.
+         * The minimum-speed assist now ramps with position error:
+         *   - inside stop error: command zero;
+         *   - just outside stop error: assist starts at zero;
+         *   - after the configured error span: assist reaches MIN_ACTIVE_RPM.
+         * This changes position-loop output only; speed, encoder and angle loops
+         * remain unchanged.
+         */
+
+        const float abs_pos_error = fabsf(pos_error);
+        if (abs_pos_error <= PRJ_POSITION_STOP_ERROR_COUNTS) {
+            left_target_rpm = 0.0f;
+            right_target_rpm = 0.0f;
+        } else if (PRJ_POSITION_MIN_ACTIVE_RPM > 0.0f) {
+            const float error_span = fmaxf(
+                PRJ_POSITION_MIN_ACTIVE_ERROR_COUNTS,
+                PRJ_POSITION_STOP_ERROR_COUNTS + 1.0f);
+            const float normalized_error = clamp_f(
+                (abs_pos_error - PRJ_POSITION_STOP_ERROR_COUNTS) /
+                error_span, 0.0f, 1.0f);
+            const float active_floor =
+                PRJ_POSITION_MIN_ACTIVE_RPM * normalized_error;
+
+            if (fabsf(left_target_rpm) < active_floor) {
+                const float sign = (fabsf(left_target_rpm) > 0.001f) ?
+                                   left_target_rpm : pos_error;
+                left_target_rpm = copysignf(active_floor, sign);
+            }
+            if (fabsf(right_target_rpm) < active_floor) {
+                const float sign = (fabsf(right_target_rpm) > 0.001f) ?
+                                   right_target_rpm : pos_error;
+                right_target_rpm = copysignf(active_floor, sign);
+            }
+        }
+
+        /* 输出仍覆盖四个接口；B/C 未接电机时由现有配置/硬件保持备用。 */
+        ctrl->output.target_rpm[APP_POS_MOTOR_LF] = left_target_rpm;
+        ctrl->output.target_rpm[APP_POS_MOTOR_LB] = left_target_rpm;
+        ctrl->output.target_rpm[APP_POS_MOTOR_RF] = right_target_rpm;
+        ctrl->output.target_rpm[APP_POS_MOTOR_RB] = right_target_rpm;
+
+        float reached_threshold = fmaxf(ctrl->reached_threshold,
+                                        PRJ_POSITION_STOP_ERROR_COUNTS);
+        bool position_close = fabsf(pos_error) <= reached_threshold;
+        bool sync_close = !sync_valid ||
+                          fabsf(sync_error) <= PRJ_POSITION_SYNC_ERROR_COUNTS;
+        /*
+         * Position completion is encoder-error based.  Do not gate it on
+         * the measured RPM: low-speed M/T feedback is intentionally not
+         * used to decide whether the encoder target has been reached.
+         */
+        if (app_planner_is_done(&ctrl->planner) && position_close &&
+            sync_close) {
             ctrl->reached_count++;
-            if (ctrl->reached_count >=
-                ctrl->reached_threshold_count) {
+            if (ctrl->reached_count >= ctrl->reached_threshold_count) {
                 ctrl->reached = true;
-                /* 到位: 目标速度归零 */
-                for (uint32_t i = 0; i < APP_POS_MOTOR_COUNT; i++){
+                for (uint32_t i = 0U; i < APP_POS_MOTOR_COUNT; ++i) {
                     ctrl->output.target_rpm[i] = 0.0f;
                 }
             }
@@ -403,23 +549,25 @@ const app_pos_output_t *app_posctrl_update(app_position_ctrl_t *ctrl,
             ctrl->reached = false;
         }
 
-        /* 6. 更新输出 */
-        ctrl->output.planned_speed  = planned_rpm;
-        ctrl->output.planned_pos    =
-            app_planner_get_pos(&ctrl->planner);
+        ctrl->output.planned_speed = planned_rpm;
+        ctrl->output.planned_pos = app_planner_get_pos(&ctrl->planner);
         ctrl->output.pos_correction = correction;
+        ctrl->output.sync_correction = sync_trim;
+        ctrl->output.pos_error = pos_error;
+        ctrl->output.sync_error = sync_error;
         ctrl->output.yaw_correction = 0.0f;
-        ctrl->output.reached        = ctrl->reached;
-        ctrl->output.planner_state  =
-            app_planner_get_state(&ctrl->planner);
-
+        ctrl->output.reached = ctrl->reached;
+        ctrl->output.planner_state = app_planner_get_state(&ctrl->planner);
     } else if (ctrl->mode == APP_CTRL_MODE_ANGLE) {
         /* ---- 角度模式: 角度环PID + 斜坡限幅 ---- */
 
         /* 1. 角度环PID计算 */
         /*    setpoint=目标yaw, feedback=当前kf_yaw */
+        /* PID 必须看到最短圆弧误差，否则 179° -> -179° 会误走 358°。 */
+        float yaw_error = normalize_angle(ctrl->yaw_pid.setpoint - kf_yaw);
+        float wrapped_feedback = ctrl->yaw_pid.setpoint - yaw_error;
         float yaw_pid_out =
-            app_pid_compute(&ctrl->yaw_pid, kf_yaw, dt_s);
+            app_pid_compute(&ctrl->yaw_pid, wrapped_feedback, dt_s);
 
         /* NaN保护 */
         if (!isfinite(yaw_pid_out)) {
@@ -451,15 +599,29 @@ const app_pos_output_t *app_posctrl_update(app_position_ctrl_t *ctrl,
         float left_target  = -ctrl->yaw_correction;
         float right_target =  ctrl->yaw_correction;
 
+        /*
+         * 只给当前配置为“驱动轮”的物理通道分配角度环目标。
+         * B/C 接口仍然保留；以后装回电机时只需把对应配置改为 1。
+         * 物理映射：A/M1=RB，B/M2=RF，C/M3=LF，D/M4=LB。
+         */
+        for (uint32_t i = 0U; i < APP_POS_MOTOR_COUNT; ++i) {
+            ctrl->output.target_rpm[i] = 0.0f;
+        }
+#if (PRJ_MOTOR_C_MOTION_ACTIVE != 0U)
         ctrl->output.target_rpm[APP_POS_MOTOR_LF] = left_target;
+#endif
+#if (PRJ_MOTOR_D_MOTION_ACTIVE != 0U)
         ctrl->output.target_rpm[APP_POS_MOTOR_LB] = left_target;
+#endif
+#if (PRJ_MOTOR_B_MOTION_ACTIVE != 0U)
         ctrl->output.target_rpm[APP_POS_MOTOR_RF] = right_target;
+#endif
+#if (PRJ_MOTOR_A_MOTION_ACTIVE != 0U)
         ctrl->output.target_rpm[APP_POS_MOTOR_RB] = right_target;
+#endif
 
         /* 4. 到位检测 */
-        float yaw_error = ctrl->yaw_pid.setpoint - kf_yaw;
-        /* 角度误差归一化(处理±180环绕) */
-        yaw_error = normalize_angle(yaw_error);
+        /* yaw_error 已在 PID 计算前归一化。 */
         if (fabsf(yaw_error) < ctrl->reached_threshold) {
             ctrl->reached_count++;
             if (ctrl->reached_count >=
@@ -485,6 +647,18 @@ const app_pos_output_t *app_posctrl_update(app_position_ctrl_t *ctrl,
     }
 
     return &ctrl->output;
+}
+
+const app_pos_output_t *app_posctrl_update(app_position_ctrl_t *ctrl,
+                                             float encoder_avg,
+                                             float kf_yaw,
+                                             float dt_s,
+                                             uint32_t now_tick)
+{
+    app_pos_feedback_t feedback = {0};
+    feedback.average_position = encoder_avg;
+    return app_posctrl_update_feedback(ctrl, &feedback, kf_yaw,
+                                       dt_s, now_tick);
 }
 
 bool app_posctrl_is_reached(const app_position_ctrl_t *ctrl)

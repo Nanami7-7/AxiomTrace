@@ -16,7 +16,7 @@
  */
 static UART_Regs *const s_uart_inst_map[HAL_UART_COUNT] = {
     UART0,  /**< HAL_UART_DEBUG -> UART0 */
-    UART1,  /**< HAL_UART_BLE   -> UART1 */
+    UART1,  /**< HAL_UART_EXT   -> UART1 */
 };
 
 /**
@@ -25,7 +25,7 @@ static UART_Regs *const s_uart_inst_map[HAL_UART_COUNT] = {
  */
 static const IRQn_Type s_uart_irq_map[HAL_UART_COUNT] = {
     UART0_INT_IRQn,  /**< HAL_UART_DEBUG -> UART0中断 */
-    UART1_INT_IRQn,  /**< HAL_UART_BLE   -> UART1中断 */
+    UART1_INT_IRQn,  /**< HAL_UART_EXT   -> UART1中断 */
 };
 
 /* ======================== 私有常量 ======================== */

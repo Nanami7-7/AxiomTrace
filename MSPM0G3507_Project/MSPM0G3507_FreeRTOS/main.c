@@ -17,6 +17,7 @@
 #include "ti_msp_dl_config.h"
 #include "app_main.h"
 #include "bsp_timer.h"
+#include <stdio.h>
 
 /* ======================== main入口 ======================== */
 int main(void)
@@ -26,7 +27,13 @@ int main(void)
     bsp_timer_init();
     
     /* 第2步: 应用层初始化(BSP模块+PID控制器+FreeRTOS任务) */
-    app_main_init();
+    int32_t app_init_ret = app_main_init();
+    if (app_init_ret != 0) {
+        /* UART0 was initialized by app_main_init; report fatal errors. */
+        printf("[FATAL] app_main_init failed: %ld\r\n", (long)app_init_ret);
+        for (;;) {
+        }
+    }
 
     /* 第3步: 启动FreeRTOS调度器,不再返回 */
     vTaskStartScheduler();

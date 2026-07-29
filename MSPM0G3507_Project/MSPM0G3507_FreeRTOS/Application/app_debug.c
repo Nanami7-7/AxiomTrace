@@ -3,6 +3,7 @@
 #include "project_config.h"
 #include "bsp_encoder.h"
 #include "bsp_adc.h"
+#include "bsp_ir.h"
 #include "bsp_uart.h"
 #include "bsp_timer.h"
 #include "bsp_motor.h"
@@ -11,7 +12,6 @@
 #include "bsp_drv8870.h"
 #endif
 #include "app_model_id.h"
-#include "app_state_snapshot.h"
 #include "osal_api.h"
 #include "ti_msp_dl_config.h"
 #include <stdio.h>
@@ -634,6 +634,23 @@ void app_debug_encoder_capture_diag(uint32_t motor_id, uint32_t duration_ms)
     (void)printf("If a wheel is stationary but CC0/CC1 rise together repeatedly, suspect a floating/noisy A-phase input or encoder power/ground issue.\r\n");
     (void)printf("This phase intentionally does not change the existing dual-count or RPM calculation.\r\n");
 #endif
+}
+/**
+ * @brief 通过 UART0 控制台读取并打印一次四路红外状态。
+ * @note 只读传感器，不启动循迹，不调用电机，也不使用 AB 协议。
+ */
+void app_debug_ir_snapshot(void)
+{
+    uint8_t state[BSP_IR_CHANNEL_COUNT];
+
+    /* 复用红外 BSP 接口：1=黑线，0=白色。 */
+    BSP_IR_Read(state);
+
+    (void)printf("[IR CONSOLE] CH1=%u CH2=%u CH3=%u CH4=%u (1=黑线,0=白色)\r\n",
+                 (unsigned)state[0],
+                 (unsigned)state[1],
+                 (unsigned)state[2],
+                 (unsigned)state[3]);
 }
 /* ======================== ADC测试 ======================== */
 

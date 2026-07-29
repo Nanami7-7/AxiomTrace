@@ -1,15 +1,14 @@
-﻿/**
+/**
  * @file    app_vofa.c
- * @brief   VOFA+ 閫氫俊鍗忚瀹炵幇
- * @note    FireWater: 鏂囨湰鏍煎紡, printf 杈撳嚭
- *          鏍煎紡: "val0,val1,val2,...,valN\n"
- *          JustFloat: 浜岃繘鍒舵牸寮? bsp_uart_putc 閫愬瓧鑺傝緭鍑? *          涓嬭鍛戒护: 鍩轰簬 sscanf/key-value 瑙ｆ瀽
+ * @brief   VOFA+ 通信协议实现
+ * @note    FireWater: 文本格式, printf 输出
+ *          格式: "val0,val1,val2,...,valN\n"
+ * 说明：VOFA+通信相关处理。
  */
 #include "app_vofa.h"
 #include "app_pid.h"
 #include "app_feedforward.h"
 #include "app_model_id.h"
-#include "app_state_snapshot.h"
 #include "app_position_control.h"
 #include "osal_api.h"
 #include "bsp_uart.h"
@@ -22,20 +21,22 @@
 #include <stdlib.h>
 #include <math.h>
 
-/* ======================== 绉佹湁绫诲瀷 ======================== */
+/* ======================== 私有类型 ======================== */
 
 typedef enum {
     PID_PARAM_KP = 0,
     PID_PARAM_KI,
     PID_PARAM_KD
-} pid_param_idx_t;
+} pid_param_idx_t;/* 电机 A/B/C/D 到物理编码器 RB/RF/LF/LB 的统一映射。 */
+static const bsp_encoder_id_t s_vofa_motor_encoder_map[BSP_MOTOR_COUNT] =
+    PRJ_MOTOR_ENCODER_MAP;
 
-/* ======================== 绉佹湁杈呭姪鍑芥暟 ======================== */
+/* ======================== 私有辅助函数 ======================== */
 
 /**
- * @brief  蹇界暐澶у皬鍐欑殑鍓嶇紑姣旇緝
- * @param  str    瀹屾暣瀛楃涓? * @param  prefix 鍓嶇紑(灏忓啓)
- * @retval true  str 浠?prefix 寮€澶?蹇界暐澶у皬鍐?
+ * @brief  忽略大小写的前缀比较
+ * 说明：VOFA+通信相关处理。
+ * 说明：VOFA+通信相关处理。
  */
 static bool strnicmp_prefix(const char *str, const char *prefix)
 {
@@ -45,7 +46,7 @@ static bool strnicmp_prefix(const char *str, const char *prefix)
         }
         char c1 = *str;
         char c2 = *prefix;
-        /* 绠€鍗曞皬鍐欒浆鎹?(浠匒SCII瀛楁瘝) */
+        /* 说明：VOFA+通信相关处理。 */
         if (c1 >= 'A' && c1 <= 'Z') { c1 += 32; }
         if (c2 >= 'A' && c2 <= 'Z') { c2 += 32; }
         if (c1 != c2) {
@@ -58,9 +59,9 @@ static bool strnicmp_prefix(const char *str, const char *prefix)
 }
 
 /**
- * @brief  瀹夊叏瑙ｆ瀽娴偣鏁板€?浣跨敤strtof鏇夸唬atof)
- * @param  numstr  鏁板€煎瓧绗︿覆
- * @param  out_val 杈撳嚭鍊? * @retval true 瑙ｆ瀽鎴愬姛
+ * 说明：VOFA+通信相关处理。
+ * @param  numstr  数字符串
+ * 说明：VOFA+通信相关处理。
  */
 static bool stricmp_equal(const char *lhs, const char *rhs)
 {
@@ -103,7 +104,7 @@ static bool safe_atof(const char *numstr, float *out_val)
 }
 
 /**
- * @brief  搴旂敤鍗曚釜PID鍙傛暟鏇存柊
+ * @brief  应用单个PID参数更新
  */
 static void vofa_apply_pid_param(app_pid_t *pid, float new_val,
                                   pid_param_idx_t which, uint32_t motor_id)
@@ -127,7 +128,7 @@ static void vofa_apply_pid_param(app_pid_t *pid, float new_val,
 }
 
 /**
- * @brief  鍙戦€佸崟涓瓧鑺?灏佽 bsp_uart_putc)
+ * 说明：VOFA+通信相关处理。
  */
 static void vofa_putc(uint8_t ch)
 {
@@ -135,7 +136,7 @@ static void vofa_putc(uint8_t ch)
 }
 
 /**
- * @brief  鍙戦€?float 鐨勫師濮嬪瓧鑺?灏忕搴? JustFloat 鐢?
+ * 说明：VOFA+通信相关处理。
  */
 static void vofa_send_float_bytes(float val)
 {
@@ -145,12 +146,13 @@ static void vofa_send_float_bytes(float val)
     }
 }
 
-/* ======================== 绉佹湁杈呭姪锛欼D 娴嬭瘯涓妫€娴?======================== */
+/* 说明：VOFA+通信相关处理。 */
 
 /**
- * @brief  闈為樆濉炴娴?UART 缂撳啿鍖轰腑鐨?"Stop" 鍛戒护
- * @retval true  妫€娴嬪埌 "Stop" / "StopAll" / "Stop=x"
- * @note   娑堣€?UART 瀛楃锛岀敤浜庡湪闀挎椂闂撮樆濉炴搷浣?Step/Auto/Sweep)涓敮鎸佹彁鍓嶄腑姝? */
+ * 说明：VOFA+通信相关处理。
+ * @retval true  检测到 "Stop" / "StopAll" / "Stop=x"
+ * 说明：VOFA+通信相关处理。
+ */
 static bool vofa_detect_stop_cmd(void)
 {
     uint8_t ch;
@@ -183,11 +185,12 @@ static bool vofa_detect_stop_cmd(void)
 }
 
 /**
- * @brief  鎵ц闃惰穬鍝嶅簲杈ㄨ瘑骞剁瓑寰呭畬鎴?闃诲锛屽甫涓妫€娴?
- * @param  ctx    鍏变韩涓婁笅鏂? * @param  mid    鐩爣鐢垫満绱㈠紩
- * @param  pwm    闃惰穬PWM鍊? * @param  result 杈撳嚭: 杈ㄨ瘑缁撴灉
- * @retval true   杈ㄨ瘑鎴愬姛
- * @retval false  澶辫触鎴栦腑姝? */
+ * 说明：VOFA+通信相关处理。
+ * 说明：VOFA+通信相关处理。
+ * 说明：VOFA+通信相关处理。
+ * @retval true   识别成功
+ * 说明：VOFA+通信相关处理。
+ */
 static bool vofa_run_step_id(app_shared_ctx_t *ctx, uint32_t mid,
                                int32_t pwm, app_id_step_result_t *result)
 {
@@ -219,7 +222,7 @@ static bool vofa_run_step_id(app_shared_ctx_t *ctx, uint32_t mid,
                                 pwm, dt_s, result);
 }
 
-/* ======================== 鍏叡鍑芥暟瀹炵幇 ======================== */
+/* ======================== 公共函数实现 ======================== */
 
 void app_vofa_send_firewater(const float channels[], uint32_t count)
 {
@@ -231,7 +234,7 @@ void app_vofa_send_firewater(const float channels[], uint32_t count)
         if (i > 0U) {
             vofa_putc(',');
         }
-        /* 鏍煎紡: "val0,val1,...,valN\n" */
+        /* 格式: "val0,val1,...,valN\n" */
         (void)printf("%.6f", (double)channels[i]);
     }
     vofa_putc('\n');
@@ -243,12 +246,12 @@ void app_vofa_send_justfloat(const float channels[], uint32_t count)
         return;
     }
 
-    /* 鍙戦€佹墍鏈夐€氶亾鐨勫師濮嬫诞鐐瑰瓧鑺?*/
+    /* 说明：VOFA+通信相关处理。 */
     for (uint32_t i = 0; i < count; i++) {
         vofa_send_float_bytes(channels[i]);
     }
 
-    /* 鍙戦€佸抚灏?0x00 0x00 0x80 0x7F */
+    /* 说明：VOFA+通信相关处理。 */
     vofa_putc(VOFA_JUSTFLOAT_TAIL_0);
     vofa_putc(VOFA_JUSTFLOAT_TAIL_1);
     vofa_putc(VOFA_JUSTFLOAT_TAIL_2);
@@ -261,17 +264,17 @@ bool app_vofa_parse_cmd(const char *line, vofa_cmd_t *cmd)
         return false;
     }
 
-    /* 璺宠繃鍓嶅绌虹櫧 */
+    /* 跳过前导空白 */
     while (*line == ' ' || *line == '\t') {
         line++;
     }
 
-    /* 璺宠繃绌鸿 */
+    /* 跳过空行 */
     if (*line == '\0') {
         return false;
     }
 
-    /* 娓呴浂鍛戒护缁撴瀯 */
+    /* 清零命令结构 */
     memset(cmd, 0, sizeof(vofa_cmd_t));
 
     /* Stable v1 host integration commands. */
@@ -308,7 +311,7 @@ bool app_vofa_parse_cmd(const char *line, vofa_cmd_t *cmd)
         return true;
     }
 
-    /* "Step" 鎴?"Step=x" (闃惰穬鍝嶅簲杈ㄨ瘑, x=鏈夌鍙峰懡浠ゅ箙鍊?~500) */
+    /* 说明：VOFA+通信相关处理。 */
     if (stricmp_equal(line, "step") || strnicmp_prefix(line, "step=")) {
         cmd->type = VOFA_CMD_STEP;
         const char *eq = strchr(line, '=');
@@ -321,7 +324,7 @@ bool app_vofa_parse_cmd(const char *line, vofa_cmd_t *cmd)
         return true;
     }
 
-    /* "Auto" 鎴?"Auto=x" (鑷姩鏁村畾, x=鏈熸湜闂幆甯﹀Hz) */
+    /* 说明：VOFA+通信相关处理。 */
     if (stricmp_equal(line, "auto") || strnicmp_prefix(line, "auto=")) {
         cmd->type = VOFA_CMD_AUTOTUNE;
         const char *eq = strchr(line, '=');
@@ -334,28 +337,28 @@ bool app_vofa_parse_cmd(const char *line, vofa_cmd_t *cmd)
         return true;
     }
 
-    /* ---- 杈呭姪: 瀹夊叏瑙ｆ瀽鐢垫満ID ---- */
+    /* ---- 辅助: 安全解析电机ID ---- */
     #define PARSE_MOTOR_ID(str, out_id) do {            \
         char *_endptr;                                   \
         long _val = strtol((str), &_endptr, 10);         \
         if (*_endptr != '\0' || _endptr == (str)) {      \
-            return false; /* 闈炴暟瀛楄緭鍏?*/                \
+            return false; /* 说明：VOFA+通信相关处理。 */                \
         }                                                \
         if (_val < 0 || _val >= (long)BSP_MOTOR_COUNT) { \
-            return false; /* 瓒呭嚭鑼冨洿 */                  \
+            return false; /* 电机 ID 超出范围 */                  \
         }                                                \
         *(out_id) = (uint32_t)_val;                      \
     } while(0)
 
-    /* ---- 閫愬叧閿瓧鍖归厤 ---- */
+    /* ---- 逐关键字匹配 ---- */
 
-    /* "StopAll" (蹇呴』鍦?"Stop" 涔嬪墠鍖归厤) */
+    /* 说明：VOFA+通信相关处理。 */
     if (stricmp_equal(line, "stopall")) {
         cmd->type = VOFA_CMD_STOP_ALL;
         return true;
     }
 
-    /* "Stop" 鎴?"Stop=x" */
+    /* 说明：VOFA+通信相关处理。 */
     if (stricmp_equal(line, "stop") || strnicmp_prefix(line, "stop=")) {
         cmd->type = VOFA_CMD_STOP;
         const char *eq = strchr(line, '=');
@@ -366,7 +369,7 @@ bool app_vofa_parse_cmd(const char *line, vofa_cmd_t *cmd)
         return true;
     }
 
-    /* "Run" 鎴?"Run=x" */
+    /* 说明：VOFA+通信相关处理。 */
     if (stricmp_equal(line, "run") || strnicmp_prefix(line, "run=")) {
         cmd->type = VOFA_CMD_RUN;
         const char *eq = strchr(line, '=');
@@ -425,7 +428,7 @@ bool app_vofa_parse_cmd(const char *line, vofa_cmd_t *cmd)
         return false;
     }
 
-    /* "FFk=x" (鍓嶉鏂滅巼, 蹇呴』鍦?"FFb" 涔嬪墠) */
+    /* 说明：VOFA+通信相关处理。 */
     if (strnicmp_prefix(line, "ffk=")) {
         cmd->type = VOFA_CMD_SET_FF_K;
         if (safe_atof(line + 4, &cmd->value)) {
@@ -435,7 +438,7 @@ bool app_vofa_parse_cmd(const char *line, vofa_cmd_t *cmd)
         return false;
     }
 
-    /* "FFb=x" (鍓嶉鎴窛) */
+    /* "FFb=x" (前馈截距) */
     if (strnicmp_prefix(line, "ffb=")) {
         cmd->type = VOFA_CMD_SET_FF_B;
         if (safe_atof(line + 4, &cmd->value)) {
@@ -445,7 +448,7 @@ bool app_vofa_parse_cmd(const char *line, vofa_cmd_t *cmd)
         return false;
     }
 
-    /* "FFe=x" (鍓嶉浣胯兘: 1=浣胯兘, 0=绂佺敤) */
+    /* "FFe=x" (前馈使能: 1=使能, 0=禁用) */
     if (strnicmp_prefix(line, "ffe=")) {
         cmd->type = VOFA_CMD_SET_FF_ENABLE;
         if (safe_atof(line + 4, &cmd->value)) {
@@ -455,19 +458,19 @@ bool app_vofa_parse_cmd(const char *line, vofa_cmd_t *cmd)
         return false;
     }
 
-    /* "Sweep" (鑷姩鎵鏍囧畾) */
+    /* "Sweep" (自动扫频标定) */
     if (stricmp_equal(line, "sweep")) {
         cmd->type = VOFA_CMD_SWEEP;
         return true;
     }
 
-    /* "Menu" (鍒锋柊鑿滃崟鏄剧ず) */
+    /* "Menu" 命令 */
     if (stricmp_equal(line, "menu")) {
         cmd->type = VOFA_CMD_MENU;
         return true;
     }
 
-    /* "FFKp=x" (FF妯″紡姣斾緥澧炵泭, 蹇呴』鍦?"FFKi" 涔嬪墠) */
+    /* 说明：VOFA+通信相关处理。 */
     if (strnicmp_prefix(line, "ffkp=")) {
         cmd->type = VOFA_CMD_SET_FF_KP;
         if (safe_atof(line + 5, &cmd->value)) {
@@ -477,7 +480,7 @@ bool app_vofa_parse_cmd(const char *line, vofa_cmd_t *cmd)
         return false;
     }
 
-    /* "FFKi=x" (FF妯″紡绉垎澧炵泭) */
+    /* "FFKi=x" (FF模式积分增益) */
     if (strnicmp_prefix(line, "ffki=")) {
         cmd->type = VOFA_CMD_SET_FF_KI;
         if (safe_atof(line + 5, &cmd->value)) {
@@ -487,7 +490,7 @@ bool app_vofa_parse_cmd(const char *line, vofa_cmd_t *cmd)
         return false;
     }
 
-    /* "FFKd=x" (FF妯″紡寰垎澧炵泭) */
+    /* "FFKd=x" (FF模式微分增益) */
     if (strnicmp_prefix(line, "ffkd=")) {
         cmd->type = VOFA_CMD_SET_FF_KD;
         if (safe_atof(line + 5, &cmd->value)) {
@@ -497,9 +500,9 @@ bool app_vofa_parse_cmd(const char *line, vofa_cmd_t *cmd)
         return false;
     }
 
-    /* ---- 浣嶇疆-閫熷害涓茬骇鎺у埗鍛戒护 ---- */
+    /* ---- 位置-速度串级控制命令 ---- */
 
-    /* "mode=speed/position/angle" (鍒囨崲鎺у埗妯″紡) */
+    /* "mode=speed/position/angle" (切换控制模式) */
     if (strnicmp_prefix(line, "mode=")) {
         cmd->type = VOFA_CMD_SET_MODE;
         const char *p = line + 5;
@@ -519,13 +522,13 @@ bool app_vofa_parse_cmd(const char *line, vofa_cmd_t *cmd)
         return false;
     }
 
-    /* "pos=<鑴夊啿>,<宸¤埅RPM>" (浣嶇疆鎺у埗, 鍙屽€奸€楀彿鍒嗛殧) */
+    /* "pos=<脉冲>,<巡航RPM>" (位置控制, 双号分隔) */
     if (strnicmp_prefix(line, "pos=")) {
         cmd->type = VOFA_CMD_POS;
         const char *p = line + 4;
         const char *comma = strchr(p, ',');
         if (comma != NULL) {
-            /* 瑙ｆ瀽绗竴鍊?鑴夊啿) */
+            /* 说明：VOFA+通信相关处理。 */
             char buf[32];
             size_t len = (size_t)(comma - p);
             if (len > 0 && len < sizeof(buf)) {
@@ -542,7 +545,7 @@ bool app_vofa_parse_cmd(const char *line, vofa_cmd_t *cmd)
         return false;
     }
 
-    /* "angle=<搴?,<宸¤埅RPM>" (瑙掑害鎺у埗, 鍙屽€奸€楀彿鍒嗛殧) */
+    /* 说明：VOFA+通信相关处理。 */
     if (strnicmp_prefix(line, "angle=")) {
         cmd->type = VOFA_CMD_ANGLE;
         const char *p = line + 6;
@@ -564,7 +567,7 @@ bool app_vofa_parse_cmd(const char *line, vofa_cmd_t *cmd)
         return false;
     }
 
-    /* "abort" (绱ф€ュ仠姝綅缃帶鍒? */
+    /* 说明：VOFA+通信相关处理。 */
     if (stricmp_equal(line, "abort")) {
         cmd->type = VOFA_CMD_ABORT;
         return true;
@@ -584,7 +587,7 @@ void app_vofa_apply_cmd(const vofa_cmd_t *cmd,
 
     uint32_t mid = *current_motor;
 
-    /* 濡傛灉鍛戒护鎸囧畾浜嗙數鏈篒D, 鏇存柊褰撳墠鐢垫満 */
+    /* 使用命令中的电机 ID */
     if (cmd->has_motor && cmd->motor_id < BSP_MOTOR_COUNT) {
         mid = cmd->motor_id;
         *current_motor = mid;
@@ -637,7 +640,7 @@ void app_vofa_apply_cmd(const vofa_cmd_t *cmd,
                 OSAL_CRITICAL_SECTION {
                     old_sp = ctx->pid[mid].setpoint;
                     app_pid_set_setpoint(&ctx->pid[mid], val);
-                    /* FF duty 鍦ㄦ帶鍒朵换鍔′腑鑷姩鏇存柊, PID integral 淇濇寔涓嶅彉 */
+                    /* FF duty 在控制任务中自动更新, PID integral 保持不变 */
                 }
                 (void)printf("[%lu] Target %.0f -> %.0f RPM\r\n",
                     (unsigned long)mid,
@@ -653,7 +656,7 @@ void app_vofa_apply_cmd(const vofa_cmd_t *cmd,
 
     case VOFA_CMD_RUN:
         OSAL_CRITICAL_SECTION {
-            /* PID 鐘舵€佸浣? FF duty 鐢辨帶鍒朵换鍔＄嫭绔嬭绠?*/
+            /* 说明：VOFA+通信相关处理。 */
             app_pid_reset(&ctx->pid[mid]);
             ctx->motor_enabled[mid] = true;
         }
@@ -663,13 +666,13 @@ void app_vofa_apply_cmd(const vofa_cmd_t *cmd,
         break;
 
     case VOFA_CMD_STOP:
-        g_sweep_cancel = true;  /* 涓柇 Sweep */
+        g_sweep_cancel = true;  /* 中断 Sweep */
         app_motor_stop(ctx, mid);
         (void)printf("[%lu] Stop\r\n", (unsigned long)mid);
         break;
 
     case VOFA_CMD_STOP_ALL:
-        g_sweep_cancel = true;  /* 涓柇 Sweep */
+        g_sweep_cancel = true;  /* 中断 Sweep */
         app_motor_stop_all(ctx);
         (void)printf("All stopped\r\n");
         break;
@@ -723,12 +726,12 @@ void app_vofa_apply_cmd(const vofa_cmd_t *cmd,
         (void)printf("[%lu] Sweep starting (~40s)...\r\n",
             (unsigned long)mid);
 
-        /* 鎵ц鎵(闃诲绾?3绉? */
+        /* 说明：VOFA+通信相关处理。 */
         if (app_ff_sweep(ctx, mid, &sweep_result)) {
-            /* 鏈€灏忎簩涔樻嫙鍚?*/
+            /* 说明：VOFA+通信相关处理。 */
             float k, b;
             if (app_ff_fit_linear(&sweep_result, &k, &b)) {
-                /* 鑷姩搴旂敤鎷熷悎缁撴灉 */
+                /* 自动应用拟合结果 */
                 OSAL_CRITICAL_SECTION {
                     ctx->ff[mid].k = k;
                     ctx->ff[mid].b = b;
@@ -865,8 +868,8 @@ void app_vofa_apply_cmd(const vofa_cmd_t *cmd,
             (double)step_result.T_s,
             (double)(step_result.fit_quality * 100.0f));
 
-        /* 鏋佺偣閰嶇疆璁＄畻PID鍙傛暟 */
-        float bw = 5.0f;  /* 榛樿5Hz闂幆甯﹀ */
+        /* 极点配置计算PID参数 */
+        float bw = 5.0f;  /* 默认5Hz闭环带宽 */
         if (cmd->has_value && cmd->value > 0.5f) {
             bw = cmd->value;
         }
@@ -881,7 +884,7 @@ void app_vofa_apply_cmd(const vofa_cmd_t *cmd,
                 "Kp=%.4f  Ki=%.4f  (BW=%.1fHz)\r\n",
                 (double)kp, (double)ki, (double)bw);
 
-            /* 鑷姩鏇存柊鍓嶉 */
+            /* 自动更新前馈 */
             float ff_k = 1.0f / step_result.K;
             if (isfinite(ff_k) && ff_k > 0.0f) {
                 OSAL_CRITICAL_SECTION {
@@ -896,14 +899,14 @@ void app_vofa_apply_cmd(const vofa_cmd_t *cmd,
         break;
     }
 
-    /* ---- 浣嶇疆-閫熷害涓茬骇鎺у埗鍛戒护 ---- */
+    /* ---- 位置-速度串级控制命令 ---- */
 
     case VOFA_CMD_SET_MODE:
     {
         if (!cmd->has_value) { break; }
         app_ctrl_mode_t new_mode = (app_ctrl_mode_t)cmd->value;
 
-        /* 鑾峰彇褰撳墠4璺疪PM鐢ㄤ簬P0杩囨浮 */
+        /* 切换模式时读取 4 个电机的当前 RPM, 避免速度突变 */
         float cur_rpm[APP_POS_MOTOR_COUNT];
         OSAL_CRITICAL_SECTION {
             for (uint32_t i = 0; i < BSP_MOTOR_COUNT; i++) {
@@ -935,7 +938,7 @@ void app_vofa_apply_cmd(const vofa_cmd_t *cmd,
         float target_pulses = cmd->value;
         float cruise_rpm   = cmd->value2;
 
-        /* 鍙傛暟鏍￠獙 */
+        /* 参数校验 */
         if (!isfinite(target_pulses) || !isfinite(cruise_rpm)) {
             (void)printf("[POS] rejected: NaN/Inf\r\n");
             break;
@@ -947,7 +950,7 @@ void app_vofa_apply_cmd(const vofa_cmd_t *cmd,
             break;
         }
 
-        /* 濡傛灉褰撳墠涓嶆槸POSITION妯″紡, 鍏堝垏妯″紡 */
+        /* 如果当前不是POSITION模式, 先切模式 */
         uint32_t now = osal_get_tick_count();
         if (ctx->posctrl.mode != APP_CTRL_MODE_POSITION) {
             float cur_rpm[APP_POS_MOTOR_COUNT];
@@ -962,19 +965,36 @@ void app_vofa_apply_cmd(const vofa_cmd_t *cmd,
             }
         }
 
-        /* 璇诲彇褰撳墠缂栫爜鍣ㄤ綅缃?4璺钩鍧? */
-        int32_t enc[BSP_ENCODER_COUNT];
-        (void)bsp_encoder_get_all_counts(enc);
+        /* 说明：VOFA+通信相关处理。 */
+        int32_t enc_totals[BSP_ENCODER_COUNT];
+        (void)bsp_encoder_get_all_totals(enc_totals);
         float enc_avg = 0.0f;
-        for (uint32_t i = 0; i < BSP_ENCODER_COUNT; i++) {
-            enc_avg += (float)enc[i];
+        app_pos_feedback_t start_feedback = {0};
+        uint32_t feedback_count = 0U;
+        for (uint32_t motor = 0U; motor < BSP_MOTOR_COUNT; motor++) {
+            if ((PRJ_MOTION_FEEDBACK_MASK & (1UL << motor)) == 0UL) {
+                continue;
+            }
+            uint32_t encoder_id = (uint32_t)s_vofa_motor_encoder_map[motor];
+            if (encoder_id < BSP_ENCODER_COUNT) {
+                start_feedback.position[encoder_id] =
+                    (float)enc_totals[encoder_id];
+                start_feedback.valid_mask |= (1UL << encoder_id);
+                enc_avg += (float)enc_totals[encoder_id];
+                feedback_count++;
+            }
         }
-        enc_avg /= (float)BSP_ENCODER_COUNT;
+        if (feedback_count == 0U) {
+            (void)printf("[POS] rejected: no feedback encoder\r\n");
+            break;
+        }
+        enc_avg /= (float)feedback_count;
+        start_feedback.average_position = enc_avg;
 
-        /* 鍚姩浣嶇疆鎺у埗 */
+        /* 启动位置控制 */
         OSAL_CRITICAL_SECTION {
-            app_posctrl_start_position(&ctx->posctrl,
-                target_pulses, cruise_rpm, enc_avg);
+            app_posctrl_start_position_feedback(&ctx->posctrl,
+                target_pulses, cruise_rpm, enc_avg, &start_feedback);
         }
 
         (void)printf("[POS] target=%.0f pulses, cruise=%.0f RPM\r\n",
@@ -989,7 +1009,7 @@ void app_vofa_apply_cmd(const vofa_cmd_t *cmd,
         float target_angle = cmd->value;
         float cruise_rpm   = cmd->value2;
 
-        /* 鍙傛暟鏍￠獙 */
+        /* 参数校验 */
         if (!isfinite(target_angle) || !isfinite(cruise_rpm)) {
             (void)printf("[ANGLE] rejected: NaN/Inf\r\n");
             break;
@@ -1001,7 +1021,7 @@ void app_vofa_apply_cmd(const vofa_cmd_t *cmd,
             break;
         }
 
-        /* 濡傛灉褰撳墠涓嶆槸ANGLE妯″紡, 鍏堝垏妯″紡 */
+        /* 如果当前不是ANGLE模式, 先切模式 */
         uint32_t now = osal_get_tick_count();
         if (ctx->posctrl.mode != APP_CTRL_MODE_ANGLE) {
             float cur_rpm[APP_POS_MOTOR_COUNT];
@@ -1016,13 +1036,13 @@ void app_vofa_apply_cmd(const vofa_cmd_t *cmd,
             }
         }
 
-        /* 璇诲彇褰撳墠yaw */
+        /* 读取当前yaw */
         float cur_yaw;
         OSAL_CRITICAL_SECTION {
             cur_yaw = ctx->imu.yaw;
         }
 
-        /* 鍚姩瑙掑害鎺у埗 */
+        /* 启动角度控制 */
         OSAL_CRITICAL_SECTION {
             app_posctrl_start_angle(&ctx->posctrl,
                 target_angle, cruise_rpm, cur_yaw);

@@ -1,8 +1,8 @@
 ﻿/**
  * @file    bsp_adc.c
- * @brief   ADC閲囨牱椹卞姩瀹炵幇
- * @note    鍩轰簬hal_adc瀹炵幇ADC1鐨凪EM0~MEM4搴忓垪閲囨牱鍜岀數鍘嬭浆鎹?
- *          鏀寔闃诲杞妯″紡鍜屼腑鏂ā寮忎袱绉嶉噰鏍锋柟寮?
+ * @brief   ADC采样驱动实现
+ * 说明：ADC采样相关处理。
+ * 说明：ADC采样相关处理。
  */
 #include "bsp_adc.h"
 #include "hal_adc.h"
@@ -10,25 +10,25 @@
 #include "osal_api.h"
 #include "ti_msp_dl_config.h"
 
-/* ======================== 绉佹湁甯搁噺 ======================== */
+/* ======================== 私有常量 ======================== */
 
-/** ADC杞崲瓒呮椂寰幆璁℃暟(绾?ms @80MHz) */
+/* 说明：ADC采样相关处理。 */
 #define ADC_POLL_TIMEOUT  (4000000U)
 
-/* ======================== 绉佹湁绫诲瀷 ======================== */
+/* ======================== 私有类型 ======================== */
 
 /**
- * @brief ADC閫氶亾閰嶇疆鏄犲皠
- * @note  灏咮SP閫氶亾鏋氫妇鏄犲皠鍒癏AL ADC瀹炰緥
+ * @brief ADC通道配置映射
+ * @note  将BSP通道枚举映射到HAL ADC实例
  */
 typedef struct {
-    hal_adc_id_t hal_id;  /**< HAL ADC瀹炰緥缂栧彿 */
-    uint32_t mem_idx;     /**< 瀵瑰簲ADC MEM绱㈠紩 */
+    hal_adc_id_t hal_id;  /**< HAL ADC实例编号 */
+    uint32_t mem_idx;     /**< ADC MEM 索引 */
 } adc_channel_config_t;
 
-/* ======================== 绉佹湁鍙橀噺 ======================== */
+/* ======================== 私有变量 ======================== */
 
-/** ADC閫氶亾鏄犲皠琛?*/
+/* 说明：ADC采样相关处理。 */
 static const adc_channel_config_t s_adc_channels[BSP_ADC_CH_COUNT] = {
     { PRJ_ADC_VOLTAGE_ID, 0U }, /* M1 current / PA15 */
     { PRJ_ADC_VOLTAGE_ID, 1U }, /* M2 current / PA16 */
@@ -37,16 +37,16 @@ static const adc_channel_config_t s_adc_channels[BSP_ADC_CH_COUNT] = {
     { PRJ_ADC_VOLTAGE_ID, 4U }, /* battery / PB18 */
 };
 
-/** 鏈€杩戜竴娆¤浆鎹㈠師濮嬪€?ISR鍐欏叆, 浠诲姟璇诲彇) */
+/* 说明：ADC采样相关处理。 */
 static volatile uint16_t s_last_raw[BSP_ADC_CH_COUNT] = {0};
 
-/** 杞崲瀹屾垚鏍囧織(ISR缃綅, 浠诲姟娓呴櫎) */
+/** 转换完成标志(ISR置位, 任务清除) */
 static volatile bool s_adc_done = false;
 
-/** 鍒濆鍖栨爣蹇?*/
+/* 说明：ADC采样相关处理。 */
 static bool s_adc_inited = false;
 
-/* ======================== 鍏叡鍑芥暟瀹炵幇 ======================== */
+/* ======================== 公共函数实现 ======================== */
 
 bsp_status_t bsp_adc_init(void)
 {
@@ -54,12 +54,12 @@ bsp_status_t bsp_adc_init(void)
         return BSP_OK;
     }
 
-    /* 娓呴浂鍘熷鍊?*/
+    /* 说明：ADC采样相关处理。 */
     for (uint32_t i = 0; i < BSP_ADC_CH_COUNT; i++) {
         s_last_raw[i] = 0U;
     }
 
-    /* 浣胯兘ADC涓柇 */
+    /* 使能ADC中断 */
     NVIC_ClearPendingIRQ(ADC_VOLTAGE_INST_INT_IRQN);
     NVIC_EnableIRQ(ADC_VOLTAGE_INST_INT_IRQN);
 
@@ -124,7 +124,7 @@ bsp_status_t bsp_adc_read_raw(bsp_adc_channel_t channel,
         return BSP_ERR_INVALID_PARAM;
     }
 
-    /* repeat-mode涓嬫寜瀹屾暣搴忓垪鍚屾璇诲彇锛岄伩鍏嶆嬁鍒版湭瀹屾垚鐨凪EM缁撴灉銆?*/
+    /* 说明：ADC采样相关处理。 */
     bsp_adc_clear_done_flag();
     if (bsp_adc_start_conversion(channel) != BSP_OK) {
         return BSP_ERR_HW_FAULT;

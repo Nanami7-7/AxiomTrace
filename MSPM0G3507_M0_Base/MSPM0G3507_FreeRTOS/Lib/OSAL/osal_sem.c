@@ -16,6 +16,11 @@ osal_sem_t osal_sem_create(uint32_t init_count, uint32_t max_count)
         (UBaseType_t)init_count);
 }
 
+/**
+ * @brief 删除函数 osal_sem_delete，完成对应模块的功能处理。
+ * @param sem 函数参数 sem。
+ * @return 函数执行结果。
+ */
 void osal_sem_delete(osal_sem_t sem)
 {
     if (NULL != sem) {
@@ -23,6 +28,12 @@ void osal_sem_delete(osal_sem_t sem)
     }
 }
 
+/**
+ * @brief 执行函数 osal_sem_wait，完成对应模块的功能处理。
+ * @param sem 函数参数 sem。
+ * @param timeout_ms 函数参数 timeout_ms。
+ * @return 函数执行结果。
+ */
 osal_status_t osal_sem_wait(osal_sem_t sem, uint32_t timeout_ms)
 {
     if (NULL == sem) {
@@ -43,6 +54,11 @@ osal_status_t osal_sem_wait(osal_sem_t sem, uint32_t timeout_ms)
     return OSAL_ERR_TIMEOUT;
 }
 
+/**
+ * @brief 执行函数 osal_sem_release，完成对应模块的功能处理。
+ * @param sem 函数参数 sem。
+ * @return 函数执行结果。
+ */
 void osal_sem_release(osal_sem_t sem)
 {
     if (NULL != sem) {
@@ -51,6 +67,11 @@ void osal_sem_release(osal_sem_t sem)
     }
 }
 
+/**
+ * @brief 执行函数 osal_sem_release_from_isr，完成对应模块的功能处理。
+ * @param sem 函数参数 sem。
+ * @return 函数执行结果。
+ */
 void osal_sem_release_from_isr(osal_sem_t sem)
 {
     if (NULL != sem) {
@@ -75,11 +96,22 @@ osal_sem_t osal_sem_create(uint32_t init_count, uint32_t max_count)
     return NULL;
 }
 
+/**
+ * @brief 删除函数 osal_sem_delete，完成对应模块的功能处理。
+ * @param sem 函数参数 sem。
+ * @return 函数执行结果。
+ */
 void osal_sem_delete(osal_sem_t sem)
 {
     (void)sem;
 }
 
+/**
+ * @brief 执行函数 osal_sem_wait，完成对应模块的功能处理。
+ * @param sem 函数参数 sem。
+ * @param timeout_ms 函数参数 timeout_ms。
+ * @return 函数执行结果。
+ */
 osal_status_t osal_sem_wait(osal_sem_t sem, uint32_t timeout_ms)
 {
     (void)timeout_ms;
@@ -103,6 +135,11 @@ osal_status_t osal_sem_wait(osal_sem_t sem, uint32_t timeout_ms)
     return OSAL_ERR_TIMEOUT;
 }
 
+/**
+ * @brief 执行函数 osal_sem_release，完成对应模块的功能处理。
+ * @param sem 函数参数 sem。
+ * @return 函数执行结果。
+ */
 void osal_sem_release(osal_sem_t sem)
 {
     if (NULL == sem) {
@@ -118,6 +155,11 @@ void osal_sem_release(osal_sem_t sem)
     osal_critical_exit_raw(primask);
 }
 
+/**
+ * @brief 执行函数 osal_sem_release_from_isr，完成对应模块的功能处理。
+ * @param sem 函数参数 sem。
+ * @return 函数执行结果。
+ */
 void osal_sem_release_from_isr(osal_sem_t sem)
 {
     /* 裸机模式: ISR中直接操作，已经在中断中无需关中断 */

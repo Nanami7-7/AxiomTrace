@@ -329,6 +329,30 @@ bool SYSCFG_DL_SYSCTL_SYSPLL_init(void);
 /* Defines for SDA: GPIOA.1 with pinCMx 2 on package pin 2 */
 #define IIC_SDA_PIN                                              (DL_GPIO_PIN_1)
 #define IIC_SDA_IOMUX                                             (IOMUX_PINCM2)
+/* Defines for key: GPIOA.7 with pinCMx 14 on package pin 13 */
+#define KEY_key_PORT                                                     (GPIOA)
+#define KEY_key_PIN                                              (DL_GPIO_PIN_7)
+#define KEY_key_IOMUX                                            (IOMUX_PINCM14)
+/* Defines for switch: GPIOB.3 with pinCMx 16 on package pin 15 */
+#define KEY_switch_PORT                                                  (GPIOB)
+#define KEY_switch_PIN                                           (DL_GPIO_PIN_3)
+#define KEY_switch_IOMUX                                         (IOMUX_PINCM16)
+/* Defines for CH1: GPIOB.8 with pinCMx 25 on package pin 22 */
+#define IR_CH1_PORT                                                      (GPIOB)
+#define IR_CH1_PIN                                               (DL_GPIO_PIN_8)
+#define IR_CH1_IOMUX                                             (IOMUX_PINCM25)
+/* Defines for CH2: GPIOB.20 with pinCMx 48 on package pin 41 */
+#define IR_CH2_PORT                                                      (GPIOB)
+#define IR_CH2_PIN                                              (DL_GPIO_PIN_20)
+#define IR_CH2_IOMUX                                             (IOMUX_PINCM48)
+/* Defines for CH3: GPIOB.24 with pinCMx 52 on package pin 42 */
+#define IR_CH3_PORT                                                      (GPIOB)
+#define IR_CH3_PIN                                              (DL_GPIO_PIN_24)
+#define IR_CH3_IOMUX                                             (IOMUX_PINCM52)
+/* Defines for CH4: GPIOA.24 with pinCMx 54 on package pin 44 */
+#define IR_CH4_PORT                                                      (GPIOA)
+#define IR_CH4_PIN                                              (DL_GPIO_PIN_24)
+#define IR_CH4_IOMUX                                             (IOMUX_PINCM54)
 
 
 /* clang-format on */

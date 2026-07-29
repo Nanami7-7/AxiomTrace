@@ -95,9 +95,9 @@ typedef enum {
     VOFA_CMD_ANGLE,         /**< 角度控制: angle=<度>,<巡航RPM> */
     VOFA_CMD_ABORT,         /**< emergency stop */
 
-    VOFA_CMD_INFO_QUERY,    /**< Info? */
-    VOFA_CMD_CONFIG_QUERY,  /**< Config? */
-    VOFA_CMD_STATUS_QUERY,  /**< Status? or Status=0..3 */
+    VOFA_CMD_INFO_QUERY,    /**< 查询运行信息。 */
+    VOFA_CMD_CONFIG_QUERY,  /**< 查询当前配置。 */
+    VOFA_CMD_STATUS_QUERY,  /**< 查询状态，或设置状态 0~3。 */
     VOFA_CMD_STREAM_ON,     /**< Stream=1 */
     VOFA_CMD_STREAM_OFF,    /**< Stream=0 */
 } vofa_cmd_type_t;

@@ -1,6 +1,12 @@
-﻿#include "bsp_key.h"
+#include "bsp_key.h"
 #include "ti_msp_dl_config.h"
 
+/*
+ * 板级适配层职责：
+ * - key.c：通用消抖和事件状态机；
+ * - bsp_key.c：把 HAL GPIO 端口/引脚接入 key_t；
+ * - app_key_events.c：决定事件对应的业务动作。
+ */
 #ifndef KEY_key_IOMUX
 #define KEY_key_IOMUX   (IOMUX_PINCM14)
 #endif
@@ -8,9 +14,13 @@
 #define KEY_switch_IOMUX (IOMUX_PINCM16)
 #endif
 
+/**
+ * @brief 初始化 PA7/PB3 为带上拉的数字输入。
+ * @details 若 SysConfig 已生成相同配置，重复初始化仍是安全的幂等操作。
+ */
 static void bsp_key_hw_init(void)
 {
-    /* Idempotent fallback for a generated file that has not yet included PA7/PB3. */
+    /* 兼容尚未重新生成 PA7/PB3 配置的 ti_msp_dl_config.h。 */
     DL_GPIO_initDigitalInputFeatures(KEY_key_IOMUX,
         DL_GPIO_INVERSION_DISABLE, DL_GPIO_RESISTOR_PULL_UP,
         DL_GPIO_HYSTERESIS_DISABLE, DL_GPIO_WAKEUP_DISABLE);
@@ -19,6 +29,7 @@ static void bsp_key_hw_init(void)
         DL_GPIO_HYSTERESIS_DISABLE, DL_GPIO_WAKEUP_DISABLE);
 }
 
+/** key.c 通过此回调读取实际 GPIO 电平。 */
 static bool bsp_key_read_level(void *user_data)
 {
     const bsp_key_gpio_context_t *gpio =
@@ -26,6 +37,7 @@ static bool bsp_key_read_level(void *user_data)
     return (gpio != NULL) ? hal_gpio_read_pin(gpio->port, gpio->pin) : false;
 }
 
+/** 记录扫描错误，便于调试适配层初始化和运行状态。 */
 static void bsp_key_manager_record_error(bsp_key_manager_t *manager,
                                          key_status_t status)
 {

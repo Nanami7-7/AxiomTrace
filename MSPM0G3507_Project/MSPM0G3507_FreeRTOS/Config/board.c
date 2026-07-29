@@ -1,8 +1,16 @@
 #include "board.h"
 #include "bsp_uart.h"
-#include "bsp_ble_uart.h"
+#include "proto_uart1_a.h"
 #include "ti_msp_dl_config.h"
 #include <stdio.h>
+/**
+ * @brief  Board A UART1 板间协议中断入口。
+ * @note   只搬运字节到环形缓冲，协议解析在任务上下文执行。
+ */
+void UART1_IRQHandler(void)
+{
+    proto_uart1_a_irq_handler();
+}
 
 
 /**
@@ -14,14 +22,6 @@ void UART_0_DEBUG_INST_IRQHandler(void)
     bsp_uart_irq_handler();
 }
 
-/**
- * @brief UART1 BLE 模块中断转发入口。
- * @details 仅将 UART1 中断交给 BLE UART BSP 处理，协议解析在应用服务层完成。
- */
-void UART1_INST_IRQHandler(void)
-{
-    bsp_ble_uart_irq_handler();
-}
 #if !defined(__MICROLIB)
 #if (__ARMCLIB_VERSION <= 6000000)
 struct __FILE

@@ -15,6 +15,11 @@ osal_queue_t osal_queue_create(uint32_t queue_len, uint32_t item_size)
     return xQueueCreate((UBaseType_t)queue_len, (UBaseType_t)item_size);
 }
 
+/**
+ * @brief 删除函数 osal_queue_delete，完成对应模块的功能处理。
+ * @param queue 函数参数 queue。
+ * @return 函数执行结果。
+ */
 void osal_queue_delete(osal_queue_t queue)
 {
     if (NULL != queue) {
@@ -22,6 +27,13 @@ void osal_queue_delete(osal_queue_t queue)
     }
 }
 
+/**
+ * @brief 发送函数 osal_queue_send，完成对应模块的功能处理。
+ * @param queue 函数参数 queue。
+ * @param item 函数参数 item。
+ * @param timeout_ms 函数参数 timeout_ms。
+ * @return 函数执行结果。
+ */
 osal_status_t osal_queue_send(osal_queue_t queue, const void *item,
     uint32_t timeout_ms)
 {
@@ -45,6 +57,13 @@ osal_status_t osal_queue_send(osal_queue_t queue, const void *item,
     return OSAL_ERR_TIMEOUT;
 }
 
+/**
+ * @brief 接收函数 osal_queue_receive，完成对应模块的功能处理。
+ * @param queue 函数参数 queue。
+ * @param item 函数参数 item。
+ * @param timeout_ms 函数参数 timeout_ms。
+ * @return 函数执行结果。
+ */
 osal_status_t osal_queue_receive(osal_queue_t queue, void *item,
     uint32_t timeout_ms)
 {
@@ -66,6 +85,12 @@ osal_status_t osal_queue_receive(osal_queue_t queue, void *item,
     return OSAL_ERR_TIMEOUT;
 }
 
+/**
+ * @brief 发送函数 osal_queue_send_from_isr，完成对应模块的功能处理。
+ * @param queue 函数参数 queue。
+ * @param item 函数参数 item。
+ * @return 函数执行结果。
+ */
 osal_status_t osal_queue_send_from_isr(osal_queue_t queue,
     const void *item)
 {
@@ -99,6 +124,12 @@ struct osal_queue {
     uint32_t    item_size; /**< 每条消息大小(字节) */
 };
 
+/**
+ * @brief 创建函数 osal_queue_create，完成对应模块的功能处理。
+ * @param queue_len 函数参数 queue_len。
+ * @param item_size 函数参数 item_size。
+ * @return 函数执行结果。
+ */
 osal_queue_t osal_queue_create(uint32_t queue_len, uint32_t item_size)
 {
     (void)queue_len;
@@ -107,11 +138,23 @@ osal_queue_t osal_queue_create(uint32_t queue_len, uint32_t item_size)
     return NULL;
 }
 
+/**
+ * @brief 删除函数 osal_queue_delete，完成对应模块的功能处理。
+ * @param queue 函数参数 queue。
+ * @return 函数执行结果。
+ */
 void osal_queue_delete(osal_queue_t queue)
 {
     (void)queue;
 }
 
+/**
+ * @brief 发送函数 osal_queue_send，完成对应模块的功能处理。
+ * @param queue 函数参数 queue。
+ * @param item 函数参数 item。
+ * @param timeout_ms 函数参数 timeout_ms。
+ * @return 函数执行结果。
+ */
 osal_status_t osal_queue_send(osal_queue_t queue, const void *item,
     uint32_t timeout_ms)
 {
@@ -143,6 +186,13 @@ osal_status_t osal_queue_send(osal_queue_t queue, const void *item,
     return OSAL_OK;
 }
 
+/**
+ * @brief 接收函数 osal_queue_receive，完成对应模块的功能处理。
+ * @param queue 函数参数 queue。
+ * @param item 函数参数 item。
+ * @param timeout_ms 函数参数 timeout_ms。
+ * @return 函数执行结果。
+ */
 osal_status_t osal_queue_receive(osal_queue_t queue, void *item,
     uint32_t timeout_ms)
 {
@@ -174,6 +224,12 @@ osal_status_t osal_queue_receive(osal_queue_t queue, void *item,
     return OSAL_OK;
 }
 
+/**
+ * @brief 发送函数 osal_queue_send_from_isr，完成对应模块的功能处理。
+ * @param queue 函数参数 queue。
+ * @param item 函数参数 item。
+ * @return 函数执行结果。
+ */
 osal_status_t osal_queue_send_from_isr(osal_queue_t queue,
     const void *item)
 {

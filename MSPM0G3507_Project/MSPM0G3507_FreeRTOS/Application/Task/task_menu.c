@@ -1,15 +1,15 @@
-﻿/**
+/**
  * @file    task_menu.c
- * @brief   閼挎粌宕熸禒璇插鐎圭偟骞?CLI濡€崇础)
- * @note    CLI濡€崇础: 閺勫墽銇氶悩鑸碘偓?閳?缁涘绶熼崨鎴掓姢 閳?閹笛嗩攽 閳?閸掗攱鏌?
- *          Run閸涙垝鎶ゆ潻娑樺弳閺佺増宓佹潏鎾冲毉濡€崇础(30ms VOFA+閺佺増宓?
- *          Stop閸涙垝鎶ら柅鈧崙鐑樻殶閹诡喛绶崙鐑樐佸? */
+ * 说明：菜单命令相关处理。
+ * 说明：菜单命令相关处理。
+ * 说明：菜单命令相关处理。
+ * 说明：菜单命令相关处理。
+ */
 #include "task_menu.h"
 #include "app_main.h"
 #include "app_pid.h"
 #include "app_feedforward.h"
 #include "app_vofa.h"
-#include "app_imu_console.h"
 #include "app_complementary_filter.h"
 #include "osal_api.h"
 #include "bsp_led.h"
@@ -17,36 +17,34 @@
 #include "bsp_encoder.h"
 #include "bsp_uart.h"
 #include "app_debug.h"
+#include "app_encoder_telemetry.h"
 #include "project_config.h"
-#if (PRJ_BLE_MENU_ENABLE != 0U)
-#include "app_ble_service.h"
-#endif
 #include "app_test_runner.h"
 #include "axiomtrace.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
-/* ======================== 缁変焦婀佺敮鎼佸櫤 ======================== */
+/* ======================== DRV 示波器控制 ======================== */
 
-/** 閻㈠灚婧€閸氬秶袨閺屻儲澹樼悰?*/
+/* 说明：菜单命令相关处理。 */
 static const char *s_motor_names[BSP_MOTOR_COUNT] = {
     "A", "B", "C", "D"
 };
 
-/** LED韫囧啳鐑﹂崨銊︽埂(ms) */
+/** LED 闪烁周期(ms) */
 #define MENU_LED_PERIOD_MS  (100U)
 
-/** LED缂堟槒娴嗛梼鍫濃偓?ms) */
+/* 说明：菜单命令相关处理。 */
 #define LED_TOGGLE_THRESH   (500U)
 
-/* ======================== 缁変焦婀侀崙鑺ユ殶: 鐞涘矁绶崗?======================== */
+/* 说明：菜单命令相关处理。 */
 
 /**
- * @brief  闂堢偤妯嗘繅鐐额攽鏉堟挸鍙?
- * @param  line_buf  鐞涘瞼绱﹂崘鎻掑隘
- * @param  buf_size  缂傛挸鍟块崠鍝勩亣鐏? * @param  line_pos  瑜版挸澧犻崘娆忓弳娴ｅ秶鐤嗛幐鍥嫛(鐠囪鍟?
- * @retval true  娑撯偓鐞涘矁绶崗銉ョ暚閹? * @retval false 鐏忔碍婀€瑰本鍨?
+ * 说明：菜单命令相关处理。
+ * @param  line_buf  命令行缓冲区
+ * 说明：菜单命令相关处理。
+ * 说明：菜单命令相关处理。
  */
 typedef enum {
     MENU_DRVSCOPE_START = 0,
@@ -64,10 +62,89 @@ typedef struct {
 
 static char menu_ascii_lower(char ch);
 
-#if (PRJ_BLE_MENU_CONSOLE_ENABLE != 0U)
-static bool menu_read_ble_line(char *line_buf, uint32_t buf_size,
-                               uint32_t *line_pos, bool *discard_line);
-#endif
+/** Continuous IMU stream state; accessed only by the menu task. */
+static bool s_imu_stream_enabled = false;
+static uint32_t s_imu_stream_next_ms = 0U;
+
+/**
+ * @brief Send one IMU frame through UART0 DMA.
+ * @param ctx Shared application context.
+ * @param report_errors Print one-shot diagnostic messages on failure.
+ * @return true when a DMA transfer was accepted.
+ * @details Exactly ten CSV fields are sent: ax, ay, az (g), gx, gy, gz (dps),
+ *          roll, pitch, yaw (deg), and temperature (degC). Continuous output
+ *          intentionally drops a frame when DMA is busy instead of blocking
+ *          the menu task or allowing frames to queue indefinitely.
+ */
+static bool menu_send_imu_frame_dma(const app_shared_ctx_t *ctx,
+                                    bool report_errors)
+{
+    static char tx_buf[PRJ_IMU_SNAPSHOT_DMA_BUF_SIZE];
+    app_imu_data_t sample;
+    int len;
+    bsp_status_t status;
+
+    if (ctx == NULL) {
+        return false;
+    }
+
+    OSAL_CRITICAL_SECTION {
+        sample = ctx->imu;
+    }
+
+    if (!bsp_uart_tx_idle()) {
+        if (report_errors) {
+            (void)printf("[IMU] UART0 DMA busy; snapshot dropped\r\n");
+        }
+        return false;
+    }
+
+    len = snprintf(tx_buf, sizeof(tx_buf),
+        "%.5f,%.5f,%.5f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.2f\r\n",
+        (double)sample.accel_x_g,
+        (double)sample.accel_y_g,
+        (double)sample.accel_z_g,
+        (double)sample.gyro_x_dps,
+        (double)sample.gyro_y_dps,
+        (double)sample.gyro_z_dps,
+        (double)sample.roll,
+        (double)sample.pitch,
+        (double)sample.yaw,
+        (double)sample.temperature);
+
+    if (len <= 0 || (uint32_t)len >= sizeof(tx_buf)) {
+        if (report_errors) {
+            (void)printf("[IMU] snapshot formatting failed\r\n");
+        }
+        return false;
+    }
+
+    status = bsp_uart_send_dma((const uint8_t *)tx_buf, (uint16_t)len);
+    if (status != BSP_OK) {
+        if (report_errors) {
+            (void)printf("[IMU] DMA send failed: %d\r\n", (int)status);
+        }
+        return false;
+    }
+
+    return true;
+}
+
+static void menu_process_imu_stream(const app_shared_ctx_t *ctx,
+                                    uint32_t now_ms)
+{
+    if (!s_imu_stream_enabled) {
+        return;
+    }
+
+    if ((int32_t)(now_ms - s_imu_stream_next_ms) < 0) {
+        return;
+    }
+
+    /* Schedule from the current time so a delayed menu task never bursts. */
+    s_imu_stream_next_ms = now_ms + PRJ_IMU_STREAM_PERIOD_MS;
+    (void)menu_send_imu_frame_dma(ctx, false);
+}
 
 /** Parse: encdiag cap [A|B|C|D|ALL] [window_ms]. */
 static bool menu_parse_encdiag_capture(const char *line,
@@ -299,17 +376,17 @@ static bool menu_read_line(char *line_buf, uint32_t buf_size,
     return false;
 }
 
-/* ======================== 缁変焦婀侀崙鑺ユ殶: 閻樿埖鈧焦妯夌粈?======================== */
+/* 说明：菜单命令相关处理。 */
 
 /**
- * @brief  閹垫挸宓冭ぐ鎾冲閻樿埖鈧?閻㈠灚婧€閸欏倹鏆?FF閻樿埖鈧?IMU閺佺増宓?
+ * 说明：菜单命令相关处理。
  */
 static void menu_print_status(const app_shared_ctx_t *ctx,
                                uint32_t motor)
 {
     (void)printf("\r\n=== Motor: %s ===\r\n", s_motor_names[motor]);
 
-    /* 瑜版挸澧犻惄顔界垼RPM */
+    /* 当前目标RPM */
     {
         float sp;
         OSAL_CRITICAL_SECTION {
@@ -318,7 +395,7 @@ static void menu_print_status(const app_shared_ctx_t *ctx,
         (void)printf("Target: %.0f RPM\r\n", (double)sp);
     }
 
-    /* 閸氬嫮鏁搁張绡淚D閸欏倹鏆?*/
+    /* 说明：菜单命令相关处理。 */
     for (uint32_t i = 0U; i < BSP_MOTOR_COUNT; i++) {
         float kp, ki, kd;
         OSAL_CRITICAL_SECTION {
@@ -331,7 +408,7 @@ static void menu_print_status(const app_shared_ctx_t *ctx,
             (double)kp, (double)ki, (double)kd);
     }
 
-    /* FF閻樿埖鈧?*/
+    /* 说明：菜单命令相关处理。 */
     {
         float ff_k, ff_b, ff_kp, ff_ki, ff_kd;
         bool ff_en;
@@ -353,7 +430,7 @@ static void menu_print_status(const app_shared_ctx_t *ctx,
         }
     }
 
-    /* 閻㈠灚婧€鏉╂劘顢戦悩鑸碘偓?*/
+    /* 说明：菜单命令相关处理。 */
     {
         bool en;
         int32_t rpm;
@@ -372,7 +449,7 @@ static void menu_print_status(const app_shared_ctx_t *ctx,
         }
     }
 
-    /* IMU閺佺増宓?*/
+    /* 说明：菜单命令相关处理。 */
     {
         float roll, pitch, yaw, heading, vx;
         OSAL_CRITICAL_SECTION {
@@ -405,12 +482,12 @@ static void menu_print_status(const app_shared_ctx_t *ctx,
     }
 }
 
-/* ======================== 缁変焦婀侀崙鑺ユ殶: 閺佺増宓佹潏鎾冲毉瀵邦亞骞?======================== */
+/* 说明：菜单命令相关处理。 */
 
 /**
- * @brief  VOFA+閺佺増宓佹潏鎾冲毉濡€崇础(Run閸氬氦绻橀崗? Stop闁偓閸?
- * @param  ctx          閸忓彉闊╂稉濠佺瑓閺? * @param  motor        瑜版挸澧犻悽鍨簚缁便垹绱╅幐鍥嫛
- * @param  need_refresh 閸掗攱鏌婇弽鍥х箶閹稿洭鎷?
+ * 说明：菜单命令相关处理。
+ * 说明：菜单命令相关处理。
+ * 说明：菜单命令相关处理。
  */
 static void menu_data_output_loop(app_shared_ctx_t *ctx,
                                    uint32_t *motor,
@@ -418,40 +495,36 @@ static void menu_data_output_loop(app_shared_ctx_t *ctx,
 {
     char line_buf[PRJ_MENU_LINE_BUF_SIZE];
     uint32_t line_pos = 0U;
-#if (PRJ_BLE_MENU_CONSOLE_ENABLE != 0U)
-    uint32_t ble_line_pos = 0U;
-    bool ble_line_discard = false;
-#endif
     uint32_t led_cnt = 0U;
 
     (void)printf("[DATA] VOFA+ output started. Send Stop to exit.\r\n");
 
     for (;;) {
-        /* 闂堢偤妯嗘繅鐐搭梾閺屻儱鎳℃禒?*/
-#if (PRJ_BLE_MENU_CONSOLE_ENABLE != 0U)
-        if (menu_read_line(line_buf, PRJ_MENU_LINE_BUF_SIZE, &line_pos) ||
-            menu_read_ble_line(line_buf, PRJ_MENU_LINE_BUF_SIZE,
-                               &ble_line_pos, &ble_line_discard)) {
-            (void)printf("[BLE/UART MENU] %s\r\n", line_buf);
-#else
+        /* 说明：菜单命令相关处理。 */
         if (menu_read_line(line_buf, PRJ_MENU_LINE_BUF_SIZE, &line_pos)) {
-#endif
             vofa_cmd_t cmd;
             if (app_vofa_parse_cmd(line_buf, &cmd)) {
                 app_vofa_apply_cmd(&cmd, ctx, motor, need_refresh);
 
-                /* Stop闁偓閸戠儤鏆熼幑顔跨翻閸戠儤膩瀵?*/
+                if (cmd.type == VOFA_CMD_STOP ||
+                    cmd.type == VOFA_CMD_STOP_ALL ||
+                    cmd.type == VOFA_CMD_ABORT ||
+                    cmd.type == VOFA_CMD_STREAM_OFF) {
+                    app_encoder_telemetry_stop();
+                }
+
+                /* 说明：菜单命令相关处理。 */
                 if (cmd.type == VOFA_CMD_STOP ||
                     cmd.type == VOFA_CMD_STOP_ALL ||
                     cmd.type == VOFA_CMD_STREAM_OFF) {
                     (void)printf("[DATA] VOFA+ output stopped.\r\n");
                     return;
                 }
-                /* 闂堟炕top閸涙垝鎶? 閸欘亝澧﹂崡鏉垮冀妫? 娑撳秴鍩涢弬鎷屽綅閸?*/
+                /* 说明：菜单命令相关处理。 */
             }
         }
 
-        /* 鏉堟挸鍤璙OFA+閺佺増宓?11闁岸浜? DMA闂堢偤妯嗘繅? */
+        /* 说明：菜单命令相关处理。 */
         {
             float channels[VOFA_TELEMETRY_CHANNEL_COUNT];
             OSAL_CRITICAL_SECTION {
@@ -459,20 +532,20 @@ static void menu_data_output_loop(app_shared_ctx_t *ctx,
                     channels[i] = (float)ctx->status.rpm[i];
                     channels[4 + i] = ctx->pid[i].setpoint;
                 }
-                /* CH8: FF duty(闁鑵戦悽鍨簚) */
+                /* CH8: FF duty(选中电机) */
                 if (ctx->ff[*motor].enabled) {
                     channels[8] = app_ff_compute(
                         &ctx->ff[*motor], ctx->pid[*motor].setpoint);
                 } else {
                     channels[8] = 0.0f;
                 }
-                /* CH9: PID娣囶喗顒滈柌?闁鑵戦悽鍨簚) */
+                /* 说明：菜单命令相关处理。 */
                 channels[9] = ctx->status.pid_correction[*motor];
-                /* CH10: 鐎圭偤妾疍UTY鏉堟挸鍤?闁鑵戦悽鍨簚) */
+                /* 说明：菜单命令相关处理。 */
                 channels[10] = (float)ctx->status.output[*motor];
             }
 
-            /* 閺嶇厧绱￠崠鏍у煂娑撳瓨妞傜紓鎾冲暱閸?*/
+            /* 说明：菜单命令相关处理。 */
             char tx_buf[180];
             int len = 0;
             for (uint32_t i = 0U; i < VOFA_TELEMETRY_CHANNEL_COUNT; i++) {
@@ -484,7 +557,7 @@ static void menu_data_output_loop(app_shared_ctx_t *ctx,
                     sizeof(tx_buf) - (uint32_t)len,
                     "%.6f", (double)channels[i]);
                 if (ret < 0 || (uint32_t)ret >= sizeof(tx_buf) - (uint32_t)len) {
-                    len = 0;  /* 缂傛挸鍟块崠杞扮瑝鐡?閺€鎯х磾閺堫剙鎶?*/
+                    len = 0;  /* 说明：菜单命令相关处理。 */
                     break;
                 }
                 len += ret;
@@ -492,14 +565,14 @@ static void menu_data_output_loop(app_shared_ctx_t *ctx,
             if (len > 0 && len < (int)sizeof(tx_buf)) {
                 tx_buf[len] = '\n';
                 len++;
-                /* 闂堢偤妯嗘繅婵狹A閸欐垿鈧緤绱板Λ鈧弻銉︾垼韫囨ぞ缍呴敍灞界箹閸掓瑨鐑︽潻鍥ㄦ拱鐢?*/
+                /* 说明：菜单命令相关处理。 */
                 if (bsp_uart_tx_idle()) {
                     (void)bsp_uart_send_dma((uint8_t *)tx_buf, (uint16_t)len);
                 }
             }
         }
 
-        /* LED韫囧啳鐑?*/
+        /* 说明：菜单命令相关处理。 */
         led_cnt += PRJ_RPM_OUTPUT_PERIOD_MS;
         if (led_cnt >= LED_TOGGLE_THRESH) {
             led_cnt = 0U;
@@ -510,506 +583,9 @@ static void menu_data_output_loop(app_shared_ctx_t *ctx,
     }
 }
 
-/* ======================== 閸忣剙鍙￠崙鑺ユ殶鐎圭偟骞?======================== */
-
-#if (PRJ_BLE_MENU_ENABLE != 0U)
-
-/* ======================== JDY-23 BLE console helpers ======================== */
-
-#if (PRJ_BLE_MENU_CONSOLE_ENABLE != 0U)
-/**
- * @brief 浠?JDY-23 閫忔槑閫氶亾缁勮涓€鏉¤彍鍗曞懡浠ゃ€?
- * @details 鎵嬫満绔繀椤诲彂閫?ASCII 鏂囨湰骞朵互 CR/LF 鎴?LF 缁撴潫銆傝鍑芥暟涓嶅洖鏄?
- * 鍒?BLE锛屼篃涓嶆妸 BLE 鏁版嵁鐩存帴浜ょ粰鐢垫満灞傦紱瀹屾暣琛屼粛澶嶇敤鐜版湁鑿滃崟鍒嗗彂閫昏緫銆?
- * 瓒呴暱琛屼細琚涪寮冨埌琛屽熬锛岄伩鍏嶆墽琛屾埅鏂懡浠ゃ€?
- */
-static bool menu_read_ble_line(char *line_buf, uint32_t buf_size,
-                               uint32_t *line_pos, bool *discard_line)
-{
-    uint8_t ch;
-    uint16_t received;
-    jdy23_status_t status;
-
-    if ((line_buf == NULL) || (buf_size <= 1U) ||
-        (line_pos == NULL) || (discard_line == NULL)) {
-        return false;
-    }
-
-    /* 姣忔鏈€澶氬彇 64 瀛楄妭锛涢亣鍒板畬鏁磋绔嬪嵆杩斿洖锛屽墿浣欐暟鎹暀缁欎笅娆″惊鐜€?*/
-    for (uint32_t i = 0U; i < 64U; i++) {
-        received = 0U;
-        status = app_ble_receive(&ch, 1U, &received);
-        if ((status != JDY23_OK) || (received == 0U)) {
-            return false;
-        }
-
-        if ((ch == '\r') || (ch == '\n')) {
-            if (*discard_line) {
-                *line_pos = 0U;
-                *discard_line = false;
-                continue;
-            }
-            if (*line_pos == 0U) {
-                continue;
-            }
-            line_buf[*line_pos] = '\0';
-            *line_pos = 0U;
-            return true;
-        }
-
-        if ((ch == 0x7FU) || (ch == 0x08U)) {
-            if (!*discard_line && (*line_pos > 0U)) {
-                (*line_pos)--;
-            }
-            continue;
-        }
-
-        if ((ch >= 0x20U) && (ch < 0x7FU)) {
-            if (*discard_line) {
-                continue;
-            }
-            if (*line_pos < (buf_size - 1U)) {
-                line_buf[*line_pos] = (char)ch;
-                (*line_pos)++;
-            } else {
-                *line_pos = 0U;
-                *discard_line = true;
-            }
-        }
-    }
-
-    return false;
-}
-#endif /* PRJ_BLE_MENU_CONSOLE_ENABLE */
+/* 说明：菜单命令相关处理。 */
 
 
-/**
- * @brief 灏?JDY-23 鐘舵€佺爜杞崲涓轰覆鍙ｅ彲璇诲悕绉般€?
- * @param status JDY-23 椹卞姩鐘舵€佺爜銆?
- * @return 闈欐€佸瓧绗︿覆锛屼笉闇€瑕佽皟鐢ㄨ€呴噴鏀俱€?
- */
-static const char *menu_ble_status_name(jdy23_status_t status)
-{
-    switch (status) {
-    case JDY23_OK:                    return "OK";
-    case JDY23_ERR_INVALID_PARAM:     return "INVALID_PARAM";
-    case JDY23_ERR_NOT_INIT:          return "NOT_INIT";
-    case JDY23_ERR_IO:                return "IO_ERROR";
-    case JDY23_ERR_TIMEOUT:           return "TIMEOUT";
-    case JDY23_ERR_RESPONSE_TOO_LONG: return "RESPONSE_TOO_LONG";
-    case JDY23_ERR_UNEXPECTED_RESPONSE: return "UNEXPECTED_RESPONSE";
-    default:                          return "UNKNOWN";
-    }
-}
-
-/**
- * @brief 鎵撳嵃 UART0 鎺у埗鍙版敮鎸佺殑 JDY-23 BLE 鍛戒护甯姪銆?
- * @details 鍛戒护鍙敤浜庤皟璇曞拰妯″潡閰嶇疆锛汢LE 鎺ユ敹鏁版嵁涓嶄細杩涘叆鐢垫満鎺у埗瑙ｆ瀽鍣ㄣ€?
- */
-static void menu_print_ble_usage(void)
-{
-    (void)printf("\r\nJDY-23 BLE commands (UART1: PB6 TX, PB7 RX, 9600 8N1):\r\n");
-    (void)printf("  ble status                    Show transport/module status.\r\n");
-    (void)printf("  ble probe                     Probe with AT+VER\\r\\n, then AT fallback.\r\n");
-    (void)printf("  ble query <key>               Run one wrapped read-only AT query.\r\n");
-    (void)printf("  ble inspect                   Query every known read-only item.\r\n");
-    (void)printf("  ble action <key> CONFIRM      Run RST/DISC/SLEEP explicitly.\r\n");
-    (void)printf("  ble at <command>              Send arbitrary AT plus CRLF.\r\n");
-    (void)printf("  ble atraw <command>           Compatibility mode: no line ending.\r\n");
-    (void)printf("  ble send <text>               Send transparent data to BLE peer.\r\n");
-    (void)printf("  ble rx                        Drain received BLE bytes once.\r\n");
-    (void)printf("  ble monitor on|off            Print received BLE bytes each menu cycle.\r\n");
-    (void)printf("  ble flush                     Discard buffered BLE RX bytes.\r\n");
-    (void)printf("Queries: VER STAT MAC BAUD NAME STARTEN ADVIN HOSTEN IBUUID MAJOR MINOR.\r\n");
-    (void)printf("Actions: RST DISC SLEEP (confirmation is mandatory).\r\n");
-    (void)printf("Safety: BLE RX is NOT forwarded to the motor/VOFA command parser.\r\n");
-    (void)printf("Disconnect the BLE peer before AT commands; all wrapped commands add CRLF.\r\n");
-}
-
-/**
- * @brief 浠ュ彲瑙佽浆涔夋牸寮忔墦鍗?BLE 鍘熷瀛楄妭銆?
- * @param data 寰呮墦鍗版暟鎹€?
- * @param len 鏁版嵁闀垮害锛屽崟浣嶄负瀛楄妭銆?
- */
-static void menu_print_ble_bytes(const uint8_t *data, uint16_t len)
-{
-    uint16_t i;
-
-    for (i = 0U; i < len; i++) {
-        uint8_t ch = data[i];
-        if (ch == (uint8_t)'\r') {
-            (void)printf("\\r");
-        } else if (ch == (uint8_t)'\n') {
-            (void)printf("\\n");
-        } else if ((ch >= 0x20U) && (ch <= 0x7EU)) {
-            (void)printf("%c", (int)ch);
-        } else {
-            (void)printf("\\x%02X", (unsigned int)ch);
-        }
-    }
-}
-
-/**
- * @brief 浠庡簲鐢ㄦ湇鍔¤鍙栧苟鎵撳嵃涓€鎵瑰凡缂撳瓨 BLE 鎺ユ敹鏁版嵁銆?
- * @return 瀹為檯璇诲彇鍒版暟鎹繑鍥?true锛涙棤鏁版嵁鎴栬鍙栧け璐ヨ繑鍥?false銆?
- */
-static bool menu_ble_drain_rx(void)
-{
-    uint8_t data[64];
-    uint16_t received = 0U;
-    jdy23_status_t status = app_ble_receive(data, (uint16_t)sizeof(data),
-                                            &received);
-
-    if (status != JDY23_OK) {
-        (void)printf("[BLE RX] error=%s (%d)\r\n",
-                     menu_ble_status_name(status), (int)status);
-        return false;
-    }
-    if (received == 0U) {
-        return false;
-    }
-
-    (void)printf("[BLE RX %u] ", (unsigned int)received);
-    menu_print_ble_bytes(data, received);
-    (void)printf("\r\n");
-    return true;
-}
-
-/**
- * @brief 鑾峰彇 BLE 鎺у埗鍙板懡浠ゅ墠缂€鍚庣殑鍙傛暟閮ㄥ垎銆?
- * @param line 瀹屾暣鍛戒护琛屻€?
- * @param prefix_len 鍓嶇紑闀垮害锛屽崟浣嶄负瀛楃銆?
- * @return 璺宠繃绌烘牸鍚庣殑鍙傛暟鎸囬拡锛屾寚鍚戝師濮嬪懡浠よ鍐呴儴銆?
- */
-static const char *menu_ble_argument(const char *line, uint32_t prefix_len)
-{
-    const char *arg = &line[prefix_len];
-    while (*arg == ' ') {
-        arg++;
-    }
-    return arg;
-}
-
-/**
- * @brief 鍒ゆ柇鍛戒护琛屾槸鍚﹀尮閰嶄竴涓畬鏁?BLE 鍛戒护鍓嶇紑銆?
- * @param line 寰呭尮閰嶅懡浠よ銆?
- * @param prefix 鍛戒护鍓嶇紑銆?
- * @return 瀹屽叏鍖归厤鎴栧悗鎺ョ┖鏍兼椂杩斿洖 true銆?
- */
-static bool menu_ble_prefix_matches(const char *line, const char *prefix)
-{
-    size_t prefix_len = strlen(prefix);
-
-    return (strncmp(line, prefix, prefix_len) == 0) &&
-           ((line[prefix_len] == '\0') || (line[prefix_len] == ' '));
-}
-
-/**
- * @brief 灏嗗簲鐢ㄥ眰鍝嶅簲鏍煎紡杞崲涓鸿瘖鏂緭鍑哄悕绉般€?
- * @param info 鍛戒护鍏冩暟鎹紝鍙负 NULL銆?
- * @param result 搴旂敤灞傚懡浠ょ粨鏋滐紝鍙负 NULL銆?
- * @return 闈欐€佹牸寮忓悕绉板瓧绗︿覆銆?
- */
-static const char *menu_ble_response_format_name(
-    const jdy23_command_info_t *info, const app_ble_command_result_t *result)
-{
-    if (result == NULL) {
-        return "NONE";
-    }
-    if (result->format == APP_BLE_RESPONSE_FORMAT_RAW_FALLBACK) {
-        return "RAW_FALLBACK";
-    }
-    if (result->format == APP_BLE_RESPONSE_FORMAT_PREFIX_MATCHED) {
-        return ((info != NULL) && info->response_prefix_verified) ?
-               "PREFIX_MATCHED/VERIFIED" :
-               "PREFIX_MATCHED/UNVERIFIED";
-    }
-    return "NONE";
-}
-
-/**
- * @brief 鎵撳嵃涓€鏉?JDY-23 鍐呯疆鍛戒护鐨勫畬鏁磋瘖鏂粨鏋溿€?
- * @param operation 褰撳墠鎿嶄綔鍚嶇О锛屼緥濡?query銆乮nspect 鎴?action銆?
- * @param command 宸叉墽琛岀殑鍛戒护绱㈠紩銆?
- * @param result 浼犺緭鍜岃В鏋愮粨鏋溿€?
- */
-static void menu_print_ble_command_result(
-    const char *operation, jdy23_command_t command,
-    const app_ble_command_result_t *result)
-{
-    const jdy23_command_info_t *info = app_ble_get_command_info(command);
-
-    if ((operation == NULL) || (info == NULL) || (result == NULL)) {
-        (void)printf("BLE command result: invalid internal parameter.\r\n");
-        return;
-    }
-
-    (void)printf("\r\nBLE %s %s [%s]: %s (%d)\r\n",
-                 operation, info->name, info->at_command,
-                 menu_ble_status_name(result->transfer_status),
-                 (int)result->transfer_status);
-    (void)printf("  raw    : ");
-    if (result->raw_response[0] != '\0') {
-        menu_print_ble_bytes((const uint8_t *)result->raw_response,
-                             (uint16_t)strlen(result->raw_response));
-    } else {
-        (void)printf("<none>");
-    }
-    (void)printf("\r\n");
-
-    (void)printf("  value  : ");
-    if (result->parse_status == JDY23_OK) {
-        menu_print_ble_bytes((const uint8_t *)result->value,
-                             (uint16_t)strlen(result->value));
-    } else {
-        (void)printf("<not parsed: %s (%d)>",
-                     menu_ble_status_name(result->parse_status),
-                     (int)result->parse_status);
-    }
-    (void)printf("\r\n");
-    (void)printf("  format : %s\r\n",
-                 menu_ble_response_format_name(info, result));
-    if (info->response_prefix != NULL) {
-        (void)printf("  prefix : %s (%s)\r\n", info->response_prefix,
-                     info->response_prefix_verified ?
-                     "hardware verified" : "assumed; collect raw reply");
-    } else {
-        (void)printf("  prefix : <unknown/action response>\r\n");
-    }
-}
-
-/**
- * @brief 鎵ц鍐呯疆鍛戒护骞剁珛鍗虫墦鍗扮粨鏋溿€?
- * @param operation 杈撳嚭涓殑鎿嶄綔鍚嶇О銆?
- * @param command 鍛戒护绱㈠紩銆?
- * @param timeout_ms 鍛戒护瓒呮椂鏃堕棿锛屽崟浣嶄负姣銆?
- * @return 搴旂敤鏈嶅姟杩斿洖鐨勪紶杈撶姸鎬併€?
- */
-static jdy23_status_t menu_ble_execute_and_print(
-    const char *operation, jdy23_command_t command, uint32_t timeout_ms)
-{
-    app_ble_command_result_t result;
-    jdy23_status_t status = app_ble_execute_command(command, &result,
-                                                    timeout_ms);
-    menu_print_ble_command_result(operation, command, &result);
-    return status;
-}
-
-/**
- * @brief 渚濇鎵ц鎵€鏈夊唴缃彧璇?AT 鏌ヨ骞舵墦鍗扮粨鏋溿€?
- * @details 涓嶆墽琛?RST銆丏ISC銆丼LEEP 绛夊姩浣滃懡浠わ紝閫傚悎宸ュ巶鍜岀幇鍦哄彧璇昏瘖鏂€?
- */
-static void menu_ble_inspect_all(void)
-{
-    uint32_t i;
-
-    (void)printf("\r\n===== JDY-23 READ-ONLY AT INSPECTION =====\r\n");
-    (void)printf("All commands append \\r\\n. Raw replies are retained.\r\n");
-    (void)printf("Expected prefixes not yet hardware-verified are marked UNVERIFIED.\r\n");
-
-    for (i = 0U; i < (uint32_t)JDY23_COMMAND_COUNT; i++) {
-        jdy23_command_t command = (jdy23_command_t)i;
-        const jdy23_command_info_t *info =
-            app_ble_get_command_info(command);
-        if ((info != NULL) && (info->kind == JDY23_COMMAND_KIND_QUERY)) {
-            (void)menu_ble_execute_and_print("inspect", command, 800U);
-        }
-    }
-    (void)printf("===== JDY-23 INSPECTION COMPLETE =====\r\n");
-}
-
-/**
- * @brief 瑙ｆ瀽骞跺鐞嗕竴鏉?UART0 鎺у埗鍙?BLE 鍛戒护銆?
- * @param line 宸插幓闄よ灏剧殑鍛戒护瀛楃涓层€?
- * @param[in,out] monitor_enabled BLE 鎺ユ敹鐩戣寮€鍏炽€?
- * @return 璇ュ懡浠ゅ睘浜?BLE 鍛戒护骞跺凡澶勭悊杩斿洖 true锛屽惁鍒欒繑鍥?false銆?
- */
-static bool menu_handle_ble_command(const char *line,
-                                    bool *monitor_enabled)
-{
-    char response[APP_BLE_RESPONSE_MAX];
-    char key[16];
-    char token[16];
-    char extra[2];
-    jdy23_status_t status;
-    jdy23_command_t command;
-    const jdy23_command_info_t *info;
-    const char *arg;
-    int parsed;
-
-    if ((line == NULL) || (monitor_enabled == NULL)) {
-        return false;
-    }
-    if ((strcmp(line, "ble") == 0) || (strcmp(line, "ble help") == 0)) {
-        menu_print_ble_usage();
-        return true;
-    }
-    if (strcmp(line, "ble status") == 0) {
-        app_ble_status_t ble;
-        app_ble_get_status(&ble);
-        (void)printf("\r\nBLE/JDY-23 status:\r\n");
-        (void)printf("  UART1 mapping : TX=PB6, RX=PB7, %lu 8N1\r\n",
-                     (unsigned long)ble.baud_rate);
-        (void)printf("  initialized   : %s\r\n",
-                     ble.initialized ? "YES" : "NO");
-        (void)printf("  AT detected   : %s\r\n",
-                     ble.detected ? "YES" : "NO/not probed");
-        (void)printf("  monitor       : %s\r\n",
-                     *monitor_enabled ? "ON" : "OFF");
-        (void)printf("  RX pending    : %lu\r\n",
-                     (unsigned long)ble.rx_pending);
-        (void)printf("  RX bytes/overflow: %lu/%lu\r\n",
-                     (unsigned long)ble.uart_diag.rx_bytes,
-                     (unsigned long)ble.uart_diag.rx_overflow);
-        (void)printf("  IRQ/ignored   : %lu/%lu\r\n",
-                     (unsigned long)ble.uart_diag.irq_count,
-                     (unsigned long)ble.uart_diag.ignored_irq_count);
-        return true;
-    }
-    if (strcmp(line, "ble probe") == 0) {
-        status = app_ble_probe(response, (uint16_t)sizeof(response), 500U);
-        (void)printf("BLE probe: %s (%d)", menu_ble_status_name(status),
-                     (int)status);
-        if (response[0] != '\0') {
-            (void)printf("; response=");
-            menu_print_ble_bytes((const uint8_t *)response,
-                                 (uint16_t)strlen(response));
-        }
-        (void)printf("\r\n");
-        return true;
-    }
-    if (menu_ble_prefix_matches(line, "ble query")) {
-        arg = menu_ble_argument(line, 9U);
-        parsed = sscanf(arg, "%15s %1s", key, extra);
-        if ((parsed != 1) || !app_ble_find_command(key, &command)) {
-            (void)printf("Usage: ble query <VER|STAT|MAC|BAUD|NAME|STARTEN|ADVIN|HOSTEN|IBUUID|MAJOR|MINOR>\r\n");
-            return true;
-        }
-        info = app_ble_get_command_info(command);
-        if ((info == NULL) || (info->kind != JDY23_COMMAND_KIND_QUERY)) {
-            (void)printf("BLE %s is an action; use: ble action %s CONFIRM\r\n",
-                         key, key);
-            return true;
-        }
-        (void)menu_ble_execute_and_print("query", command, 800U);
-        return true;
-    }
-    if (strcmp(line, "ble inspect") == 0) {
-        menu_ble_inspect_all();
-        return true;
-    }
-    if (menu_ble_prefix_matches(line, "ble action")) {
-        arg = menu_ble_argument(line, 10U);
-        parsed = sscanf(arg, "%15s %15s %1s", key, token, extra);
-        if ((parsed != 2) || (strcmp(token, "CONFIRM") != 0) ||
-            !app_ble_find_command(key, &command)) {
-            (void)printf("Usage: ble action <RST|DISC|SLEEP> CONFIRM\r\n");
-            return true;
-        }
-        info = app_ble_get_command_info(command);
-        if ((info == NULL) || (info->kind != JDY23_COMMAND_KIND_ACTION)) {
-            (void)printf("BLE %s is read-only; use: ble query %s\r\n",
-                         key, key);
-            return true;
-        }
-        status = menu_ble_execute_and_print("action", command, 1000U);
-        if ((status == JDY23_ERR_TIMEOUT) &&
-            ((command == JDY23_COMMAND_RST) ||
-             (command == JDY23_COMMAND_DISC) ||
-             (command == JDY23_COMMAND_SLEEP))) {
-            (void)printf("Note: timeout may be expected if the module reset, disconnected, or slept before replying.\r\n");
-        }
-        return true;
-    }
-    if (menu_ble_prefix_matches(line, "ble atraw")) {
-        arg = menu_ble_argument(line, 9U);
-        if (*arg == '\0') {
-            menu_print_ble_usage();
-            return true;
-        }
-        status = app_ble_send_at(arg, JDY23_LINE_END_NONE, response,
-                                 (uint16_t)sizeof(response), 800U);
-        (void)printf("BLE AT(raw): %s (%d)", menu_ble_status_name(status),
-                     (int)status);
-        if (response[0] != '\0') {
-            (void)printf("; response=");
-            menu_print_ble_bytes((const uint8_t *)response,
-                                 (uint16_t)strlen(response));
-        }
-        (void)printf("\r\n");
-        return true;
-    }
-    if (menu_ble_prefix_matches(line, "ble at")) {
-        arg = menu_ble_argument(line, 6U);
-        if (*arg == '\0') {
-            menu_print_ble_usage();
-            return true;
-        }
-        status = app_ble_send_at(arg, JDY23_LINE_END_CRLF, response,
-                                 (uint16_t)sizeof(response), 800U);
-        (void)printf("BLE AT: %s (%d)", menu_ble_status_name(status),
-                     (int)status);
-        if (response[0] != '\0') {
-            (void)printf("; response=");
-            menu_print_ble_bytes((const uint8_t *)response,
-                                 (uint16_t)strlen(response));
-        }
-        (void)printf("\r\n");
-        return true;
-    }
-    if (menu_ble_prefix_matches(line, "ble send")) {
-        arg = menu_ble_argument(line, 8U);
-        if (*arg == '\0') {
-            menu_print_ble_usage();
-            return true;
-        }
-        status = app_ble_send((const uint8_t *)arg, (uint16_t)strlen(arg));
-        (void)printf("BLE TX: %s (%d), %u byte(s)\r\n",
-                     menu_ble_status_name(status), (int)status,
-                     (unsigned int)strlen(arg));
-        return true;
-    }
-    if (strcmp(line, "ble rx") == 0) {
-#if (PRJ_BLE_MENU_CONSOLE_ENABLE != 0U)
-        (void)printf("BLE RX command is unavailable while menu console is enabled.\r\n");
-#else
-        if (!menu_ble_drain_rx()) {
-            (void)printf("[BLE RX] no buffered data.\r\n");
-        }
-#endif
-        return true;
-    }
-    if (strcmp(line, "ble monitor on") == 0) {
-#if (PRJ_BLE_MENU_CONSOLE_ENABLE != 0U)
-        (void)printf("BLE RX monitor is unavailable while menu console is enabled.\r\n");
-#else
-        *monitor_enabled = true;
-        (void)printf("BLE RX monitor: ON\r\n");
-#endif
-        return true;
-    }
-    if (strcmp(line, "ble monitor off") == 0) {
-        *monitor_enabled = false;
-        (void)printf("BLE RX monitor: OFF\r\n");
-        return true;
-    }
-    if (strcmp(line, "ble flush") == 0) {
-#if (PRJ_BLE_MENU_CONSOLE_ENABLE != 0U)
-        (void)printf("BLE RX flush is unavailable while menu console is enabled.\r\n");
-#else
-        app_ble_flush_rx();
-        (void)printf("BLE RX buffer flushed.\r\n");
-#endif
-        return true;
-    }
-    if (menu_ble_prefix_matches(line, "ble")) {
-        menu_print_ble_usage();
-        return true;
-    }
-    return false;
-}
-
-#endif /* PRJ_BLE_MENU_ENABLE */
 
 void app_menu_task(void *param)
 {
@@ -1019,20 +595,11 @@ void app_menu_task(void *param)
     uint32_t line_pos = 0U;
     uint32_t led_cnt = 0U;
     bool need_refresh = true;
-#if (PRJ_BLE_MENU_ENABLE != 0U)
-    bool ble_monitor_enabled = false;
-#if (PRJ_BLE_MENU_CONSOLE_ENABLE != 0U)
-    uint32_t ble_line_pos = 0U;
-    bool ble_line_discard = false;
-#endif
-#endif
+    uint32_t now_ms;
 
     (void)printf("\r\n=== MSPM0G3507 Motor Control ===\r\n");
     (void)printf("Send VOFA+ commands to control.\r\n");
     (void)printf("Type 'bench' to run MATHACL benchmark.\r\n");
-#if (PRJ_BLE_MENU_ENABLE != 0U)
-    (void)printf("Type 'ble help' for JDY-23 UART1/BLE commands.\r\n");
-#endif
     (void)printf("Type 'encdiag' for one read-only hardware/encoder snapshot.\r\n");
 #if (PRJ_DRV8870_FACTORY_TEST_ENABLE != 0U)
     (void)printf("Type 'encdiag cap [A|B|C|D|ALL] [ms]' for capture-edge diagnostics.\r\n");
@@ -1048,45 +615,37 @@ void app_menu_task(void *param)
     (void)printf("Type 'kftune N' to run KF parameter sweep (N sec/set, 9 sets).\r\n");
     (void)printf("Type 'rtosdiag' to show FreeRTOS stack/heap diagnostics.\r\n");
     (void)printf("  - Sweeps Q_angle x Q_bias, outputs drift/std/jump, finds best params\r\n");
+    (void)printf("Type 'imu' to continuously send 10-field IMU CSV via UART0 DMA every 200 ms.\r\n");
+    (void)printf("Type 'ir' to read four infrared channels once.\r\n");
+    (void)printf("Send another non-empty menu command to stop IMU streaming.\r\n");
 
     for (;;) {
-        /* 閸掗攱鏌婇懣婊冨礋 */
+        now_ms = osal_ticks_to_ms(osal_get_tick_count());
+        menu_process_imu_stream(ctx, now_ms);
+        /* 说明：菜单命令相关处理。 */
         if (need_refresh) {
             menu_print_status(ctx, selected_motor);
             need_refresh = false;
         }
 
-        /* 濡偓閺屻儱鎳℃禒?*/
-#if (PRJ_BLE_MENU_CONSOLE_ENABLE != 0U)
-        if (menu_read_line(line_buf, PRJ_MENU_LINE_BUF_SIZE, &line_pos) ||
-            menu_read_ble_line(line_buf, PRJ_MENU_LINE_BUF_SIZE,
-                               &ble_line_pos, &ble_line_discard)) {
-            (void)printf("[BLE/UART MENU] %s\r\n", line_buf);
-#else
+        /* 说明：菜单命令相关处理。 */
         if (menu_read_line(line_buf, PRJ_MENU_LINE_BUF_SIZE, &line_pos)) {
-#endif
             /*
-             * 缁堢閫氬父浠?CRLF 缁撴潫鍛戒护銆俶enu_read_line() 宸插湪 CR 涓?
-             * 杩斿洖涓€娆★紝闅忓悗 LF 浼氬舰鎴愮┖琛岋紱绌鸿涓嶈兘琚綋鎴愭櫘閫氳彍鍗?
-             * 鍛戒护锛屽惁鍒欎細璇Е鍙?app_imu_console_stop()銆?
+             * 说明：菜单命令相关处理。
+             * 说明：菜单命令相关处理。
+             * 说明：菜单命令相关处理。
              */
             if (line_buf[0] != '\0') {
                 menu_drvscope_cmd_t scope_cmd;
-                app_imu_console_cmd_result_t imu_result =
-                    app_imu_console_handle_command(line_buf);
-                if (imu_result != APP_IMU_CONSOLE_CMD_NOT_HANDLED) {
-                    /* 寮€濮?鏌ヨ鏃朵笉瑕佺珛鍒诲埛鏁撮〉鐢垫満鐘舵€侊紝閬垮厤鎶㈠崰 UART銆?*/
-                    need_refresh =
-                        (imu_result == APP_IMU_CONSOLE_CMD_STREAM_STOPPED);
+                if (strcmp(line_buf, "imu") == 0) {
+                    /* `imu` is the only stream command: start/restart at 200 ms. */
+                    s_imu_stream_enabled = true;
+                    s_imu_stream_next_ms = now_ms;
+                    menu_process_imu_stream(ctx, now_ms);
+                    need_refresh = false;
                 } else {
-                /* 鏅€氳彍鍗曞懡浠や笌 CSV 閬ユ祴鍏变韩 UART锛屾墽琛屽墠鍏抽棴杩炵画杈撳嚭銆?*/
-                (void)app_imu_console_stop();
-
-#if (PRJ_BLE_MENU_ENABLE != 0U)
-            if (menu_handle_ble_command(line_buf, &ble_monitor_enabled)) {
-                need_refresh = true;
-            } else
-#endif
+                    /* Preserve the old console behavior: another command stops IMU output. */
+                    s_imu_stream_enabled = false;
             if (menu_parse_drvscope(line_buf, &scope_cmd)) {
                 switch (scope_cmd.action) {
                 case MENU_DRVSCOPE_START:
@@ -1153,8 +712,12 @@ void app_menu_task(void *param)
             } else if (strcmp(line_buf, "adc") == 0) {
                 app_debug_adc_test();
                 need_refresh = true;
+            } else if (strcmp(line_buf, "ir") == 0) {
+                /* UART0 输入 ir：读取一次四路红外并打印，不进入循迹环。 */
+                app_debug_ir_snapshot();
+                need_refresh = true;
             } else if (strncmp(line_buf, "zutptest", 8) == 0) {
-                /* zutptest N: 閸氼垰濮?N 缁?ZUPT 濞村鐦?*/
+                /* 说明：菜单命令相关处理。 */
                 uint32_t dur = 60;
                 if (strlen(line_buf) > 9) {
                     dur = (uint32_t)atoi(&line_buf[9]);
@@ -1162,15 +725,15 @@ void app_menu_task(void *param)
                 }
                 app_test_runner_start(dur);
             } else if (strncmp(line_buf, "turndtest", 9) == 0) {
-                /* turndtest ANGLE [TIMEOUT]: 閸斻劍鈧浇娴嗛崝銊х翱鎼达附绁寸拠?*/
+                /* 说明：菜单命令相关处理。 */
                 float target = 90.0f;
                 uint32_t timeout = 60;
-                /* 鐟欙絾鐎? "turndtest 90" 閹?"turndtest 90 30" */
+                /* 说明：菜单命令相关处理。 */
                 char *p = &line_buf[9];
                 while (*p == ' ') p++;
                 if (*p != '\0') {
                     target = (float)atof(p);
-                    /* 閺屻儲澹樼粭顑跨癌娑擃亜寮弫?*/
+                    /* 说明：菜单命令相关处理。 */
                     while (*p != '\0' && *p != ' ') p++;
                     while (*p == ' ') p++;
                     if (*p != '\0') {
@@ -1181,10 +744,10 @@ void app_menu_task(void *param)
                 if (target == 0.0f) target = 90.0f;
                 app_test_runner_start_turn(target, timeout);
             } else if (strcmp(line_buf, "turnend") == 0) {
-                /* turnend: 閹靛濮╃涵顔款吇鏉烆剙濮╃紒鎾存将 */
+                /* turnend: 手动确认转动结束 */
                 app_test_runner_end_turn();
             } else if (strncmp(line_buf, "kftune", 6) == 0) {
-                /* kftune N: KF 閸欏倹鏆熼幍顐ｅ伎, 濮ｅ繒绮?N 缁?(姒涙顓?10) */
+                /* 说明：菜单命令相关处理。 */
                 uint32_t dur = 10;
                 if (strlen(line_buf) > 7) {
                     dur = (uint32_t)atoi(&line_buf[7]);
@@ -1197,12 +760,19 @@ void app_menu_task(void *param)
                     app_vofa_apply_cmd(&cmd, ctx, &selected_motor,
                                        &need_refresh);
 
-                    /* Run閸涙垝鎶ゆ潻娑樺弳閺佺増宓佹潏鎾冲毉濡€崇础 */
+                    if (cmd.type == VOFA_CMD_STOP ||
+                        cmd.type == VOFA_CMD_STOP_ALL ||
+                        cmd.type == VOFA_CMD_ABORT ||
+                        cmd.type == VOFA_CMD_STREAM_OFF) {
+                        app_encoder_telemetry_stop();
+                    }
+
+                    /* Run 命令: 进入持续数据输出 */
                     if (cmd.type == VOFA_CMD_RUN ||
                         cmd.type == VOFA_CMD_STREAM_ON) {
                         menu_data_output_loop(ctx, &selected_motor,
                                               &need_refresh);
-                        /* 闁偓閸戝搫鎮楅崚閿嬫煀閼挎粌宕?*/
+                        /* 说明：菜单命令相关处理。 */
                         need_refresh = true;
                     }
                 }
@@ -1212,13 +782,7 @@ void app_menu_task(void *param)
 
             }
 
-#if (PRJ_BLE_MENU_ENABLE != 0U) && (PRJ_BLE_MENU_CONSOLE_ENABLE == 0U)
-        if (ble_monitor_enabled) {
-            (void)menu_ble_drain_rx();
-        }
-#endif
-
-        /* LED韫囧啳鐑?*/
+        /* 说明：菜单命令相关处理。 */
         led_cnt += MENU_LED_PERIOD_MS;
         if (led_cnt >= LED_TOGGLE_THRESH) {
             led_cnt = 0U;

@@ -88,6 +88,7 @@ MSPM0G3507_FreeRTOS/
 ├─ Application/
 │  ├─ Task/                   # RTOS 任务：控制、IMU、菜单
 │  ├─ Algorithm/              # PID、前馈、模型辨识、位置控制等
+│  │  └─ Filter/              # 通用滤波框架与姿态算法
 │  ├─ test/                   # 在线测试、诊断、滤波参数调优
 │  ├─ app_main.c/.h           # 应用装配、共享上下文、任务创建
 │  ├─ app_vofa.c              # VOFA/CLI 协议与命令处理
@@ -96,8 +97,6 @@ MSPM0G3507_FreeRTOS/
 ├─ BSP/
 │  ├─ Peripherals/            # UART、DMA、编码器、DRV8870、LED、ADC 等
 │  └─ IMU/                    # LSM6DSR 驱动、SPI 桥接、平台适配
-│
-├─ Filter/                    # 通用滤波框架与姿态算法
 │
 ├─ Lib/
 │  ├─ OSAL/                   # FreeRTOS 抽象封装
@@ -124,7 +123,7 @@ MSPM0G3507_FreeRTOS/
 | `Application/test/`      | 在线测试、诊断、滤波调参               | 功能丰富，但侵入生产流程较深         |
 | `BSP/Peripherals/`       | 外设和设备驱动抽象                     | 基础具备，但 UART TX 的并发封装不足  |
 | `BSP/IMU/`               | IMU 设备、SPI 与数据采集               | 职责合理，故障策略需上移至系统层     |
-| `Filter/`                | 滤波器生命周期、姿态解算               | 功能丰富，外部可变指针暴露风险较高   |
+| `Application/Algorithm/Filter/`                | 滤波器生命周期、姿态解算               | 功能丰富，外部可变指针暴露风险较高   |
 | `Lib/OSAL/`              | FreeRTOS API 封装                      | 有封装价值，但周期任务能力不完整     |
 | `Config/`                | 板级和 SysConfig 生成内容              | 应严格区分生成代码与手写配置         |
 | `keil/`                  | 构建入口                               | 工程命名和构建产物管理需治理         |
@@ -739,9 +738,9 @@ bool imu_service_get_filter_diagnostics(imu_filter_diag_t *diag);
 | 文件                                 | 规模特征    | 问题                                 |
 | ------------------------------------ | ----------- | ------------------------------------ |
 | `Application/test/app_test_runner.c` | 约 1,194 行 | 测试状态、诊断、调参高度混合         |
-| `Filter/filter_ekf.c`                | 约 965 行   | 复杂数学逻辑需要分区和单测保护       |
+| `Application/Algorithm/Filter/filter_ekf.c`                | 约 965 行   | 复杂数学逻辑需要分区和单测保护       |
 | `Application/app_vofa.c`             | 约 878 行   | 解析、业务、控制混合                 |
-| `Filter/filter_core.c`               | 约 696 行   | 生命周期、分发、算法抽象可能耦合     |
+| `Application/Algorithm/Filter/filter_core.c`               | 约 696 行   | 生命周期、分发、算法抽象可能耦合     |
 | `BSP/IMU/bsp_lsm6dsr.c`              | 约 597 行   | 驱动、平台适配、数据逻辑应进一步分层 |
 
 大文件不必然代表问题，但当前这些文件同时具有**高复杂度、跨模块依赖、运行时状态机**特征，建议优先拆分。
