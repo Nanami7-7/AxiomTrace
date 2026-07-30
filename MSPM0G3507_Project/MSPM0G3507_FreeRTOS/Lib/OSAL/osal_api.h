@@ -122,6 +122,17 @@ osal_task_handle_t osal_task_get_current(void);
 void osal_task_delay_ms(uint32_t ms);
 
 /**
+ * @brief  延时到固定周期的下一个唤醒点
+ * @note   FreeRTOS使用vTaskDelayUntil，任务执行时间不会叠加到周期中。
+ *         第一次调用前，last_wake_tick应初始化为osal_get_tick_count()。
+ *         裸机模式退化为普通毫秒延时。
+ * @param  last_wake_tick 上一次计划唤醒tick，函数内部自动更新
+ * @param  period_ms      固定周期(ms)，必须大于0
+ */
+void osal_task_delay_until_ms(uint32_t *last_wake_tick,
+                              uint32_t period_ms);
+
+/**
  * @brief  获取当前系统滴答计数
  * @note   FreeRTOS: xTaskGetTickCount()
  *         裸机: 自维护的全局滴答计数器

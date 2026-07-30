@@ -1,6 +1,7 @@
 #include "app_key_events.h"
 #include "app_main.h"
 #include "app_protocol_user.h"
+#include "app_encoder_telemetry.h"
 #include "key_config.h"
 #include <stdio.h>
 
@@ -81,10 +82,20 @@ void app_key_short_press_action(const key_t *key,
      *
      * 现在短按只提交“启动循迹”的请求。真正的循迹启停和电机输出
      * 仍由控制任务在固定周期内执行，避免按键任务直接覆盖 PWM。
-     */
-    app_motion_stop();
-    app_protocol_user_line_track_request_start();
-    (void)printf("[KEY] SHORT_PRESS -> line tracking request\r\n");
+//     */
+//    app_motion_stop();
+//    app_protocol_user_line_track_request_start();
+//    (void)printf("[KEY] SHORT_PRESS -> line tracking request\r\n");
+
+
+    const float forward[4] = { 100.0f, 100.0f, 100.0f, 100.0f };
+    if (app_motion_speed_all_timed(forward, 9000U)) {
+        app_encoder_telemetry_start();
+        (void)printf("[KEY] SHORT_PRESS -> speed loop test\r\n");
+    } else {
+        (void)printf("[KEY] SHORT_PRESS -> speed loop start failed\r\n");
+    }
+
 }
 
 void app_key_long_press_action(const key_t *key,
@@ -97,14 +108,17 @@ void app_key_long_press_action(const key_t *key,
     (void)pressed_duration_ms;
     (void)user_data;
 
-    /* 角度环接管前，先撤销循迹请求，避免控制任务下一周期重新启动循迹。 */
-    app_protocol_user_line_track_force_stop();
+//    /* 角度环接管前，先撤销循迹请求，避免控制任务下一周期重新启动循迹。 */
+//    app_protocol_user_line_track_force_stop();
 
-    /* 示例：相对当前 yaw 左转 90 度，巡航速度 120 RPM。 */
-    (void)app_motion_angle_start_relative(
-        PRJ_KEY_TURN_TARGET_DEG, PRJ_KEY_TURN_CRUISE_RPM,
-        PRJ_KEY_TURN_TIMEOUT_MS);
-    (void)printf("[KEY] LONG_PRESS -> angle API\r\n");
+//    /* 示例：相对当前 yaw 左转 90 度，巡航速度 120 RPM。 */
+//    (void)app_motion_angle_start_relative(
+//        PRJ_KEY_TURN_TARGET_DEG, PRJ_KEY_TURN_CRUISE_RPM,
+//        PRJ_KEY_TURN_TIMEOUT_MS);
+//    (void)printf("[KEY] LONG_PRESS -> angle API\r\n");
+	    app_motion_stop();
+    app_protocol_user_line_track_request_start();
+    (void)printf("[KEY] SHORT_PRESS -> line tracking request\r\n");
 }
 
 void app_key_stuck_action(const key_t *key,

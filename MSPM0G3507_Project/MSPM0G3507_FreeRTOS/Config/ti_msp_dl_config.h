@@ -206,9 +206,9 @@ bool SYSCFG_DL_SYSCTL_SYSPLL_init(void);
 #define GPIO_UART1_IOMUX_TX                                      (IOMUX_PINCM23)
 #define GPIO_UART1_IOMUX_RX_FUNC                       IOMUX_PINCM24_PF_UART1_RX
 #define GPIO_UART1_IOMUX_TX_FUNC                       IOMUX_PINCM23_PF_UART1_TX
-#define UART1_BAUD_RATE                                                 (115200)
-#define UART1_IBRD_40_MHZ_115200_BAUD                                       (21)
-#define UART1_FBRD_40_MHZ_115200_BAUD                                       (45)
+#define UART1_BAUD_RATE                                                 (230400)
+#define UART1_IBRD_40_MHZ_230400_BAUD                                       (10)
+#define UART1_FBRD_40_MHZ_230400_BAUD                                       (54)
 
 
 
@@ -353,6 +353,10 @@ bool SYSCFG_DL_SYSCTL_SYSPLL_init(void);
 #define IR_CH4_PORT                                                      (GPIOA)
 #define IR_CH4_PIN                                              (DL_GPIO_PIN_24)
 #define IR_CH4_IOMUX                                             (IOMUX_PINCM54)
+/* Defines for CH5: GPIOA.31 with pinCMx 6 on package pin 5 */
+#define IR_CH5_PORT                                                      (GPIOA)
+#define IR_CH5_PIN                                              (DL_GPIO_PIN_31)
+#define IR_CH5_IOMUX                                              (IOMUX_PINCM6)
 
 
 /* clang-format on */

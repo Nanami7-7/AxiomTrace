@@ -1,17 +1,20 @@
 /**
  * @file    app_main.c
- * @brief   ????????????
- * @note    ???FreeRTOS???, ??????PID??????
- *          ???/RTOS???: ?????BSP??SAL??????
+ * @brief   应用层主入口与共享状态管理
+ * @note    负责 FreeRTOS 任务创建、BSP 初始化和控制器初始化。
+ *          硬件与 RTOS 相关操作分别封装在 BSP 和 OSAL 中。
  *
- *          ??????(5ms):  task_control.c
- *          ??????:       task_menu.c
- *          IMU???:        task_imu.c
+ *          控制任务：task_control.c
+ *          菜单任务：task_menu.c
+ *          IMU 任务：task_imu.c
  */
 
 #include "app_main.h"
 #include "app_vofa.h"
 #include "app_protocol_a.h"
+#if (PRJ_UART1_BLE_DEBUG_ENABLE != 0U)
+#include "app_uart1_ble_debug.h"
+#endif
 #include "Task/task_control.h"
 #include "Task/task_menu.h"
 #include "Task/task_imu.h"
@@ -56,12 +59,12 @@
 #error "Model-ID default step must lie inside the unified motor command range"
 #endif
 
-/* ======================== ?????? ======================== */
+/* ======================== 全局对象 ======================== */
 
-/** ???????????????????????????? */
+/** 应用层共享上下文，由控制、菜单、IMU 和协议任务共同访问。 */
 static app_shared_ctx_t s_shared_ctx;
 
-/** ???????????????????????????????????????????*/
+/** 返回 Board A 协议处理使用的应用共享上下文。 */
 app_shared_ctx_t *app_protocol_get_context(void)
 {
     return &s_shared_ctx;
@@ -98,17 +101,17 @@ bool app_state_snapshot_read(const app_shared_ctx_t *ctx,
 }
 
 
-/** ???????????) */
+/** 编码器硬件配置表。 */
 static const bsp_encoder_config_t s_encoder_cfg[BSP_ENCODER_COUNT] =
     PRJ_ENCODER_CONFIGS;
 
-/** ????????? */
+/** 控制任务句柄。 */
 static osal_task_handle_t s_control_task_handle;
 
-/** ????????? */
+/** 菜单任务句柄。 */
 static osal_task_handle_t s_menu_task_handle;
 
-/** IMU?????? */
+/** IMU 任务句柄。 */
 static osal_task_handle_t s_imu_task_handle;
 
 #if (PRJ_KEY_ENABLE != 0U)
@@ -120,13 +123,13 @@ static const bsp_key_config_t s_key_configs[PRJ_KEY_COUNT] = {
 };
 static bool s_key_motion_ready;
 #endif
-/** ??????????????????????????????????????*/
+/** 首个 FreeRTOS 运行时故障码，后续故障不会覆盖。 */
 static volatile uint32_t s_runtime_fault_code = APP_RUNTIME_FAULT_NONE;
 
-/* ======================== ??????: BSP?????======================== */
+/* ======================== 内部初始化与诊断 ======================== */
 
 /**
- * @brief ??? FreeRTOS ?????????????
+ * @brief 读取 FreeRTOS 运行时资源与故障诊断信息。
  */
 bool app_runtime_diag_read(app_runtime_diag_t *out)
 {
@@ -167,7 +170,7 @@ bool app_runtime_diag_read(app_runtime_diag_t *out)
 }
 
 /**
- * @brief ??????????????FreeRTOS ??????????
+ * @brief 记录首个 FreeRTOS 运行时故障。
  */
 void app_runtime_diag_record_fault(uint32_t fault_code)
 {
@@ -178,8 +181,8 @@ void app_runtime_diag_record_fault(uint32_t fault_code)
 }
 
 /**
- * @brief  ????????SP???
- * @retval 0 ???, ?? ???
+ * @brief  初始化各 BSP 模块。
+ * @retval 0 成功，负值表示对应模块初始化失败。
  */
 static int32_t bsp_modules_init(void)
 {
@@ -211,14 +214,14 @@ static int32_t bsp_modules_init(void)
         DL_ADC12_INTERRUPT_MEM4_RESULT_LOADED);
     NVIC_EnableIRQ(ADC_VOLTAGE_INST_INT_IRQN);
 
-    /* LSM6DSR ?????? task_imu.c ?????(????TimerG8 ????? */
-    /* ?????????????? IMU */
+    /* LSM6DSR 由 task_imu.c 初始化，避免在此重复配置传感器和定时资源。 */
+    /* IMU 任务启动后自行完成传感器初始化。 */
 
     return 0;
 }
 
 /**
- * @brief  ????????ID?????
+ * @brief  初始化各电机的速度环 PID 和前馈参数。
  */
 static void pid_controllers_init(void)
 {
@@ -233,7 +236,7 @@ static void pid_controllers_init(void)
             -duty_max,
              duty_max);
 
-        /* FF???PID?????? */
+        /* 前馈模式下使用的 PID 修正参数。 */
         s_shared_ctx.pid[i].ff_kp = PRJ_FF_PID_DEFAULT_KP;
         s_shared_ctx.pid[i].ff_ki = PRJ_FF_PID_DEFAULT_KI;
         s_shared_ctx.pid[i].ff_kd = PRJ_FF_PID_DEFAULT_KD;
@@ -244,18 +247,18 @@ static void pid_controllers_init(void)
         app_ff_init(&s_shared_ctx.ff[i]);
 
         /*
-         * ?????ID??integral ?????????"???????????,
-         * ????????????????? ?????????????????
-         * app_pid_init ??? integral_min/max ??? out_min/max,
-         * ????????????.
+         * 增量式 PID 的 integral 字段保存上一周期输出。
+         * app_pid_init() 已统一设置积分状态和输出上下限，
+         * 此处不再重复覆盖，避免初始化规则分散。
+         * 后续修改限幅时只需维护 app_pid_init()。
          */
     }
 }
 
 /**
- * @brief  ???????????????????
- * @note   ??? project_config.h ??? PRJ_POS / PRJ_YAW / PRJ_PLANNER ??????
- *         ??? SPEED ???, ????????????????
+ * @brief  初始化位置与航向串级控制器。
+ * @note   参数来自 project_config.h 中的 PRJ_POS、PRJ_YAW 和 PRJ_PLANNER 宏。
+ *         默认保持 SPEED 模式，等待业务层显式设置目标。
  */
 static void posctrl_init(void)
 {
@@ -265,14 +268,14 @@ static void posctrl_init(void)
         PRJ_PLANNER_ACCEL, PRJ_PLANNER_MAX_RPM,
         PRJ_ENCODER_PULSES_PER_REV);
 
-    /* ??????????*/
+    /* 配置到位判定条件。 */
     s_shared_ctx.posctrl.reached_threshold =
-        PRJ_REACHED_THRESHOLD_POS;  /* ?????????????) */
+        PRJ_REACHED_THRESHOLD_POS;  /* 允许的位置误差阈值。 */
     s_shared_ctx.posctrl.reached_threshold_count =
-        PRJ_REACHED_COUNT;          /* 200ms??? */
+        PRJ_REACHED_COUNT;          /* 连续满足阈值的控制周期数。 */
 }
 
-/* ======================== ????????? ======================== */
+/* ======================== 电机停止接口 ======================== */
 
 void app_motor_stop(app_shared_ctx_t *ctx, uint32_t motor_idx)
 {
@@ -303,7 +306,7 @@ void app_motor_stop_all(app_shared_ctx_t *ctx)
 
 int32_t app_main_init(void)
 {
-    /* ?????SP??? */
+    /* 初始化 BSP 模块。 */
     int32_t err = bsp_modules_init();
     if (err != 0) {
         return err;
@@ -314,21 +317,21 @@ int32_t app_main_init(void)
     app_line_track_init();
 #endif
 
-    /* ?????ID?????*/
-    /* ?????IMU ???????????????????????????????*/
-    /* ?????ID?????*/
+    /* 初始化四路电机速度环 PID 与前馈参数。 */
+    /* IMU 数据由独立任务更新，控制任务只读取共享快照。 */
+    /* PID 初始化完成前保持所有电机关闭。 */
     pid_controllers_init();
 
-    /* ???????????? */
-    app_cf_init(NULL);  /* ???project_config.h????????? */
+    /* 初始化互补滤波器。 */
+    app_cf_init(NULL);  /* 使用 project_config.h 中的默认参数。 */
 
-    /* ?????????????????*/
+    /* 初始化电机模型辨识模块。 */
     app_id_init();
 
-    /* ??????????????????????SPEED???) */
+    /* 初始化位置/航向串级控制器，默认保持 SPEED 模式。 */
     posctrl_init();
 
-    /* ???????????*/
+    /* 上电默认关闭全部电机输出。 */
     for (uint32_t i = 0; i < BSP_MOTOR_COUNT; i++) {
         s_shared_ctx.motor_enabled[i] = false;
         s_shared_ctx.overload_cnt[i] = 0U;
@@ -355,7 +358,7 @@ int32_t app_main_init(void)
     }
 #endif
 
-    /* ???????????? */
+    /* 打印启动信息。 */
     AX_LOG_INFO("=== MSPM0G3507 FreeRTOS ===");
     (void)printf("\r\n");
     (void)printf("============================================================\r\n");
@@ -402,7 +405,7 @@ int32_t app_main_init(void)
     (void)printf("============================================================\r\n");
     (void)printf("\r\n");
 
-    /* ????????? */
+    /* 创建控制任务。 */
     s_control_task_handle = osal_task_create(
         app_control_task,
         "ctrl",
@@ -414,7 +417,7 @@ int32_t app_main_init(void)
         return -10;
     }
 
-    /* ????????? */
+    /* 创建菜单任务。 */
     s_menu_task_handle = osal_task_create(
         app_menu_task,
         "menu",
@@ -426,7 +429,7 @@ int32_t app_main_init(void)
         return -11;
     }
 
-    /* ???IMU??? */
+    /* 创建 IMU 任务。 */
     s_imu_task_handle = osal_task_create(
         app_imu_task,
         "imu",
@@ -453,19 +456,40 @@ int32_t app_main_init(void)
     }
 #endif
 
-    /* ??? SPI + ??????????? (??????) */
+    /* 启动 UART1 调试或板间协议任务，二者由编译宏互斥选择。 */
     /*
-     * UART1 board-link protocol is optional. Core tasks must be created first;
-     * a protocol-task failure must not suppress UART0 diagnostics or control.
+     * UART1 发送由低优先级任务完成，不在控制任务中格式化或阻塞发送。
      */
     {
+#if (PRJ_UART1_BLE_DEBUG_ENABLE != 0U)
+        /*
+         * 先打印链路诊断，便于确认烧录的确实是当前 BLE 调试固件。
+         * 注意：UART1 目前只是透明串口，MSPM0 无法凭空知道外部 BLE 模块的 MAC。
+         * 真实 MAC 需要根据模块型号进入 AT 模式查询，后续再接入具体驱动。
+         */
+        (void)printf("[BLE-DIAG] UART1 BLE 调试已编译启用，波特率=%lu 8N1\r\n",
+                     (unsigned long)PRJ_UART1_BLE_DEBUG_UART_BAUDRATE);
+        (void)printf("[BLE-DIAG] 工作模式=透明传输，当前 MAC=<未查询>\r\n");
+        (void)printf("[BLE-DIAG] 原因=未配置 BLE 模块型号和 AT 查询协议\r\n");
+
+        int32_t debug_ret = app_uart1_ble_debug_init();
+        if (debug_ret != 0) {
+            (void)printf("[UART1-BLE] 调试模式初始化失败: %ld\r\n",
+                         (long)debug_ret);
+        } else {
+            (void)printf("[UART1-BLE] 调试模式已启用，UART1=%lu 8N1\r\n",
+                         (unsigned long)PRJ_UART1_BLE_DEBUG_UART_BAUDRATE);
+            (void)printf("[BLE-DIAG] UART1 透明调试任务已创建；手机连接后可发送 HELP\r\n");
+        }
+#else
         int32_t protocol_ret = app_protocol_a_init();
         if (protocol_ret != 0) {
-            (void)printf("[PROTO-A] optional UART1 init failed: %ld\r\n",
+            (void)printf("[PROTO-A] UART1板间协议初始化失败: %ld\r\n",
                          (long)protocol_ret);
         } else {
-            (void)printf("[PROTO-A] UART1 link task ready\r\n");
+            (void)printf("[PROTO-A] UART1板间通信任务已就绪\r\n");
         }
+#endif
     }
 
     /*

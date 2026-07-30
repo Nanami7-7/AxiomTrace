@@ -102,7 +102,7 @@ typedef struct {
 bool app_state_snapshot_read(const app_shared_ctx_t *ctx,
                              app_state_snapshot_t *snapshot);
 
-/** ???????????????????????????? */
+/** 返回 Board A 协议处理使用的应用共享上下文。 */
 app_shared_ctx_t *app_protocol_get_context(void);
 
 

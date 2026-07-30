@@ -142,11 +142,10 @@
 /* 待办事项：找到减少此值的方法；FreeRTOS要求它为2或更大 */
 #define configEXPECTED_IDLE_TIME_BEFORE_SLEEP 2
 
-/* 软件定时器定义 */
-#define configUSE_TIMERS 1                             // 启用软件定时器
-#define configTIMER_TASK_PRIORITY (3)                  // 定时器任务优先级(低于control@5,高于menu@2)
-#define configTIMER_QUEUE_LENGTH (20)                  // 定时器队列长度
-/* 定时器任务栈大小（以字为单位） */
+/* 当前业务未使用FreeRTOS软件定时器，关闭服务任务以节省RAM和调度开销。 */
+#define configUSE_TIMERS 0
+#define configTIMER_TASK_PRIORITY (3)
+#define configTIMER_QUEUE_LENGTH (20)
 #define configTIMER_TASK_STACK_DEPTH (configMINIMAL_STACK_SIZE)
 
 #define configENABLE_BACKWARD_COMPATIBILITY 0          // 禁用向后兼容性

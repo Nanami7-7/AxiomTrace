@@ -139,3 +139,18 @@ MSPM0G3507_FreeRTOS/keil/EventRecorderStub.scvd
 !**/icons/*.png
 !**/resources/*.png
 
+
+# -----------------------------------------------------------------------------
+# Local migration snapshots and temporary validation projects
+# -----------------------------------------------------------------------------
+# These directories are kept locally as rollback references and must not enter
+# the released project history.
+MSPM0G3507_FreeRTOS/**/backup_*/
+MSPM0G3507_FreeRTOS/**/ab_protocol_backup_*/
+MSPM0G3507_FreeRTOS/**/*.bak*
+MSPM0G3507_FreeRTOS/Config/backup_before_*/
+MSPM0G3507_FreeRTOS/keil/*.uvprojx.bak*
+MSPM0G3507_FreeRTOS/keil/*before_ab_gateway*.uvprojx
+MSPM0G3507_FreeRTOS/keil/verify_ir_continue.uvprojx
+MSPM0G3507_FreeRTOS/gcc/
+MSPM0G3507_FreeRTOS/Config/Event.dot

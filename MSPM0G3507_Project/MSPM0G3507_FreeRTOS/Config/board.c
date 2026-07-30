@@ -1,6 +1,11 @@
 #include "board.h"
 #include "bsp_uart.h"
+#include "project_config.h"
+#if (PRJ_UART1_BLE_DEBUG_ENABLE != 0U)
+#include "app_uart1_ble_debug.h"
+#else
 #include "proto_uart1_a.h"
+#endif
 #include "ti_msp_dl_config.h"
 #include <stdio.h>
 /**
@@ -9,7 +14,11 @@
  */
 void UART1_IRQHandler(void)
 {
+#if (PRJ_UART1_BLE_DEBUG_ENABLE != 0U)
+    app_uart1_ble_debug_irq_handler();
+#else
     proto_uart1_a_irq_handler();
+#endif
 }
 
 

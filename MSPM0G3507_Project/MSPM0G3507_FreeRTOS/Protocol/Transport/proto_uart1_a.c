@@ -6,6 +6,7 @@
 #include "hal_uart.h"
 #include "osal_api.h"
 #include "ti_msp_dl_config.h"
+#include "project_config.h"
 
 static uint8_t s_rx_storage[PROTO_UART1_A_RX_BUF_SIZE];
 static bsp_ringbuf_t s_rx_ring;
@@ -33,6 +34,19 @@ bsp_status_t proto_uart1_a_init(void)
     while (DL_UART_receiveDataCheck(UART1_INST, &stale)) {
     }
     /* 打开 UART1 外设 RX 中断，再打开对应 NVIC。 */
+#if (PRJ_UART1_BLE_DEBUG_ENABLE != 0U)
+    /* BLE 调试模式使用 9600 8N1；普通模式沿用 F4 协议分频配置。 */
+    DL_UART_Main_setOversampling(UART1_INST, DL_UART_OVERSAMPLING_RATE_16X);
+    DL_UART_Main_setBaudRateDivisor(UART1_INST,
+                                     PRJ_UART1_BLE_DEBUG_UART_IBRD,
+                                     PRJ_UART1_BLE_DEBUG_UART_FBRD);
+#elif (PRJ_F4_PROTOCOL_ENABLE != 0U)
+    /* F4 协议固定使用 921600 8N1；不修改 SysConfig 生成文件。 */
+    DL_UART_Main_setOversampling(UART1_INST, DL_UART_OVERSAMPLING_RATE_16X);
+    DL_UART_Main_setBaudRateDivisor(UART1_INST,
+                                     PRJ_F4_PROTOCOL_UART_IBRD,
+                                     PRJ_F4_PROTOCOL_UART_FBRD);
+#endif
     DL_UART_Main_enableInterrupt(UART1_INST, DL_UART_MAIN_INTERRUPT_RX);
     if (hal_uart_enable_irq(HAL_UART_EXT) != HAL_OK) {
         return BSP_ERR_HW_FAULT;

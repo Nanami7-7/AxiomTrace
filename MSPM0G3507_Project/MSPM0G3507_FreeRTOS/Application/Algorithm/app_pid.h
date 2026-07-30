@@ -6,7 +6,7 @@
  *
  *          支持两种PID模式:
  *          1. 位置式PID: output = Kp*e + Ki*∫e + Kd*de/dt
- *          2. 增量式PID: Δoutput = Kp*Δe + Ki*e*dt + Kd*Δ²e/dt
+ *          2. 增量式PID: Δoutput = Kp*Δe + Ki*e + Kd*Δ²e
  *
  *          抗积分饱和: 积分项限幅,防止超调
  *          微分项滤波: 一阶低通滤波,抑制高频噪声
@@ -35,11 +35,19 @@ typedef enum {
  * @note  所有状态通过此结构体管理,支持多实例,
  *        可重入(无全局/静态变量)
  */
+/** PID 单次计算项，仅用于调试遥测，不参与控制状态。 */
+typedef struct {
+    float p_term; /**< 位置式为绝对P项；增量式为Kp*Δe。 */
+    float i_term; /**< 位置式为绝对I项；增量式为Ki*e。 */
+    float d_term; /**< 位置式为绝对D项；增量式为Kd*Δ²e。 */
+    float output_raw; /**< PID内部限幅前的计算输出。 */
+} app_pid_terms_t;
+
 typedef struct {
     /* ---- 参数(普通模式) ---- */
     float kp;              /**< 比例增益 */
-    float ki;              /**< 积分增益 */
-    float kd;              /**< 微分增益 */
+    float ki;              /**< 积分增益；增量式模式按每采样周期定义 */
+    float kd;              /**< 微分增益；增量式模式按每采样周期定义 */
     app_pid_mode_t mode;   /**< PID模式 */
 
     /* ---- 参数(FF模式) ---- */
@@ -123,15 +131,41 @@ void app_pid_set_setpoint(app_pid_t *pid, float setpoint);
  * @brief  执行一次PID计算
  * @param  pid        PID控制器指针
  * @param  feedback   当前反馈值
- * @param  dt_s       采样周期(秒), 0则使用上次间隔
+ * @param  dt_s       采样周期(秒)；位置式用于积分/微分，增量式不做dt缩放
  * @retval PID输出值(已限幅)
  * @note   位置式: out = Kp*e + Ki*∫e + Kd*de/dt
- *         增量式: Δout = Kp*(e-e') + Ki*e*dt +
- *                        Kd*(e-2*e'+e'')/dt
- *         Ki、Kd 均按秒制定义，修改控制周期时不需要同步缩放参数。
+ *         增量式: Δout = Kp*(e-e') + Ki*e + Kd*(e-2*e'+e'')
+ *         增量式Ki、Kd按每采样周期定义；修改控制周期后必须重新整定。
+ *         增量式首次计算没有完整历史项，使用P+I启动并令D项为0。
  */
 float app_pid_compute(app_pid_t *pid, float feedback,
                        float dt_s);
+
+/**
+ * @brief  使用临时目标执行一次PID计算。
+ * @param  pid       PID控制器指针。
+ * @param  target    本次计算目标，不会改写pid->setpoint。
+ * @param  feedback  当前反馈值。
+ * @param  dt_s      采样周期(秒)；位置式使用，增量式不做dt缩放。
+ * @retval PID输出值(已限幅)。
+ * @note   用于目标斜坡、航向修正等控制整形；外部菜单和协议仍可读取原始目标。
+ */
+float app_pid_compute_target(app_pid_t *pid, float target,
+                             float feedback, float dt_s);
+
+/**
+ * @brief 使用临时目标执行一次PID计算，并返回本周期P/I/D诊断项。
+ * @note  增量式PID的三个诊断项是输出增量，不是绝对输出分量。
+ * @param pid      PID控制器指针。
+ * @param target   本周期实际目标。
+ * @param feedback 本周期反馈。
+ * @param dt_s     采样周期（秒）；位置式使用，增量式不做dt缩放。
+ * @param terms    诊断项输出；允许为NULL。
+ * @return PID限幅后的输出；terms->output_raw保存限幅前输出。
+ */
+float app_pid_compute_target_diag(app_pid_t *pid, float target,
+                                  float feedback, float dt_s,
+                                  app_pid_terms_t *terms);
 
 /**
  * @brief  重置PID控制器状态(保留参数)

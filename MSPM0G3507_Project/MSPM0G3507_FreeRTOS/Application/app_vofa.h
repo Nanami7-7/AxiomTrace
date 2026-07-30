@@ -76,6 +76,9 @@ typedef enum {
     VOFA_CMD_RUN,           /**< 启动电机: Run 或 Run=0 */
     VOFA_CMD_STOP,          /**< 停止电机: Stop 或 Stop=0 */
     VOFA_CMD_STOP_ALL,      /**< 停止所有电机: StopAll */
+    VOFA_CMD_PID_TUNE_START, /**< PID阶跃调参: Tune=200 或 Tune=0,200 */
+    VOFA_CMD_PID_TUNE_STOP,  /**< 停止PID调参: TuneStop */
+    VOFA_CMD_PID_TUNE_QUERY, /**< 查询PID调参: Tune? */
     VOFA_CMD_SET_FF_K,      /**< 设置前馈斜率: FFk=x */
     VOFA_CMD_SET_FF_B,      /**< 设置前馈截距: FFb=x */
     VOFA_CMD_SET_FF_ENABLE, /**< 使能/禁用前馈: FFe=1/0 */
@@ -144,6 +147,10 @@ void app_vofa_send_justfloat(const float channels[], uint32_t count);
  *         - "Run"        → 启动当前电机
  *         - "Stop"       → 停止当前电机
  *         - "StopAll"    → 停止所有电机
+ *         - "Tune=200"   → 当前电机执行200RPM阶跃调参
+ *         - "Tune=0,200" → 电机0执行200RPM阶跃调参
+ *         - "TuneStop"   → 立即结束调参并停车
+ *         - "Tune?"      → 查询调参状态
  *         - "mode=position" → 切换控制模式(speed/position/angle)
  *         - "pos=1000,200" → 位置控制(脉冲,巡航RPM)
  *         - "angle=90,100" → 角度控制(度,巡航RPM)

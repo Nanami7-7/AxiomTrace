@@ -10,6 +10,7 @@
 #include "app_pid.h"
 #include "app_feedforward.h"
 #include "app_vofa.h"
+#include "task_control.h"
 #include "app_complementary_filter.h"
 #include "osal_api.h"
 #include "bsp_led.h"
@@ -485,6 +486,65 @@ static void menu_print_status(const app_shared_ctx_t *ctx,
 /* 说明：菜单命令相关处理。 */
 
 /**
+ * @brief PID调参专用遥测循环。
+ * @note  不修改原11通道VOFA协议；这里只输出固定14通道调参数据。
+ */
+static void menu_pid_tune_output_loop(app_shared_ctx_t *ctx,
+                                      uint32_t *motor,
+                                      bool *need_refresh)
+{
+    char line_buf[PRJ_MENU_LINE_BUF_SIZE];
+    uint32_t line_pos = 0U;
+    bool tune_seen = app_control_pid_tune_is_active();
+
+    (void)printf("[PIDTUNE] schema=t_ms,phase,requested,applied,rpm,error,raw,command,p,i,d,kp,ki,kd\r\n");
+    (void)printf("[PIDTUNE] increment PID: p/i/d are per-cycle output increments\r\n");
+
+    for (;;) {
+        if (menu_read_line(line_buf, PRJ_MENU_LINE_BUF_SIZE, &line_pos)) {
+            vofa_cmd_t cmd;
+            if (app_vofa_parse_cmd(line_buf, &cmd)) {
+                app_vofa_apply_cmd(&cmd, ctx, motor, need_refresh);
+            }
+        }
+
+        app_pid_tune_status_t tune;
+        app_control_pid_tune_get_status(&tune);
+        float channels[14] = {
+            (float)tune.elapsed_ms,
+            (float)tune.phase,
+            tune.requested_target_rpm,
+            tune.applied_pid_target_rpm,
+            tune.measured_rpm,
+            tune.error_rpm,
+            tune.controller_output_raw,
+            tune.motor_command_applied,
+            tune.p_term,
+            tune.i_term,
+            tune.d_term,
+            tune.kp,
+            tune.ki,
+            tune.kd
+        };
+        app_vofa_send_firewater(channels, 14U);
+
+        if (app_control_pid_tune_is_active()) {
+            tune_seen = true;
+        } else if (tune_seen || tune.phase == APP_PID_TUNE_PHASE_COMPLETE) {
+            (void)printf("[PIDTUNE] completed, motor stopped\r\n");
+            *need_refresh = true;
+            return;
+        } else {
+            (void)printf("[PIDTUNE] not started\r\n");
+            *need_refresh = true;
+            return;
+        }
+
+        osal_task_delay_ms(PRJ_PID_TUNE_TELEMETRY_PERIOD_MS);
+    }
+}
+
+/**
  * 说明：菜单命令相关处理。
  * 说明：菜单命令相关处理。
  * 说明：菜单命令相关处理。
@@ -511,6 +571,12 @@ static void menu_data_output_loop(app_shared_ctx_t *ctx,
                     cmd.type == VOFA_CMD_ABORT ||
                     cmd.type == VOFA_CMD_STREAM_OFF) {
                     app_encoder_telemetry_stop();
+                }
+
+                if (cmd.type == VOFA_CMD_PID_TUNE_START &&
+                    app_control_pid_tune_is_active()) {
+                    menu_pid_tune_output_loop(ctx, motor, need_refresh);
+                    return;
                 }
 
                 /* 说明：菜单命令相关处理。 */
@@ -599,6 +665,9 @@ void app_menu_task(void *param)
 
     (void)printf("\r\n=== MSPM0G3507 Motor Control ===\r\n");
     (void)printf("Send VOFA+ commands to control.\r\n");
+    /* PID调参只需按顺序设置电机、参数和阶跃目标。 */
+    (void)printf("PID tune: Motor=0, Kp=2, Ki=0, Kd=0, Tune=200\r\n");
+    (void)printf("Stop tune: TuneStop / Stop / StopAll / Abort\r\n");
     (void)printf("Type 'bench' to run MATHACL benchmark.\r\n");
     (void)printf("Type 'encdiag' for one read-only hardware/encoder snapshot.\r\n");
 #if (PRJ_DRV8870_FACTORY_TEST_ENABLE != 0U)
@@ -713,7 +782,7 @@ void app_menu_task(void *param)
                 app_debug_adc_test();
                 need_refresh = true;
             } else if (strcmp(line_buf, "ir") == 0) {
-                /* UART0 输入 ir：读取一次四路红外并打印，不进入循迹环。 */
+                /* UART0 输入 ir：读取一次红外并打印（四/五路自适应），不进入循迹环。 */
                 app_debug_ir_snapshot();
                 need_refresh = true;
             } else if (strncmp(line_buf, "zutptest", 8) == 0) {
@@ -765,6 +834,13 @@ void app_menu_task(void *param)
                         cmd.type == VOFA_CMD_ABORT ||
                         cmd.type == VOFA_CMD_STREAM_OFF) {
                         app_encoder_telemetry_stop();
+                    }
+
+                    if (cmd.type == VOFA_CMD_PID_TUNE_START &&
+                    app_control_pid_tune_is_active()) {
+                        menu_pid_tune_output_loop(ctx, &selected_motor,
+                                                  &need_refresh);
+                        need_refresh = true;
                     }
 
                     /* Run 命令: 进入持续数据输出 */

@@ -11,6 +11,7 @@
  */
 #include "app_pid.h"
 #include <math.h>
+#include <stddef.h>
 
 /* ======================== 私有函数 ======================== */
 
@@ -86,11 +87,18 @@ void app_pid_set_setpoint(app_pid_t *pid, float setpoint)
     pid->setpoint = setpoint;
 }
 
-float app_pid_compute(app_pid_t *pid, float feedback,
-                       float dt_s)
+static float app_pid_compute_internal(app_pid_t *pid,
+                                      float setpoint,
+                                      float feedback,
+                                      float dt_s,
+                                      app_pid_terms_t *terms)
 {
-    float error = pid->setpoint - feedback;
+    float error = setpoint - feedback;
     float output = 0.0f;
+    float output_raw = 0.0f;
+    float p_term = 0.0f;
+    float i_term = 0.0f;
+    float d_term = 0.0f;
 
     /* 根据模式选择参数和积分限幅 */
     float kp, ki, kd, int_min, int_max;
@@ -130,8 +138,11 @@ float app_pid_compute(app_pid_t *pid, float feedback,
         }
         pid->last_derivative = derivative;
 
-        output = kp * error + ki * pid->integral
-               + kd * derivative;
+        p_term = kp * error;
+        i_term = ki * pid->integral;
+        d_term = kd * derivative;
+        output_raw = p_term + i_term + d_term;
+        output = output_raw;
 
     } else if (pid->mode == APP_PID_MODE_POSITION) {
         /* ---- 位置式PID ---- */
@@ -158,61 +169,46 @@ float app_pid_compute(app_pid_t *pid, float feedback,
         }
         pid->last_derivative = derivative;
 
-        output = kp * error
-               + ki * pid->integral
-               + kd * derivative;
+        p_term = kp * error;
+        i_term = ki * pid->integral;
+        d_term = kd * derivative;
+        output_raw = p_term + i_term + d_term;
+        output = output_raw;
 
     } else {
         /*
          * ---- 增量式PID ----
-         * 增量式PID公式:
-         *   Δu = Kp*Δe + Ki*e*dt + Kd*Δ²e/dt
-         *   Δe  = e(k) - e(k-1)             (偏差增量)
-         *   Δ²e = e(k) - 2*e(k-1) + e(k-2)  (偏差二阶差分)
-         *   u(k) = u(k-1) + Δu            (输出累加)
+         * 沿用本工程既有的“每采样周期增益”定义，避免调参功能改变普通控制行为：
+         *   Δu = Kp*Δe + Ki*e + Kd*Δ²e
+         *   Δe  = e(k) - e(k-1)
+         *   Δ²e = e(k) - 2*e(k-1) + e(k-2)
+         *   u(k) = u(k-1) + Δu
          *
-         * 本实现中, pid->integral 用于存储"上次输出 u(k-1)",
-         * 而非传统位置式PID中的"积分累积和".
-         * 因此 integral_min/max 的限幅实际约束的是输出幅度,
-         * 这也是为什么在 app_main.c 中将 integral 限幅设为
-         * 与输出限幅一致的原因.
+         * pid->integral 在增量式模式中保存上次输出 u(k-1)，
+         * 不是位置式PID的积分累计量。
          */
         if (pid->is_first_run) {
-            /*
-             * 首次运行: 无历史偏差, 用当前偏差估算初始输出
-             * output ≈ Kp*e + Ki*e*dt（Ki 的单位按“每秒”定义）
-             */
-            output = kp * error;
-            if (dt_s > 0.0f) {
-                output += ki * error * dt_s;
-            }
+            /* 首次运行没有历史偏差，保持原有P+I启动算法。 */
+            p_term = kp * error;
+            i_term = ki * error;
+            output_raw = p_term + i_term;
+            output = output_raw;
         } else {
-            /* 计算偏差增量和二阶差分 */
-            float delta_error =
-                error - pid->last_error;
-            float delta2_error = 0.0f;
-            if (dt_s > 0.0f) {
-                delta2_error =
-                    error - 2.0f * pid->last_error
-                    + pid->last_last_error;
-            }
+            const float delta_error = error - pid->last_error;
+            const float delta2_error = error - 2.0f * pid->last_error
+                                     + pid->last_last_error;
 
-            /* 计算输出增量，积分和微分项必须包含采样周期。 */
-            float delta_out = kp * delta_error;
-            if (dt_s > 0.0f) {
-                delta_out += ki * error * dt_s
-                           + kd * delta2_error / dt_s;
-            }
+            p_term = kp * delta_error;
+            i_term = ki * error;
+            d_term = kd * delta2_error;
+            const float delta_out = p_term + i_term + d_term;
 
-            /* 累加到上次输出, 先限幅再累加(抗饱和) */
-            pid->integral = clamp_f(
-                pid->integral + delta_out,
-                int_min, int_max);
-            output = clamp_f(
-                pid->integral,
-                pid->out_min, pid->out_max);
+            /* raw记录内部限幅前的候选输出，控制路径仍保持原有限幅顺序。 */
+            output_raw = pid->integral + delta_out;
+            pid->integral = clamp_f(output_raw, int_min, int_max);
+            output = clamp_f(pid->integral, pid->out_min, pid->out_max);
         }
-        /* 保存本次输出为下次的 u(k-1) */
+        /* 保持原有状态更新顺序，不让调试接口改变普通模式控制结果。 */
         pid->integral = output;
         pid->last_last_error = pid->last_error;
     }
@@ -230,12 +226,47 @@ float app_pid_compute(app_pid_t *pid, float feedback,
      * 重置PID状态并返回0, 防止异常值传播到电机驱动.
      */
     if (!isfinite(output) || !isfinite(pid->integral) ||
-        !isfinite(pid->last_error)) {
+        !isfinite(pid->last_error) || !isfinite(p_term) ||
+        !isfinite(i_term) || !isfinite(d_term)) {
         app_pid_reset(pid);
         output = 0.0f;
+        p_term = 0.0f;
+        i_term = 0.0f;
+        d_term = 0.0f;
+        output_raw = 0.0f;
+    }
+
+    if (terms != NULL) {
+        terms->p_term = p_term;
+        terms->i_term = i_term;
+        terms->d_term = d_term;
+        terms->output_raw = output_raw;
     }
 
     return output;
+}
+
+float app_pid_compute(app_pid_t *pid, float feedback,
+                      float dt_s)
+{
+    return app_pid_compute_internal(pid, pid->setpoint, feedback, dt_s, NULL);
+}
+
+float app_pid_compute_target(app_pid_t *pid, float target,
+                             float feedback, float dt_s)
+{
+    /*
+     * target只参与本次计算，不改写pid->setpoint。
+     * 这样控制任务可以使用斜坡目标和IMU差速修正，同时菜单/协议仍保存用户原始目标。
+     */
+    return app_pid_compute_internal(pid, target, feedback, dt_s, NULL);
+}
+
+float app_pid_compute_target_diag(app_pid_t *pid, float target,
+                                  float feedback, float dt_s,
+                                  app_pid_terms_t *terms)
+{
+    return app_pid_compute_internal(pid, target, feedback, dt_s, terms);
 }
 
 void app_pid_reset(app_pid_t *pid)

@@ -43,6 +43,23 @@ void osal_task_delay_ms(uint32_t ms)
     vTaskDelay(pdMS_TO_TICKS(ms));
 }
 
+void osal_task_delay_until_ms(uint32_t *last_wake_tick,
+                              uint32_t period_ms)
+{
+    if ((last_wake_tick == NULL) || (period_ms == 0U)) {
+        return;
+    }
+
+    TickType_t wake_tick = (TickType_t)(*last_wake_tick);
+    TickType_t period_tick = pdMS_TO_TICKS(period_ms);
+    if (period_tick == 0U) {
+        period_tick = 1U;
+    }
+
+    vTaskDelayUntil(&wake_tick, period_tick);
+    *last_wake_tick = (uint32_t)wake_tick;
+}
+
 uint32_t osal_get_tick_count(void)
 {
     return (uint32_t)xTaskGetTickCount();
@@ -99,6 +116,18 @@ void osal_task_delay_ms(uint32_t ms)
 {
     /* 裸机模式: 忙等延时 */
     osal_delay_ms(ms);
+}
+
+void osal_task_delay_until_ms(uint32_t *last_wake_tick,
+                              uint32_t period_ms)
+{
+    if ((last_wake_tick == NULL) || (period_ms == 0U)) {
+        return;
+    }
+
+    /* 裸机没有调度器，保持接口一致并退化为普通延时。 */
+    osal_delay_ms(period_ms);
+    *last_wake_tick = osal_get_tick_count();
 }
 
 uint32_t osal_get_tick_count(void)

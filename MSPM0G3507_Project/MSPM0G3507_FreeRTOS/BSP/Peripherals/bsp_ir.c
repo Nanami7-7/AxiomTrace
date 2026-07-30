@@ -1,6 +1,6 @@
 /**
  * @file    bsp_ir.c
- * @brief   四路数字红外巡线传感器 BSP 实现。
+ * @brief   四/五路数字红外巡线传感器 BSP 实现。
  */
 #include "bsp_ir.h"
 #include <stddef.h>
@@ -12,12 +12,15 @@ typedef struct {
     uint32_t pin;
 } bsp_ir_channel_t;
 
-/* 通道顺序固定为 CH1、CH2、CH3、CH4。 */
+/* 通道顺序固定为 CH1、CH2、CH3、CH4（五路板再追加 CH5）。 */
 static const bsp_ir_channel_t s_ir_channels[BSP_IR_CHANNEL_COUNT] = {
     { BSP_IR_CH1_IOMUX, BSP_IR_CH1_PORT, BSP_IR_CH1_PIN },
     { BSP_IR_CH2_IOMUX, BSP_IR_CH2_PORT, BSP_IR_CH2_PIN },
     { BSP_IR_CH3_IOMUX, BSP_IR_CH3_PORT, BSP_IR_CH3_PIN },
     { BSP_IR_CH4_IOMUX, BSP_IR_CH4_PORT, BSP_IR_CH4_PIN },
+#if (BSP_IR_CHANNEL_COUNT >= 5U)
+    { BSP_IR_CH5_IOMUX, BSP_IR_CH5_PORT, BSP_IR_CH5_PIN },
+#endif
 };
 
 void BSP_IR_Init(void)

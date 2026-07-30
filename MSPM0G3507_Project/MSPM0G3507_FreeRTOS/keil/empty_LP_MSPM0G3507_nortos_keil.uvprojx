@@ -324,7 +324,7 @@
             <PlainCh>0</PlainCh>
             <Ropi>0</Ropi>
             <Rwpi>0</Rwpi>
-            <wLevel>4</wLevel>
+            <wLevel>3</wLevel>
             <uThumb>0</uThumb>
             <uSurpInc>0</uSurpInc>
             <uC99>1</uC99>
@@ -474,6 +474,16 @@
               <FileName>app_planner.h</FileName>
               <FileType>5</FileType>
               <FilePath>..\Application\Algorithm\app_planner.h</FilePath>
+            </File>
+            <File>
+              <FileName>app_speed_planner.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\Application\Algorithm\app_speed_planner.c</FilePath>
+            </File>
+            <File>
+              <FileName>app_speed_planner.h</FileName>
+              <FileType>5</FileType>
+              <FilePath>..\Application\Algorithm\app_speed_planner.h</FilePath>
             </File>
             <File>
               <FileName>app_position_control.c</FileName>
@@ -681,6 +691,16 @@
               <FilePath>..\Application\app_protocol_a.h</FilePath>
             </File>
             <File>
+              <FileName>app_f4_protocol.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\Application\app_f4_protocol.c</FilePath>
+            </File>
+            <File>
+              <FileName>app_f4_protocol.h</FileName>
+              <FileType>5</FileType>
+              <FilePath>..\Application\app_f4_protocol.h</FilePath>
+            </File>
+            <File>
               <FileName>app_line_track.c</FileName>
               <FileType>1</FileType>
               <FilePath>..\Application\app_line_track.c</FilePath>
@@ -689,6 +709,16 @@
               <FileName>app_line_track.h</FileName>
               <FileType>5</FileType>
               <FilePath>..\Application\app_line_track.h</FilePath>
+            </File>
+            <File>
+              <FileName>app_uart1_ble_debug.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\Application\app_uart1_ble_debug.c</FilePath>
+            </File>
+            <File>
+              <FileName>app_uart1_ble_debug.h</FileName>
+              <FileType>5</FileType>
+              <FilePath>..\Application\app_uart1_ble_debug.h</FilePath>
             </File>
           </Files>
         </Group>
@@ -1658,6 +1688,16 @@
               <FilePath>..\Application\Algorithm\app_planner.h</FilePath>
             </File>
             <File>
+              <FileName>app_speed_planner.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\Application\Algorithm\app_speed_planner.c</FilePath>
+            </File>
+            <File>
+              <FileName>app_speed_planner.h</FileName>
+              <FileType>5</FileType>
+              <FilePath>..\Application\Algorithm\app_speed_planner.h</FilePath>
+            </File>
+            <File>
               <FileName>app_position_control.c</FileName>
               <FileType>1</FileType>
               <FilePath>..\Application\Algorithm\app_position_control.c</FilePath>
@@ -1863,6 +1903,16 @@
               <FilePath>..\Application\app_protocol_a.h</FilePath>
             </File>
             <File>
+              <FileName>app_f4_protocol.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\Application\app_f4_protocol.c</FilePath>
+            </File>
+            <File>
+              <FileName>app_f4_protocol.h</FileName>
+              <FileType>5</FileType>
+              <FilePath>..\Application\app_f4_protocol.h</FilePath>
+            </File>
+            <File>
               <FileName>app_line_track.c</FileName>
               <FileType>1</FileType>
               <FilePath>..\Application\app_line_track.c</FilePath>
@@ -1871,6 +1921,16 @@
               <FileName>app_line_track.h</FileName>
               <FileType>5</FileType>
               <FilePath>..\Application\app_line_track.h</FilePath>
+            </File>
+            <File>
+              <FileName>app_uart1_ble_debug.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\Application\app_uart1_ble_debug.c</FilePath>
+            </File>
+            <File>
+              <FileName>app_uart1_ble_debug.h</FileName>
+              <FileType>5</FileType>
+              <FilePath>..\Application\app_uart1_ble_debug.h</FilePath>
             </File>
           </Files>
         </Group>

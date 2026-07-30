@@ -10,6 +10,7 @@
 #include "app_feedforward.h"
 #include "app_model_id.h"
 #include "app_position_control.h"
+#include "task_control.h"
 #include "osal_api.h"
 #include "bsp_uart.h"
 #include "bsp_motor.h"
@@ -352,6 +353,40 @@ bool app_vofa_parse_cmd(const char *line, vofa_cmd_t *cmd)
 
     /* ---- 逐关键字匹配 ---- */
 
+    if (stricmp_equal(line, "tunestop")) {
+        cmd->type = VOFA_CMD_PID_TUNE_STOP;
+        return true;
+    }
+    if (stricmp_equal(line, "tune?") || stricmp_equal(line, "tune")) {
+        cmd->type = VOFA_CMD_PID_TUNE_QUERY;
+        return true;
+    }
+    if (strnicmp_prefix(line, "tune=")) {
+        const char *value_text = line + 5;
+        const char *comma = strchr(value_text, ',');
+        cmd->type = VOFA_CMD_PID_TUNE_START;
+        if (comma == NULL) {
+            if (!safe_atof(value_text, &cmd->value)) {
+                return false;
+            }
+        } else {
+            char motor_text[12];
+            const size_t motor_len = (size_t)(comma - value_text);
+            if (motor_len == 0U || motor_len >= sizeof(motor_text)) {
+                return false;
+            }
+            memcpy(motor_text, value_text, motor_len);
+            motor_text[motor_len] = '\0';
+            PARSE_MOTOR_ID(motor_text, &cmd->motor_id);
+            if (!safe_atof(comma + 1, &cmd->value)) {
+                return false;
+            }
+            cmd->has_motor = true;
+        }
+        cmd->has_value = true;
+        return true;
+    }
+
     /* 说明：VOFA+通信相关处理。 */
     if (stricmp_equal(line, "stopall")) {
         cmd->type = VOFA_CMD_STOP_ALL;
@@ -587,6 +622,17 @@ void app_vofa_apply_cmd(const vofa_cmd_t *cmd,
 
     uint32_t mid = *current_motor;
 
+    /* 调参过程中只允许查询和安全停止，保证两次阶跃条件一致。 */
+    if (app_control_pid_tune_is_active() &&
+        cmd->type != VOFA_CMD_PID_TUNE_QUERY &&
+        cmd->type != VOFA_CMD_PID_TUNE_STOP &&
+        cmd->type != VOFA_CMD_STOP &&
+        cmd->type != VOFA_CMD_STOP_ALL &&
+        cmd->type != VOFA_CMD_ABORT) {
+        (void)printf("[PIDTUNE] busy, send TuneStop or StopAll first\r\n");
+        return;
+    }
+
     /* 使用命令中的电机 ID */
     if (cmd->has_motor && cmd->motor_id < BSP_MOTOR_COUNT) {
         mid = cmd->motor_id;
@@ -666,16 +712,51 @@ void app_vofa_apply_cmd(const vofa_cmd_t *cmd,
         break;
 
     case VOFA_CMD_STOP:
+        app_control_pid_tune_stop();
         g_sweep_cancel = true;  /* 中断 Sweep */
         app_motor_stop(ctx, mid);
         (void)printf("[%lu] Stop\r\n", (unsigned long)mid);
         break;
 
     case VOFA_CMD_STOP_ALL:
+        app_control_pid_tune_stop();
         g_sweep_cancel = true;  /* 中断 Sweep */
         app_motor_stop_all(ctx);
         (void)printf("All stopped\r\n");
         break;
+
+    case VOFA_CMD_PID_TUNE_START:
+        if (cmd->has_value) {
+            if (app_control_pid_tune_start(mid, cmd->value)) {
+                (void)printf("[PIDTUNE] M%lu target=%.1fRPM, settle=%lums, step=%lums\r\n",
+                    (unsigned long)mid, (double)cmd->value,
+                    (unsigned long)PRJ_PID_TUNE_SETTLE_MS,
+                    (unsigned long)PRJ_PID_TUNE_STEP_MS);
+            } else {
+                (void)printf("[PIDTUNE] rejected: motor/target invalid or busy\r\n");
+            }
+        }
+        break;
+
+    case VOFA_CMD_PID_TUNE_STOP:
+        app_control_pid_tune_stop();
+        (void)printf("[PIDTUNE] stop requested\r\n");
+        break;
+
+    case VOFA_CMD_PID_TUNE_QUERY:
+    {
+        app_pid_tune_status_t tune;
+        app_control_pid_tune_get_status(&tune);
+        (void)printf("@PIDTUNE,active=%u,phase=%u,motor=%lu,t_ms=%lu,requested=%.2f,applied=%.2f,rpm=%.2f,raw=%.2f,command=%.2f\r\n",
+            tune.active ? 1U : 0U, (unsigned int)tune.phase,
+            (unsigned long)tune.motor_id, (unsigned long)tune.elapsed_ms,
+            (double)tune.requested_target_rpm,
+            (double)tune.applied_pid_target_rpm,
+            (double)tune.measured_rpm,
+            (double)tune.controller_output_raw,
+            (double)tune.motor_command_applied);
+        break;
+    }
 
     case VOFA_CMD_SET_FF_K:
         if (cmd->has_value) {
@@ -1055,6 +1136,7 @@ void app_vofa_apply_cmd(const vofa_cmd_t *cmd,
 
     case VOFA_CMD_ABORT:
     {
+        app_control_pid_tune_stop();
         OSAL_CRITICAL_SECTION {
             app_posctrl_emergency_stop(&ctx->posctrl);
         }

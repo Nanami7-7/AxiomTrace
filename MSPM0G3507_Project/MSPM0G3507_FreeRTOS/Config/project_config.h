@@ -685,6 +685,61 @@ extern "C" {
 #define PRJ_VERSION_STRING       "0.1.0"
 /** 固件与上位机文本协议的兼容级别。 */
 #define PRJ_PROTOCOL_VERSION     (1U)
+
+/*
+ * UART1调试模式配置
+ * 0：UART1保持Board A与Board B板间通信。
+ * 1：UART1切换为9600 8N1，仅连接BLE调试，不再连接AB。
+ * 调试模式与板间通信模式互斥；无需看门狗和心跳。
+ */
+/*
+ * 可选功能开关：
+ * PRJ_LINE_TRACK_ENABLE：1 启用红外循迹，0 关闭。
+ * PRJ_UART1_BLE_DEBUG_ENABLE：1 使用 UART1 双向 BLE 调试命令和循迹日志，0 使用 AB 板协议。
+ */
+#ifndef PRJ_LINE_TRACK_ENABLE
+#define PRJ_LINE_TRACK_ENABLE             (1U)
+#endif
+
+#ifndef PRJ_UART1_BLE_DEBUG_ENABLE
+#define PRJ_UART1_BLE_DEBUG_ENABLE       (1U)
+#endif
+#ifndef PRJ_UART1_BLE_DEBUG_UART_BAUDRATE
+#define PRJ_UART1_BLE_DEBUG_UART_BAUDRATE (9600U)
+#endif
+#ifndef PRJ_UART1_BLE_DEBUG_UART_IBRD
+#define PRJ_UART1_BLE_DEBUG_UART_IBRD     (260U)
+#endif
+#ifndef PRJ_UART1_BLE_DEBUG_UART_FBRD
+#define PRJ_UART1_BLE_DEBUG_UART_FBRD     (27U)
+#endif
+#ifndef PRJ_UART1_BLE_DEBUG_PERIOD_MS
+#define PRJ_UART1_BLE_DEBUG_PERIOD_MS     (500U)
+#endif
+#ifndef PRJ_TASK_PRIORITY_UART1_BLE_DEBUG
+#define PRJ_TASK_PRIORITY_UART1_BLE_DEBUG (1U)
+#endif
+#ifndef PRJ_TASK_STACK_UART1_BLE_DEBUG
+#define PRJ_TASK_STACK_UART1_BLE_DEBUG    (384U)
+#endif
+#ifndef PRJ_UART1_BLE_DEBUG_TX_BUF_SIZE
+#define PRJ_UART1_BLE_DEBUG_TX_BUF_SIZE   (768U)
+#endif
+/* ================= STM32F4 上位机固定帧协议 =================
+ * UART1: PB6=TX, PB7=RX, 8N1。启用后 UART1 不再由旧 COBS 协议消费。
+ * 921600 baud 的分频值适用于当前 40 MHz UART 时钟和 16 倍过采样。
+ */
+#define PRJ_F4_PROTOCOL_ENABLE        (1U)
+#define PRJ_F4_PROTOCOL_UART_BAUDRATE (921600U)
+#define PRJ_F4_PROTOCOL_UART_IBRD     (2U)
+#define PRJ_F4_PROTOCOL_UART_FBRD     (46U)
+#define PRJ_F4_MAX_PAYLOAD            (256U)
+#define PRJ_F4_MAX_FRAME              (270U)
+#define PRJ_F4_FRAME_TIMEOUT_MS       (20U)
+#define PRJ_F4_LINK_TIMEOUT_MS        (250U)
+#define PRJ_F4_STATUS_PERIOD_MS       (100U)
+#define PRJ_F4_HEARTBEAT_PERIOD_MS    (50U)
+#define PRJ_F4_IMU_PERIOD_MS          (50U)
 /**
  * AB 板通信已取消 HEARTBEAT 保活和协议 watchdog。
  * 0：不因通信间隔自动进入 LINK_LOST；1：启用旧版 watchdog 机制。
@@ -735,6 +790,19 @@ extern "C" {
 #define PRJ_VOFA_PID_PARAM_MAX    (100.0f)
 /** Maximum absolute target speed accepted by VOFA commands (RPM). */
 #define PRJ_VOFA_TARGET_RPM_MAX   (800.0f)
+
+/* ================================================================
+ * PID阶跃调参模式
+ * 仅在显式发送Tune命令后生效，不改变普通速度控制和循迹模式。
+ * ================================================================ */
+/** 启动阶跃前的固定静止等待时间。 */
+#define PRJ_PID_TUNE_SETTLE_MS            (500U)
+/** 单次阶跃持续时间，结束后自动停车。 */
+#define PRJ_PID_TUNE_STEP_MS              (3000U)
+/** 调参目标转速最大绝对值。 */
+#define PRJ_PID_TUNE_TARGET_RPM_MAX       (300.0f)
+/** 专用调参遥测周期：20ms=50Hz。 */
+#define PRJ_PID_TUNE_TELEMETRY_PERIOD_MS  (20U)
 
 /* ================================================================
  *  电机驱动选择与统一业务命令
@@ -913,8 +981,8 @@ extern "C" {
  * 可准确配置20:1、30:1或298:11等非整数标称减速比。
  */
 #define PRJ_MOTOR_ENCODER_PPR              (13U)
-/* 实测轮胎转一圈约变化368个计数：13 PPR × 2倍频 × 184/13。 */
-#define PRJ_MOTOR_GEAR_RATIO_NUMERATOR     (184U)
+/* 实测轮胎转一圈变化736个计数：13 PPR × 2倍频 × 368/13。 */
+#define PRJ_MOTOR_GEAR_RATIO_NUMERATOR     (368U)
 #define PRJ_MOTOR_GEAR_RATIO_DENOMINATOR   (13U)
 #define PRJ_ENCODER_DECODE_MULTIPLIER      (2U)
 /* Encoder M/T speed-mode hysteresis and stop timeout. */
@@ -1056,9 +1124,12 @@ extern "C" {
     ((float)(PRJ_ADC_VREF_MV) / (float)(PRJ_ADC_RESOLUTION) / \
      PRJ_ADC_CURRENT_SHUNT_OHM / PRJ_ADC_CURRENT_AMPLIFY)
 
-/** Overcurrent threshold and consecutive 5 ms control ticks. */
-#define PRJ_ADC_CURRENT_OVERLOAD_MA   (9900U)
-#define PRJ_ADC_CURRENT_OVERLOAD_TICKS (10U)
+/** 过流阈值与持续时间。控制频率变化时，保护时间仍保持约50ms。 */
+#define PRJ_ADC_CURRENT_OVERLOAD_MA       (9900U)
+#define PRJ_ADC_CURRENT_OVERLOAD_TIME_MS  (50U)
+#define PRJ_ADC_CURRENT_OVERLOAD_TICKS \
+    ((PRJ_ADC_CURRENT_OVERLOAD_TIME_MS + PRJ_CONTROL_PERIOD_MS - 1U) / \
+     PRJ_CONTROL_PERIOD_MS)
 
 /* ================================================================
  * IMU 与 MATHACL 配置
@@ -1174,18 +1245,51 @@ extern "C" {
 /** 菜单任务栈大小，单位为 FreeRTOS 栈字。 */
 #define PRJ_TASK_STACK_MENU             (384U)
 
-/** 控制任务周期(ms)。 */
-#define PRJ_CONTROL_PERIOD_MS           (5U)
+/** 控制任务周期(ms)：2ms对应500Hz速度内环。 */
+#define PRJ_CONTROL_PERIOD_MS           (2U)
+#if (PRJ_CONTROL_PERIOD_MS == 0U)
+#error "PRJ_CONTROL_PERIOD_MS must be greater than 0"
+#endif
+
+/* =================================================================
+ * 速度目标规划：S 型规划与一键回退
+ *
+ * 数据链路：用户目标 RPM -> 目标规划 -> IMU 直行修正 -> 500Hz 速度 PID。
+ * PRJ_SPEED_SCURVE_ENABLE=1：限制加速度和 Jerk，启动、变速、普通停车更平滑；
+ * PRJ_SPEED_SCURVE_ENABLE=0：不改其他代码，直接回退到原线性目标斜坡。
+ *
+ * 注意：显式 STOP、禁用、过流和故障永远绕过规划器并立即停车。
+ * ================================================================= */
+#define PRJ_SPEED_SCURVE_ENABLE             (1U)
+/** S 型规划器周期(ms)：10ms=100Hz；速度 PID 仍保持 500Hz。 */
+#define PRJ_SPEED_PLANNER_PERIOD_MS         (10U)
+/** 最大目标加速度，单位 RPM/s。数值越小，起步和刹车越柔和。 */
+#define PRJ_SPEED_SCURVE_MAX_ACCEL_RPM_S    (400.0f)
+/** 最大目标 Jerk，单位 RPM/s^2。数值越小，加速度变化越柔和。 */
+#define PRJ_SPEED_SCURVE_MAX_JERK_RPM_S2    (1600.0f)
+
+#if ((PRJ_SPEED_SCURVE_ENABLE != 0U) && \
+     (PRJ_SPEED_SCURVE_ENABLE != 1U))
+#error "PRJ_SPEED_SCURVE_ENABLE must be 0 or 1"
+#endif
+#if (PRJ_SPEED_SCURVE_ENABLE != 0U)
+#if ((PRJ_SPEED_PLANNER_PERIOD_MS == 0U) || \
+     ((PRJ_SPEED_PLANNER_PERIOD_MS % PRJ_CONTROL_PERIOD_MS) != 0U))
+#error "PRJ_SPEED_PLANNER_PERIOD_MS must be divisible by PRJ_CONTROL_PERIOD_MS"
+#endif
+#endif
 
 /*
  * 速度反馈一阶低通滤波。
- * 低速使用较小 alpha 抑制编码器量化跳变，高速使用较大 alpha 减小响应延迟。
+ * LOW/HIGH alpha 是原200Hz控制周期下的标定值；控制任务会按参考周期换算，
+ * 因此切换到500Hz后仍保持近似相同的物理截止频率。
  * 不使用高通滤波：高通会放大编码器边沿量化和 M/T 模式切换噪声。
  */
-#define PRJ_SPEED_RPM_FILTER_ENABLE       (1U)
-#define PRJ_SPEED_RPM_FILTER_SWITCH_RPM   (160.0f)
-#define PRJ_SPEED_RPM_FILTER_ALPHA_LOW    (0.22f)
-#define PRJ_SPEED_RPM_FILTER_ALPHA_HIGH   (0.55f)
+#define PRJ_SPEED_RPM_FILTER_ENABLE              (1U)
+#define PRJ_SPEED_RPM_FILTER_SWITCH_RPM          (160.0f)
+#define PRJ_SPEED_RPM_FILTER_REFERENCE_PERIOD_MS (5.0f)
+#define PRJ_SPEED_RPM_FILTER_ALPHA_LOW           (0.22f)
+#define PRJ_SPEED_RPM_FILTER_ALPHA_HIGH          (0.55f)
 /** 菜单任务轮询周期(ms)。 */
 #define PRJ_MENU_POLL_PERIOD_MS         (100U)
 /** 运行模式下的 RPM 输出周期(ms)。 */
@@ -1195,10 +1299,10 @@ extern "C" {
 #define PRJ_MENU_LINE_BUF_SIZE          (64U)
 
 /** 速度环默认比例增益。 */
-#define PRJ_PID_DEFAULT_KP              (0.8f)
-/** 速度环默认积分增益（按秒制定义；本次修正后需要重新实车整定）。 */
-#define PRJ_PID_DEFAULT_KI              (0.3f)
-/** 速度环默认微分增益。 */
+#define PRJ_PID_DEFAULT_KP              (3.0f)
+/** 速度环默认积分增益；增量式PID按每个2ms采样周期定义。 */
+#define PRJ_PID_DEFAULT_KI              (0.1f)
+/** 速度环默认微分增益；增量式PID按每个2ms采样周期定义。 */
 #define PRJ_PID_DEFAULT_KD              (0.0f)
 /** 前馈模式 PID 默认比例增益。 */
 #define PRJ_FF_PID_DEFAULT_KP           (0.5f)
@@ -1327,7 +1431,7 @@ extern "C" {
 
 /**
  * 编码器捕获定时器实际频率(Hz)
- * 来源: ti_msp_dl_config.c 中 CAPTURE_* 的 divideRatio=DIVIDE_4, prescale=199
+ *p[=]来源: ti_msp_dl_config.c 中 CAPTURE_* 的 divideRatio=DIVIDE_4, prescale=199
  * 计算: BUSCLK(40MHz) / 4 / (199+1) = 100000 Hz
  * 用途: bsp_encoder.c / app_debug.c 的 M/T 法 RPM 计算
  * 依赖: 6000000LL = 60 × PRJ_CAPTURE_TIMER_FREQ_HZ

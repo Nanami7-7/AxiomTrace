@@ -1,0 +1,327 @@
+# 循迹控制架构、曲率模型与参数整定
+
+> 工程：Board A `MSPM0G3507_FreeRTOS`
+> 控制周期：2 ms（500 Hz）
+> IMU更新周期：约10 ms（100 Hz）
+
+## 1. 当前可选控制结构
+
+循迹模块保留两套路径，由一个宏切换，便于实车出现问题时立即回退。
+
+文件：`Application/app_line_track.h`
+
+```c
+#define LINE_TRACK_MODEL_CONTROL_ENABLE (0U)
+```
+
+- `0U`：使用原有非线性位置式P/PD循迹，当前默认值。
+- `1U`：使用曲率模型、中心速度S型规划和陀螺仪角速度反馈。
+- 修改总开关不需要改 `task_control.c`，两条路径都输出左右轮目标RPM。
+
+### 1.1 原有路径
+
+```text
+五路数字红外
+→ 3次多数滤波
+→ line_error
+→ 非线性位置式P/PD
+→ 左右轮目标RPM
+→ 500Hz增量式速度PI
+→ 电机
+```
+
+### 1.2 曲率模型路径
+
+```text
+五路数字红外实际横向位置
+→ Pure Pursuit目标曲率
+→ 曲率限速
+→ 中心速度S型规划
+→ r_ref = v × kappa
+→ 底盘运动学差速前馈
+→ gyro_z角速度P反馈
+→ 左右轮目标RPM
+→ 500Hz增量式速度PI
+→ 电机
+```
+
+重要原则：**只规划中心速度，不分别规划左右轮目标。** 转向差速保留快速通道，否则左右轮分别走慢速S型规划会导致弯道差速建立不及时，增加丢线风险。
+
+## 2. 曲率和底盘模型
+
+### 2.1 红外偏差转换
+
+五路板中间相邻通道间距为24.45 mm，因此：
+
+```text
+e_s = line_error × 0.02445 m
+```
+
+正偏差表示黑线在车体左侧，正曲率约定为左转。若实车方向相反，只修改：
+
+```c
+LINE_TRACK_MODEL_ERROR_SIGN
+```
+
+### 2.2 Pure Pursuit曲率
+
+设：
+
+- `L_s`：红外传感器排到车辆有效旋转中心的前向距离，单位m；
+- `e_s`：红外横向偏差，单位m。
+
+```text
+kappa_raw = 2 × e_s / (L_s² + e_s²)
+kappa_ref = clamp(kappa_raw, -kappa_max, +kappa_max)
+```
+
+当前 `LINE_TRACK_MODEL_SENSOR_FORWARD_M=0.100f` 只是占位值，必须用尺测量后修改。`L_s` 是该模型最重要的几何参数之一，不能靠PID补偿错误尺寸。
+
+### 2.3 曲率限速
+
+```text
+v_curve = sqrt(a_lat_max / |kappa_ref|)
+```
+
+再将线速度换算为车轮RPM，并限制在：
+
+```text
+base_speed × min_speed_ratio ～ base_speed
+```
+
+`a_lat_max` 是软限速参数；最小速度比例用于避免弯中速度过低、车辆失去连续纠偏能力。
+
+### 2.4 中心速度S型规划
+
+中心速度使用现有 `app_speed_planner`：
+
+```text
+base_request_rpm
+→ Jerk限制S型规划器
+→ base_planned_rpm
+```
+
+行为约束：
+
+1. 正常加速使用S型规划，降低起步冲击；
+2. 突然进弯时，曲率限速值作为硬上限，允许立即下压规划速度；
+3. 丢线、直角弯兼容逻辑、STOP、故障停车不等待S型曲线；
+4. 左右轮差速不经过普通四轮规划器。
+
+### 2.5 角速度和差速
+
+```text
+v = pi × D × base_planned_rpm / 60
+r_ref = v × kappa_ref
+
+turn_ff_rpm = 60/(pi×D) × (b_eff/2) × r_ref
+turn_fb_rpm = K_rate × (r_ref - gyro_z)
+turn_rpm = turn_ff_rpm + turn_fb_rpm
+
+left_target_rpm  = base_planned_rpm - turn_rpm
+right_target_rpm = base_planned_rpm + turn_rpm
+```
+
+其中：
+
+- `D`：车轮直径；
+- `b_eff`：四轮滑移转向底盘的有效轮距；
+- `gyro_z`：符号修正、低通滤波后的Z轴角速度。
+
+四轮滑移转向的 `b_eff` 不一定等于尺量轮距，最终应通过恒定圆周运动日志标定。
+
+## 3. IMU使用边界
+
+第一版只把陀螺仪用于角速度反馈：
+
+- IMU有效：使用运动学前馈 + gyro角速度P反馈；
+- IMU过期、NaN或无样本：自动退化为纯运动学前馈；
+- 不使用加速度积分估算循迹位置；
+- 加速度当前只保留为可信度和后续打滑分析日志。
+
+陀螺仪安装位置偏离底盘中心不会改变刚体角速度，因此 `gyro_z` 可直接用于角速度环。只有以后定量使用线加速度时，才需要补偿IMU位置引起的切向和向心加速度。
+
+若车辆左转时日志中的 `rm` 为负，应修改：
+
+```c
+LINE_TRACK_MODEL_GYRO_SIGN
+```
+
+不要在公式中到处加负号。
+
+## 4. 主要宏参数
+
+```c
+LINE_TRACK_MODEL_CONTROL_ENABLE
+LINE_TRACK_MODEL_SPEED_SCURVE_ENABLE
+LINE_TRACK_MODEL_GYRO_RATE_ENABLE
+LINE_TRACK_MODEL_DEBUG_ENABLE
+
+LINE_TRACK_MODEL_SENSOR_FORWARD_M
+LINE_TRACK_MODEL_ERROR_UNIT_M
+LINE_TRACK_MODEL_ERROR_SIGN
+LINE_TRACK_MODEL_GYRO_SIGN
+
+LINE_TRACK_MODEL_WHEEL_DIAMETER_M
+LINE_TRACK_MODEL_EFFECTIVE_WHEEL_BASE_M
+LINE_TRACK_MODEL_MAX_CURVATURE_M_INV
+LINE_TRACK_MODEL_MAX_LATERAL_ACCEL_M_S2
+LINE_TRACK_MODEL_MIN_SPEED_RATIO
+
+LINE_TRACK_MODEL_MAX_ACCEL_RPM_S
+LINE_TRACK_MODEL_MAX_JERK_RPM_S2
+LINE_TRACK_MODEL_TURN_SLEW_RPM_PER_S
+
+LINE_TRACK_MODEL_GYRO_FILTER_ALPHA
+LINE_TRACK_MODEL_YAW_RATE_KP_RPM_PER_RAD_S
+LINE_TRACK_MODEL_YAW_RATE_FB_MAX_RPM
+```
+
+当前总开关默认关闭。开启前至少确认 `L_s`、轮径、有效轮距、红外误差方向和gyro方向。
+
+## 5. 调试快照API
+
+头文件：`Application/app_line_track.h`
+
+```c
+line_track_debug_t debug;
+
+if (app_line_track_get_debug(&debug)) {
+    /* 这里只读取数据；不要在2ms控制任务中printf或阻塞发送。 */
+}
+```
+
+`line_track_debug_t` 与 `line_track_output_t` 共用同一结构，避免维护两套字段。主要模型字段：
+
+```text
+line_error_m
+curvature_raw_m_inv
+curvature_m_inv
+base_request_rpm
+base_planned_rpm
+base_accel_rpm_s
+yaw_rate_ref_dps
+yaw_rate_measured_dps
+yaw_rate_error_dps
+turn_feedforward_rpm
+turn_feedback_rpm
+model_enabled
+model_valid
+model_imu_rate_valid
+```
+
+建议由500Hz控制任务只复制快照，再由低优先级UART或BLE任务格式化和发送。
+
+## 6. UART1/未来BLE日志
+
+现有 `app_uart1_ble_debug.c` 已按以下方式工作：
+
+1. 控制任务只复制结构体；
+2. 低优先级任务每500 ms格式化一次；
+3. 不在控制环中等待UART；
+4. 模型开启时输出紧凑的 `LT,v=2` 日志；
+5. 模型关闭时保持原有 `LT,...` 日志。
+
+模型日志主要字段：
+
+```text
+mv   本周期模型是否有效
+bm   红外黑线掩码
+e    归一化红外偏差
+em   实际横向偏差(m)
+k    曲率(1/m)
+br   曲率限速请求RPM
+bp   S型规划中心RPM
+ba   规划加速度(RPM/s)
+rr   目标角速度(deg/s)
+rm   实测角速度(deg/s)
+re   角速度误差(deg/s)
+ff   运动学前馈差速RPM
+fb   gyro反馈差速RPM
+turn 最终差速RPM
+tl/tr 左右目标RPM
+rpmL/rpmR 左右实测RPM
+iv   角速度反馈是否使用有效IMU
+```
+
+未来蓝牙接到Board B后，不要把BLE发送逻辑塞进 `app_line_track.c`。Board A继续生成快照/日志，由Board B通过板间协议或透明日志通道转发给BLE即可。
+
+## 7. 推荐实车启用顺序
+
+### 第1步：旧算法跑通
+
+```c
+LINE_TRACK_MODEL_CONTROL_ENABLE 0U
+```
+
+确认：
+
+1. 黑线偏左时右轮目标大于左轮目标；
+2. 黑线偏右时左轮目标大于右轮目标；
+3. 编码器方向和电机方向正确；
+4. 速度内环已单独整定稳定。
+
+### 第2步：只开曲率和运动学前馈
+
+```c
+LINE_TRACK_MODEL_CONTROL_ENABLE 1U
+LINE_TRACK_MODEL_GYRO_RATE_ENABLE 0U
+```
+
+低速检查 `e → k → ff → 左右轮目标` 的符号和幅值。若方向错误先修符号，不调PID。
+
+### 第3步：标定几何参数
+
+1. 实测红外排到旋转中心距离 `L_s`；
+2. 核对轮径；
+3. 让车辆做稳定圆弧，利用 `rr/rm` 调整 `b_eff`；
+4. 先保证前馈基本正确，再开gyro反馈。
+
+### 第4步：开启gyro角速度反馈
+
+```c
+LINE_TRACK_MODEL_GYRO_RATE_ENABLE 1U
+```
+
+从较小 `K_rate` 开始：
+
+- 入弯不足、`rm`长期小于`rr`：适当增大K；
+- 高频左右摆动、`fb`快速变号：减小K或降低滤波alpha；
+- `rr`和`rm`符号相反：先修 `GYRO_SIGN`，禁止继续调K。
+
+### 第5步：提高速度
+
+每次只增加10～20 RPM，并观察：
+
+- 丢线次数；
+- 曲率峰值；
+- `br`与`bp`；
+- `rr/rm/re`；
+- 左右速度PI是否饱和；
+- 电流、轮胎打滑和机械振动。
+
+## 8. 安全和回退规则
+
+- 总宏关闭后，曲率模型不参与控制，原算法保持可用；
+- 丢线搜索继续使用原逻辑；
+- 直角弯兼容逻辑继续使用原逻辑；
+- IMU无效不停止循迹，只关闭角速度反馈；
+- 模型内部遇到NaN、非法几何参数或无效规划器时先回退旧算法；若最终左右轮目标仍为NaN/Inf，则本周期强制两轮目标为0并重置规划状态；
+- 单轮反转仍由 `LINE_TRACK_ALLOW_REVERSE` 控制；
+- 最终目标仍受 `PRJ_PLANNER_MAX_RPM` 和电机命令硬限幅约束；
+- STOP、故障和过流停车不等待规划器。
+
+## 9. 最低数学检查
+
+开启模型后应满足：
+
+```text
+line_error = 0       → kappa = 0 → turn_ff = 0
+line_error > 0       → kappa > 0 → right_target > left_target
+line_error < 0       → kappa < 0 → left_target > right_target
+base_planned = 0     → yaw_rate_ref = 0
+measured = reference → turn_fb = 0
+IMU过期              → turn_fb = 0，但turn_ff仍有效
+```
+
+任何一项不满足时，先关闭模型宏并核对方向和单位，不要直接通过增大PID参数掩盖问题。

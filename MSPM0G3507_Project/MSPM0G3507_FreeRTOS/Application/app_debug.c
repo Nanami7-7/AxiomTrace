@@ -636,7 +636,7 @@ void app_debug_encoder_capture_diag(uint32_t motor_id, uint32_t duration_ms)
 #endif
 }
 /**
- * @brief 通过 UART0 控制台读取并打印一次四路红外状态。
+ * @brief 通过 UART0 控制台读取并打印一次红外状态（四/五路自适应）。
  * @note 只读传感器，不启动循迹，不调用电机，也不使用 AB 协议。
  */
 void app_debug_ir_snapshot(void)
@@ -646,11 +646,19 @@ void app_debug_ir_snapshot(void)
     /* 复用红外 BSP 接口：1=黑线，0=白色。 */
     BSP_IR_Read(state);
 
-    (void)printf("[IR CONSOLE] CH1=%u CH2=%u CH3=%u CH4=%u (1=黑线,0=白色)\r\n",
+    (void)printf("[IR CONSOLE] CH1=%u CH2=%u CH3=%u CH4=%u"
+#if (BSP_IR_CHANNEL_COUNT >= 5U)
+                 " CH5=%u"
+#endif
+                 " (1=黑线,0=白色)\r\n",
                  (unsigned)state[0],
                  (unsigned)state[1],
                  (unsigned)state[2],
-                 (unsigned)state[3]);
+                 (unsigned)state[3]
+#if (BSP_IR_CHANNEL_COUNT >= 5U)
+                 , (unsigned)state[4]
+#endif
+                );
 }
 /* ======================== ADC测试 ======================== */
 

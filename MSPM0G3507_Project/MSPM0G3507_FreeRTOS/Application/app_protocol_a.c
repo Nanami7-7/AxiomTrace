@@ -1,11 +1,12 @@
 /**
  * @file    app_protocol_a.c
- * @brief   Board A UART1 COBS 协议任务和应用适配。
+ * @brief   Board A UART1 协议任务和应用适配。
  *
- * 本文件只做三件事：读取 UART1 字节、调用协议层、把协议层命令
+ * 本文件只做三件事：读取 UART1 字节、调用当前协议层、把协议层命令
  * 映射到已有应用/BSP接口。后续增加业务时优先修改本文件的适配回调。
  */
 #include "app_protocol_a.h"
+#include "app_f4_protocol.h"
 #include "app_protocol_user.h"
 #include "app_main.h"
 #include "proto_dispatch.h"
@@ -339,9 +340,15 @@ static const proto_dispatch_adapter_t s_adapter = {
 void app_protocol_a_task(void *param)
 {
     uint8_t byte;
-    size_t decoded_len;
     (void)param;
     for (;;) {
+#if (PRJ_F4_PROTOCOL_ENABLE != 0U)
+        while (proto_uart1_a_getc(&byte) == BSP_OK) {
+            app_f4_protocol_feed_byte(byte);
+        }
+        app_f4_protocol_tick(protocol_now_ms());
+#else
+        size_t decoded_len;
         while (proto_uart1_a_getc(&byte) == BSP_OK) {
             proto_stream_result_t result = proto_stream_feed(
                 &s_stream, byte, s_decoded, sizeof(s_decoded), &decoded_len);
@@ -354,6 +361,7 @@ void app_protocol_a_task(void *param)
         proto_dispatch_tick(&s_dispatch);
         proto_dispatch_periodic_status(&s_dispatch, protocol_now_ms(),
                                        APP_PROTOCOL_A_STATUS_PERIOD_MS);
+#endif
         osal_task_delay_ms(APP_PROTOCOL_A_TICK_MS);
     }
 }
@@ -363,10 +371,14 @@ int32_t app_protocol_a_init(void)
     if (proto_uart1_a_init() != BSP_OK) {
         return -1;
     }
+#if (PRJ_F4_PROTOCOL_ENABLE != 0U)
+    app_f4_protocol_init();
+#else
     proto_stream_init(&s_stream);
     (void)memset(&s_stats, 0, sizeof(s_stats));
     proto_dispatch_init(&s_dispatch, &s_adapter, &s_stats);
     s_dispatch.motor_count = BSP_MOTOR_COUNT;
+#endif
     if (osal_task_create(app_protocol_a_task, "proto_a",
                          APP_PROTOCOL_A_TASK_STACK_WORDS, NULL,
                          APP_PROTOCOL_A_TASK_PRIORITY) == NULL) {

@@ -2,7 +2,7 @@
  * @file    proto_uart1_a.h
  * @brief   Board A UART1 板间协议传输层。
  *
- * UART1 只负责 Board A 与 Board B 的 COBS 二进制协议，不输出调试文本。
+ * UART1 只负责板间二进制协议传输，不输出调试文本。当前启用 F4 固定帧协议时，`PRJ_F4_PROTOCOL_ENABLE` 为 1；关闭时保留旧 COBS 协议路径。
  */
 #ifndef PROTO_UART1_A_H
 #define PROTO_UART1_A_H

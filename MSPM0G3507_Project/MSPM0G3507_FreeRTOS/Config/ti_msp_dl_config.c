@@ -237,6 +237,10 @@ SYSCONFIG_WEAK void SYSCFG_DL_GPIO_init(void)
 		 DL_GPIO_INVERSION_DISABLE, DL_GPIO_RESISTOR_PULL_UP,
 		 DL_GPIO_HYSTERESIS_DISABLE, DL_GPIO_WAKEUP_DISABLE);
 
+    DL_GPIO_initDigitalInputFeatures(IR_CH5_IOMUX,
+		 DL_GPIO_INVERSION_DISABLE, DL_GPIO_RESISTOR_PULL_UP,
+		 DL_GPIO_HYSTERESIS_DISABLE, DL_GPIO_WAKEUP_DISABLE);
+
     DL_GPIO_clearPins(GPIOA, LED_A27_PIN);
     DL_GPIO_setPins(GPIOA, IIC_SCL_PIN |
 		IIC_SDA_PIN);
@@ -708,11 +712,11 @@ SYSCONFIG_WEAK void SYSCFG_DL_UART1_init(void)
     DL_UART_Main_init(UART1_INST, (DL_UART_Main_Config *) &gUART1Config);
     /*
      * Configure baud rate by setting oversampling and baud rate divisors.
-     *  Target baud rate: 115200
-     *  Actual baud rate: 115190.78
+     *  Target baud rate: 230400
+     *  Actual baud rate: 230547.55
      */
     DL_UART_Main_setOversampling(UART1_INST, DL_UART_OVERSAMPLING_RATE_16X);
-    DL_UART_Main_setBaudRateDivisor(UART1_INST, UART1_IBRD_40_MHZ_115200_BAUD, UART1_FBRD_40_MHZ_115200_BAUD);
+    DL_UART_Main_setBaudRateDivisor(UART1_INST, UART1_IBRD_40_MHZ_230400_BAUD, UART1_FBRD_40_MHZ_230400_BAUD);
 
 
     /* Configure Interrupts */
